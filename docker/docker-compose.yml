@@ -47,6 +47,15 @@ services:
       - ../.env
     ports:
       - "4000:4000"
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/test:/app/test
+      - ../backend/tsconfig.json:/app/tsconfig.json
+      - ../backend/tsconfig.build.json:/app/tsconfig.build.json
+      - ../backend/nest-cli.json:/app/nest-cli.json
+      - ../backend/eslint.config.mjs:/app/eslint.config.mjs
+      - /app/node_modules
+    command: npm run start:dev
     depends_on:
       postgres:
         condition: service_healthy
