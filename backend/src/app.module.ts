@@ -5,6 +5,7 @@ import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import databaseConfig from './config/database.config';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import databaseConfig from './config/database.config';
         migrationsTableName: 'migrations',
       }),
     }),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
