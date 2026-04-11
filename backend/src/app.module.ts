@@ -6,6 +6,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import databaseConfig from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CandidateProfilesModule } from './modules/candidate-profiles/candidate-profiles.module';
+import { RecruiterProfilesModule } from './modules/recruiter-profiles/recruiter-profiles.module';
+import { InstitutionsModule } from './modules/institutions/institutions.module';
 
 @Module({
   imports: [
@@ -28,6 +32,10 @@ import { AuthModule } from './modules/auth/auth.module';
       }),
     }),
     AuthModule,
+    UsersModule,
+    CandidateProfilesModule,
+    RecruiterProfilesModule,
+    InstitutionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
