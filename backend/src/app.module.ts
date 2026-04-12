@@ -10,6 +10,8 @@ import { UsersModule } from './modules/users/users.module';
 import { CandidateProfilesModule } from './modules/candidate-profiles/candidate-profiles.module';
 import { RecruiterProfilesModule } from './modules/recruiter-profiles/recruiter-profiles.module';
 import { InstitutionsModule } from './modules/institutions/institutions.module';
+import { CredentialTypesModule } from './modules/credential-types/credential-types.module';
+import { CredentialsModule } from './modules/credentials/credentials.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     CandidateProfilesModule,
     RecruiterProfilesModule,
     InstitutionsModule,
+    CredentialTypesModule,
+    CredentialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
