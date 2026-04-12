@@ -12,6 +12,9 @@ import { RecruiterProfilesModule } from './modules/recruiter-profiles/recruiter-
 import { InstitutionsModule } from './modules/institutions/institutions.module';
 import { CredentialTypesModule } from './modules/credential-types/credential-types.module';
 import { CredentialsModule } from './modules/credentials/credentials.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { JobsModule } from './modules/jobs/jobs.module';
+import { ApplicationsModule } from './modules/applications/applications.module';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { CredentialsModule } from './modules/credentials/credentials.module';
     InstitutionsModule,
     CredentialTypesModule,
     CredentialsModule,
+    NotificationsModule,
+    JobsModule,
+    ApplicationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

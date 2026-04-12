@@ -7,7 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution } from '../../database/entities/institution.entity';
-import { ApprovalStatus } from '../../database/enums';
+import { ApprovalStatus, NotificationType } from '../../database/enums';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApproveInstitutionDto } from './dto/approve-institution.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
@@ -17,6 +18,7 @@ export class InstitutionsService {
   constructor(
     @InjectRepository(Institution)
     private readonly repo: Repository<Institution>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(
@@ -76,6 +78,30 @@ export class InstitutionsService {
       institution.approvedAt = new Date();
     }
 
-    return this.repo.save(institution);
+    const saved = await this.repo.save(institution);
+
+    if (dto.approvalStatus === ApprovalStatus.APPROVED) {
+      await this.notifications.create({
+        userId: saved.userId,
+        type: NotificationType.INSTITUTION_APPROVED,
+        title: 'Institution approved',
+        message: `Your institution "${saved.name}" has been approved.`,
+        referenceType: 'institution',
+        referenceId: saved.id,
+      });
+    } else if (dto.approvalStatus === ApprovalStatus.REJECTED) {
+      await this.notifications.create({
+        userId: saved.userId,
+        type: NotificationType.INSTITUTION_REJECTED,
+        title: 'Institution rejected',
+        message:
+          saved.rejectionReason ??
+          `Your institution "${saved.name}" was rejected.`,
+        referenceType: 'institution',
+        referenceId: saved.id,
+      });
+    }
+
+    return saved;
   }
 }

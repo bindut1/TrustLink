@@ -1,0 +1,174 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
+import { Application } from '../../database/entities/application.entity';
+import { Job } from '../../database/entities/job.entity';
+import { User } from '../../database/entities/user.entity';
+import {
+  ApplicationStatus,
+  JobStatus,
+  NotificationType,
+  UserRole,
+} from '../../database/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import { CreateApplicationDto } from './dto/create-application.dto';
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+
+const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> =
+  {
+    [ApplicationStatus.APPLIED]: [
+      ApplicationStatus.REVIEWING,
+      ApplicationStatus.REJECTED,
+    ],
+    [ApplicationStatus.REVIEWING]: [
+      ApplicationStatus.SHORTLISTED,
+      ApplicationStatus.REJECTED,
+    ],
+    [ApplicationStatus.SHORTLISTED]: [
+      ApplicationStatus.INTERVIEW,
+      ApplicationStatus.REJECTED,
+    ],
+    [ApplicationStatus.INTERVIEW]: [
+      ApplicationStatus.OFFERED,
+      ApplicationStatus.REJECTED,
+    ],
+    [ApplicationStatus.OFFERED]: [ApplicationStatus.REJECTED],
+    [ApplicationStatus.REJECTED]: [],
+    [ApplicationStatus.WITHDRAWN]: [],
+  };
+
+@Injectable()
+export class ApplicationsService {
+  constructor(
+    @InjectRepository(Application)
+    private readonly repo: Repository<Application>,
+    @InjectRepository(Job)
+    private readonly jobRepo: Repository<Job>,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  async create(
+    candidate: User,
+    dto: CreateApplicationDto,
+  ): Promise<Application> {
+    if (candidate.role !== UserRole.CANDIDATE) {
+      throw new ForbiddenException('Only candidates can apply to jobs');
+    }
+
+    const job = await this.jobRepo.findOne({ where: { id: dto.jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== JobStatus.OPEN) {
+      throw new BadRequestException('Job is not open for applications');
+    }
+
+    const application = this.repo.create({
+      jobId: job.id,
+      candidateId: candidate.id,
+      coverLetter: dto.coverLetter ?? null,
+      resumeUrl: dto.resumeUrl ?? null,
+      status: ApplicationStatus.APPLIED,
+      statusChangedAt: new Date(),
+      // match_score* fields are filled later by the AI matching module.
+    });
+
+    let saved: Application;
+    try {
+      saved = await this.repo.save(application);
+    } catch (err) {
+      if (
+        err instanceof QueryFailedError &&
+        (err as QueryFailedError & { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException('Already applied to this job');
+      }
+      throw err;
+    }
+
+    await this.notifications.create({
+      userId: job.recruiterId,
+      type: NotificationType.APPLICATION_RECEIVED,
+      title: 'New application received',
+      message: `${candidate.fullName} applied to your job "${job.title}".`,
+      referenceType: 'application',
+      referenceId: saved.id,
+    });
+
+    return saved;
+  }
+
+  async findMy(candidateId: string): Promise<Application[]> {
+    return this.repo.find({
+      where: { candidateId },
+      relations: ['job'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findForJob(jobId: string, recruiterId: string): Promise<Application[]> {
+    const job = await this.jobRepo.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.recruiterId !== recruiterId) {
+      throw new ForbiddenException('Not the owner of this job');
+    }
+
+    // Sort by match_score DESC; NULLS LAST so unscored applications sink.
+    return this.repo
+      .createQueryBuilder('application')
+      .leftJoinAndSelect('application.candidate', 'candidate')
+      .where('application.job_id = :jobId', { jobId })
+      .orderBy('application.match_score', 'DESC', 'NULLS LAST')
+      .addOrderBy('application.created_at', 'DESC')
+      .getMany();
+  }
+
+  async updateStatus(
+    id: string,
+    recruiterId: string,
+    dto: UpdateApplicationStatusDto,
+  ): Promise<Application> {
+    const application = await this.repo.findOne({
+      where: { id },
+      relations: ['job'],
+    });
+    if (!application) throw new NotFoundException('Application not found');
+    if (application.job.recruiterId !== recruiterId) {
+      throw new ForbiddenException(
+        'Not the owner of this job / application',
+      );
+    }
+
+    if (dto.status !== application.status) {
+      const allowed = ALLOWED_STATUS_TRANSITIONS[application.status] ?? [];
+      if (!allowed.includes(dto.status)) {
+        throw new BadRequestException(
+          `Cannot transition from ${application.status} to ${dto.status}`,
+        );
+      }
+      application.status = dto.status;
+      application.statusChangedAt = new Date();
+    }
+
+    if (dto.recruiterNotes !== undefined) {
+      application.recruiterNotes = dto.recruiterNotes;
+    }
+
+    const saved = await this.repo.save(application);
+
+    await this.notifications.create({
+      userId: saved.candidateId,
+      type: NotificationType.APPLICATION_STATUS_CHANGED,
+      title: 'Application status updated',
+      message: `Your application for "${application.job.title}" is now ${saved.status}.`,
+      referenceType: 'application',
+      referenceId: saved.id,
+    });
+
+    return saved;
+  }
+}

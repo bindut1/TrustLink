@@ -14,8 +14,10 @@ import { User } from '../../database/entities/user.entity';
 import {
   ApprovalStatus,
   CredentialStatus,
+  NotificationType,
   UserRole,
 } from '../../database/enums';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
@@ -39,6 +41,7 @@ export class CredentialsService {
     @InjectRepository(CandidateSkill)
     private readonly skillRepo: Repository<CandidateSkill>,
     private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(
@@ -88,7 +91,7 @@ export class CredentialsService {
     );
 
     // 6. Persist credential + candidate skills in a single transaction.
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       const credential = manager.create(Credential, {
         credentialNumber: dto.credentialNumber,
         credentialTypeId: credentialType.id,
@@ -101,12 +104,28 @@ export class CredentialsService {
         extractedSkills: skills.map((s) => s.name),
         status: CredentialStatus.PENDING,
       });
-      const saved = await manager.save(credential);
+      const persisted = await manager.save(credential);
 
-      await this.upsertCandidateSkills(manager, candidate.id, saved.id, skills);
+      await this.upsertCandidateSkills(
+        manager,
+        candidate.id,
+        persisted.id,
+        skills,
+      );
 
-      return saved;
+      return persisted;
     });
+
+    await this.notifications.create({
+      userId: candidate.id,
+      type: NotificationType.CREDENTIAL_ISSUED,
+      title: 'New credential issued',
+      message: `${institution.name} issued you the credential "${saved.title}".`,
+      referenceType: 'credential',
+      referenceId: saved.id,
+    });
+
+    return saved;
   }
 
   async findAll(query: ListCredentialsQueryDto): Promise<Credential[]> {

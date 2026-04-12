@@ -6,6 +6,7 @@ import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { CredentialsController } from './credentials.controller';
 import { CredentialsService } from './credentials.service';
 
@@ -19,6 +20,7 @@ import { CredentialsService } from './credentials.service';
       CandidateSkill,
     ]),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [CredentialsController],
   providers: [CredentialsService],
