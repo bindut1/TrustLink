@@ -3,28 +3,28 @@ pragma solidity ^0.8.24;
 
 /**
  * @title CredentialRegistry
- * @notice Stores credential hashes on-chain and manages authorized issuers.
+ * @notice On-chain credential hash storage with issuer management for TrustLink.
+ * @dev Deployed on Polygon Amoy testnet.
  */
 contract CredentialRegistry {
-    address public admin;
+    address public owner;
 
     mapping(address => bool) public authorizedIssuers;
     mapping(bytes32 => Credential) public credentials;
 
     struct Credential {
-        bytes32 credentialHash;
         address issuer;
-        uint256 issuedAt;
-        bool revoked;
+        uint256 timestamp;
+        bool isRevoked;
     }
 
     event IssuerAdded(address indexed issuer);
     event IssuerRemoved(address indexed issuer);
-    event CredentialIssued(bytes32 indexed credentialId, address indexed issuer, bytes32 credentialHash);
-    event CredentialRevoked(bytes32 indexed credentialId, address indexed issuer);
+    event CredentialIssued(bytes32 indexed credentialHash, address indexed issuer, uint256 timestamp);
+    event CredentialRevoked(bytes32 indexed credentialHash, address indexed issuer);
 
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Only admin");
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
         _;
     }
 
@@ -34,57 +34,57 @@ contract CredentialRegistry {
     }
 
     constructor() {
-        admin = msg.sender;
+        owner = msg.sender;
     }
 
-    function addIssuer(address _issuer) external onlyAdmin {
+    function addIssuer(address _issuer) external onlyOwner {
+        require(_issuer != address(0), "Invalid address");
+        require(!authorizedIssuers[_issuer], "Already an issuer");
         authorizedIssuers[_issuer] = true;
         emit IssuerAdded(_issuer);
     }
 
-    function removeIssuer(address _issuer) external onlyAdmin {
+    function removeIssuer(address _issuer) external onlyOwner {
+        require(authorizedIssuers[_issuer], "Not an issuer");
         authorizedIssuers[_issuer] = false;
         emit IssuerRemoved(_issuer);
     }
 
-    function issueCredential(
-        bytes32 _credentialId,
-        bytes32 _credentialHash
-    ) external onlyAuthorizedIssuer {
-        require(credentials[_credentialId].issuedAt == 0, "Credential already exists");
+    function issueCredential(bytes32 _credentialHash) external onlyAuthorizedIssuer {
+        require(credentials[_credentialHash].timestamp == 0, "Credential already exists");
 
-        credentials[_credentialId] = Credential({
-            credentialHash: _credentialHash,
+        credentials[_credentialHash] = Credential({
             issuer: msg.sender,
-            issuedAt: block.timestamp,
-            revoked: false
+            timestamp: block.timestamp,
+            isRevoked: false
         });
 
-        emit CredentialIssued(_credentialId, msg.sender, _credentialHash);
+        emit CredentialIssued(_credentialHash, msg.sender, block.timestamp);
     }
 
-    function revokeCredential(bytes32 _credentialId) external onlyAuthorizedIssuer {
-        Credential storage cred = credentials[_credentialId];
-        require(cred.issuedAt != 0, "Credential does not exist");
+    function revokeCredential(bytes32 _credentialHash) external onlyAuthorizedIssuer {
+        Credential storage cred = credentials[_credentialHash];
+        require(cred.timestamp != 0, "Credential does not exist");
         require(cred.issuer == msg.sender, "Not credential issuer");
-        require(!cred.revoked, "Already revoked");
+        require(!cred.isRevoked, "Already revoked");
 
-        cred.revoked = true;
-        emit CredentialRevoked(_credentialId, msg.sender);
+        cred.isRevoked = true;
+        emit CredentialRevoked(_credentialHash, msg.sender);
     }
 
-    function verifyCredential(
-        bytes32 _credentialId,
-        bytes32 _credentialHash
-    ) external view returns (bool valid, bool revoked) {
-        Credential storage cred = credentials[_credentialId];
-        if (cred.issuedAt == 0) return (false, false);
-        valid = (cred.credentialHash == _credentialHash);
-        revoked = cred.revoked;
+    function verifyCredential(bytes32 _credentialHash)
+        external
+        view
+        returns (bool exists, address issuer, uint256 timestamp, bool isRevoked)
+    {
+        Credential storage cred = credentials[_credentialHash];
+        if (cred.timestamp == 0) {
+            return (false, address(0), 0, false);
+        }
+        return (true, cred.issuer, cred.timestamp, cred.isRevoked);
     }
 
-    function transferAdmin(address _newAdmin) external onlyAdmin {
-        require(_newAdmin != address(0), "Invalid address");
-        admin = _newAdmin;
+    function isIssuer(address _addr) external view returns (bool) {
+        return authorizedIssuers[_addr];
     }
 }
