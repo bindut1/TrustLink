@@ -17,6 +17,7 @@ import {
   NotificationType,
   UserRole,
 } from '../../database/enums';
+import { BlockchainService } from '../blockchain/blockchain.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
@@ -42,6 +43,7 @@ export class CredentialsService {
     private readonly skillRepo: Repository<CandidateSkill>,
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
+    private readonly blockchain: BlockchainService,
   ) {}
 
   async create(
@@ -116,6 +118,11 @@ export class CredentialsService {
       return persisted;
     });
 
+    await this.blockchain.issueCredentialOnChain({
+      credentialId: saved.id,
+      initiatedBy: issuerUserId,
+    });
+
     await this.notifications.create({
       userId: candidate.id,
       type: NotificationType.CREDENTIAL_ISSUED,
@@ -184,7 +191,14 @@ export class CredentialsService {
     credential.status = CredentialStatus.REVOKED;
     credential.revokedAt = new Date();
     credential.revocationReason = dto.reason;
-    return this.credRepo.save(credential);
+    const saved = await this.credRepo.save(credential);
+
+    await this.blockchain.revokeCredentialOnChain({
+      credentialId: saved.id,
+      initiatedBy: issuerUserId,
+    });
+
+    return saved;
   }
 
   /**

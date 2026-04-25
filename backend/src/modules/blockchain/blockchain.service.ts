@@ -1,0 +1,461 @@
+import { InjectQueue } from '@nestjs/bull';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Queue } from 'bull';
+import { ethers } from 'ethers';
+import { Repository } from 'typeorm';
+import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
+import { Credential } from '../../database/entities/credential.entity';
+import {
+  CredentialStatus,
+  TxStatus,
+  TxType,
+} from '../../database/enums';
+import {
+  BLOCKCHAIN_JOB_ISSUE,
+  BLOCKCHAIN_JOB_REVOKE,
+  BLOCKCHAIN_QUEUE,
+  BlockchainTxJobData,
+} from './blockchain.constants';
+import { CREDENTIAL_REGISTRY_ABI } from './contract/credential-registry.abi';
+
+export interface OnChainVerification {
+  exists: boolean;
+  issuer: string;
+  timestamp: number;
+  isRevoked: boolean;
+}
+
+@Injectable()
+export class BlockchainService implements OnModuleInit {
+  private readonly logger = new Logger(BlockchainService.name);
+
+  private provider!: ethers.JsonRpcProvider;
+  private wallet!: ethers.Wallet;
+  private contract!: ethers.Contract;
+
+  // Serialize signed tx submissions so nonce stays consistent across queue
+  // workers and inline admin calls inside this process.
+  private submitChain: Promise<unknown> = Promise.resolve();
+
+  constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(BlockchainTransaction)
+    private readonly txRepo: Repository<BlockchainTransaction>,
+    @InjectRepository(Credential)
+    private readonly credRepo: Repository<Credential>,
+    @InjectQueue(BLOCKCHAIN_QUEUE) private readonly queue: Queue<BlockchainTxJobData>,
+  ) {}
+
+  onModuleInit(): void {
+    const rpcUrl = this.buildRpcUrl();
+    const privateKey = this.config.get<string>('DEPLOYER_PRIVATE_KEY');
+    const contractAddress = this.config.get<string>('CONTRACT_ADDRESS');
+
+    const addressValid = contractAddress && ethers.isAddress(contractAddress);
+
+    if (!privateKey || !addressValid) {
+      this.logger.warn(
+        'Blockchain not fully configured (missing or invalid DEPLOYER_PRIVATE_KEY / CONTRACT_ADDRESS). On-chain calls will be skipped.',
+      );
+    }
+
+    this.provider = new ethers.JsonRpcProvider(rpcUrl);
+    if (privateKey) {
+      this.wallet = new ethers.Wallet(privateKey, this.provider);
+    }
+    if (addressValid) {
+      this.contract = new ethers.Contract(
+        contractAddress!,
+        CREDENTIAL_REGISTRY_ABI as unknown as ethers.InterfaceAbi,
+        this.wallet ?? this.provider,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API consumed by other modules
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Compute deterministic bytes32 hash for a credential. The same fields must
+   * produce the same hash on issuance and verification.
+   */
+  computeCredentialHash(credential: Credential): string {
+    const payload = {
+      credentialNumber: credential.credentialNumber,
+      institutionId: credential.institutionId,
+      candidateId: credential.candidateId,
+      title: credential.title,
+      issuedDate: this.normalizeDate(credential.issuedDate),
+      expiryDate: credential.expiryDate
+        ? this.normalizeDate(credential.expiryDate)
+        : null,
+      metadata: credential.metadata ?? {},
+    };
+    return ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(payload)));
+  }
+
+  /**
+   * Persist credential hash, create a queued blockchain_transactions row, and
+   * enqueue a Bull job that the worker will pick up.
+   */
+  async issueCredentialOnChain(args: {
+    credentialId: string;
+    initiatedBy: string;
+  }): Promise<BlockchainTransaction> {
+    const credential = await this.credRepo.findOne({
+      where: { id: args.credentialId },
+    });
+    if (!credential) {
+      throw new InternalServerErrorException(
+        `Credential ${args.credentialId} not found while queueing issuance`,
+      );
+    }
+
+    const hash = credential.credentialHash ?? this.computeCredentialHash(credential);
+    if (credential.credentialHash !== hash) {
+      credential.credentialHash = hash;
+      await this.credRepo.save(credential);
+    }
+
+    const tx = await this.txRepo.save(
+      this.txRepo.create({
+        transactionType: TxType.ISSUE_CREDENTIAL,
+        status: TxStatus.QUEUED,
+        credentialId: credential.id,
+        institutionId: credential.institutionId,
+        initiatedBy: args.initiatedBy,
+        contractMethod: 'issueCredential',
+        contractParams: { credentialHash: hash },
+      }),
+    );
+
+    await this.queue.add(
+      BLOCKCHAIN_JOB_ISSUE,
+      { transactionId: tx.id },
+      { attempts: 1, removeOnComplete: true, removeOnFail: false },
+    );
+
+    return tx;
+  }
+
+  async revokeCredentialOnChain(args: {
+    credentialId: string;
+    initiatedBy: string;
+  }): Promise<BlockchainTransaction> {
+    const credential = await this.credRepo.findOne({
+      where: { id: args.credentialId },
+    });
+    if (!credential) {
+      throw new InternalServerErrorException(
+        `Credential ${args.credentialId} not found while queueing revoke`,
+      );
+    }
+    const hash = credential.credentialHash ?? this.computeCredentialHash(credential);
+
+    const tx = await this.txRepo.save(
+      this.txRepo.create({
+        transactionType: TxType.REVOKE_CREDENTIAL,
+        status: TxStatus.QUEUED,
+        credentialId: credential.id,
+        institutionId: credential.institutionId,
+        initiatedBy: args.initiatedBy,
+        contractMethod: 'revokeCredential',
+        contractParams: { credentialHash: hash },
+      }),
+    );
+
+    await this.queue.add(
+      BLOCKCHAIN_JOB_REVOKE,
+      { transactionId: tx.id },
+      { attempts: 1, removeOnComplete: true, removeOnFail: false },
+    );
+
+    return tx;
+  }
+
+  /**
+   * Admin-only direct call: register an institution's wallet as an authorized
+   * issuer on the contract. Synchronous because admin needs immediate feedback,
+   * and addIssuer is a rare, owner-only operation.
+   */
+  async addIssuerOnChain(args: {
+    institutionId: string;
+    address: string;
+    initiatedBy: string;
+  }): Promise<BlockchainTransaction> {
+    if (!this.contract || !this.wallet) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+    if (!ethers.isAddress(args.address)) {
+      throw new InternalServerErrorException(
+        `Invalid issuer address: ${args.address}`,
+      );
+    }
+
+    const txRow = await this.txRepo.save(
+      this.txRepo.create({
+        transactionType: TxType.ADD_ISSUER,
+        status: TxStatus.QUEUED,
+        institutionId: args.institutionId,
+        initiatedBy: args.initiatedBy,
+        contractMethod: 'addIssuer',
+        contractParams: { address: args.address },
+      }),
+    );
+
+    return this.runSerialized(async () => {
+      try {
+        const nonce = await this.provider.getTransactionCount(
+          this.wallet.address,
+          'pending',
+        );
+        const sentTx = await this.contract.addIssuer(args.address, { nonce });
+
+        txRow.status = TxStatus.SUBMITTED;
+        txRow.txHash = sentTx.hash;
+        txRow.nonce = nonce;
+        txRow.submittedAt = new Date();
+        await this.txRepo.save(txRow);
+
+        const receipt = await sentTx.wait();
+        if (!receipt || receipt.status !== 1) {
+          throw new Error('addIssuer transaction reverted');
+        }
+
+        txRow.status = TxStatus.CONFIRMED;
+        txRow.blockNumber = receipt.blockNumber.toString();
+        txRow.gasUsed = receipt.gasUsed?.toString() ?? null;
+        txRow.gasPrice = receipt.gasPrice?.toString() ?? null;
+        txRow.confirmedAt = new Date();
+        return await this.txRepo.save(txRow);
+      } catch (err) {
+        txRow.status = TxStatus.FAILED;
+        txRow.errorMessage = (err as Error).message;
+        txRow.lastErrorAt = new Date();
+        txRow.failedAt = new Date();
+        await this.txRepo.save(txRow);
+        this.logger.error(
+          `addIssuerOnChain failed for institution ${args.institutionId}: ${(err as Error).message}`,
+        );
+        throw err;
+      }
+    });
+  }
+
+  /**
+   * Read-only verification — no gas, no signing.
+   */
+  async verifyCredentialOnChain(hash: string): Promise<OnChainVerification> {
+    if (!this.contract) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+    const result = await this.contract.verifyCredential(hash);
+    // ethers v6 returns a Result tuple-like object
+    return {
+      exists: Boolean(result[0]),
+      issuer: String(result[1]),
+      timestamp: Number(result[2]),
+      isRevoked: Boolean(result[3]),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Worker-facing API (called by BlockchainProcessor)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Process a queued blockchain_transactions row: sign, submit, await receipt,
+   * update DB. On failure, increment retry count and either re-queue or mark
+   * permanently failed.
+   */
+  async processTransaction(transactionId: string): Promise<void> {
+    const tx = await this.txRepo.findOne({ where: { id: transactionId } });
+    if (!tx) {
+      this.logger.warn(`processTransaction: tx ${transactionId} not found`);
+      return;
+    }
+
+    if (
+      tx.status === TxStatus.CONFIRMED ||
+      tx.status === TxStatus.FAILED
+    ) {
+      return;
+    }
+
+    if (!this.contract || !this.wallet) {
+      await this.markFailed(tx, new Error('Blockchain not configured'));
+      return;
+    }
+
+    try {
+      await this.runSerialized(() => this.submitAndConfirm(tx));
+    } catch (err) {
+      await this.handleFailure(tx, err as Error);
+    }
+  }
+
+  private async submitAndConfirm(tx: BlockchainTransaction): Promise<void> {
+    const nonce = await this.provider.getTransactionCount(
+      this.wallet.address,
+      'pending',
+    );
+
+    let sentTx: ethers.TransactionResponse;
+    if (tx.transactionType === TxType.ISSUE_CREDENTIAL) {
+      const hash = (tx.contractParams as { credentialHash: string })
+        .credentialHash;
+      sentTx = await this.contract.issueCredential(hash, { nonce });
+    } else if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
+      const hash = (tx.contractParams as { credentialHash: string })
+        .credentialHash;
+      sentTx = await this.contract.revokeCredential(hash, { nonce });
+    } else {
+      throw new Error(`Unsupported tx type for queue: ${tx.transactionType}`);
+    }
+
+    tx.status = TxStatus.SUBMITTED;
+    tx.txHash = sentTx.hash;
+    tx.nonce = nonce;
+    tx.submittedAt = new Date();
+    await this.txRepo.save(tx);
+
+    const receipt = await sentTx.wait();
+    if (!receipt || receipt.status !== 1) {
+      throw new Error('Transaction reverted on-chain');
+    }
+
+    tx.status = TxStatus.CONFIRMED;
+    tx.blockNumber = receipt.blockNumber.toString();
+    tx.gasUsed = receipt.gasUsed?.toString() ?? null;
+    tx.gasPrice = receipt.gasPrice?.toString() ?? null;
+    tx.confirmedAt = new Date();
+    await this.txRepo.save(tx);
+
+    await this.applyConfirmedSideEffects(tx, receipt);
+  }
+
+  private async applyConfirmedSideEffects(
+    tx: BlockchainTransaction,
+    receipt: ethers.TransactionReceipt,
+  ): Promise<void> {
+    if (!tx.credentialId) return;
+
+    const credential = await this.credRepo.findOne({
+      where: { id: tx.credentialId },
+    });
+    if (!credential) return;
+
+    const block = await this.provider.getBlock(receipt.blockNumber);
+    const blockTimestamp = block?.timestamp
+      ? new Date(block.timestamp * 1000)
+      : new Date();
+
+    if (tx.transactionType === TxType.ISSUE_CREDENTIAL) {
+      credential.status = CredentialStatus.ISSUED;
+      credential.blockchainTxHash = tx.txHash;
+      credential.blockchainBlockNumber = tx.blockNumber;
+      credential.blockchainTimestamp = blockTimestamp;
+    } else if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
+      credential.status = CredentialStatus.REVOKED;
+      if (!credential.revokedAt) credential.revokedAt = blockTimestamp;
+    }
+    await this.credRepo.save(credential);
+  }
+
+  private async handleFailure(
+    tx: BlockchainTransaction,
+    err: Error,
+  ): Promise<void> {
+    tx.retryCount += 1;
+    tx.errorMessage = err.message;
+    tx.lastErrorAt = new Date();
+
+    if (tx.retryCount >= tx.maxRetries) {
+      tx.status = TxStatus.FAILED;
+      tx.failedAt = new Date();
+      await this.txRepo.save(tx);
+      this.logger.error(
+        `Tx ${tx.id} permanently failed after ${tx.retryCount} attempts: ${err.message}`,
+      );
+      return;
+    }
+
+    tx.status = TxStatus.RETRYING;
+    await this.txRepo.save(tx);
+    this.logger.warn(
+      `Tx ${tx.id} attempt ${tx.retryCount}/${tx.maxRetries} failed: ${err.message}. Re-queueing.`,
+    );
+
+    const jobName =
+      tx.transactionType === TxType.REVOKE_CREDENTIAL
+        ? BLOCKCHAIN_JOB_REVOKE
+        : BLOCKCHAIN_JOB_ISSUE;
+    await this.queue.add(
+      jobName,
+      { transactionId: tx.id },
+      {
+        attempts: 1,
+        delay: this.backoffDelay(tx.retryCount),
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+  }
+
+  private async markFailed(
+    tx: BlockchainTransaction,
+    err: Error,
+  ): Promise<void> {
+    tx.status = TxStatus.FAILED;
+    tx.errorMessage = err.message;
+    tx.failedAt = new Date();
+    tx.lastErrorAt = new Date();
+    await this.txRepo.save(tx);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  private buildRpcUrl(): string {
+    const explicit = this.config.get<string>('POLYGON_AMOY_RPC_URL');
+    const alchemyKey = this.config.get<string>('ALCHEMY_API_KEY');
+    if (alchemyKey) {
+      return `https://polygon-amoy.g.alchemy.com/v2/${alchemyKey}`;
+    }
+    return explicit ?? 'https://rpc-amoy.polygon.technology';
+  }
+
+  /** Run an action serially with all other on-chain submissions in this process. */
+  private async runSerialized<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.submitChain.then(fn, fn);
+    this.submitChain = next.catch(() => undefined);
+    return next;
+  }
+
+  private backoffDelay(attempt: number): number {
+    return Math.min(60_000, 2 ** attempt * 1_000);
+  }
+
+  private normalizeDate(d: Date | string): string {
+    const date = d instanceof Date ? d : new Date(d);
+    return date.toISOString().slice(0, 10);
+  }
+
+  // Exposed for the reconciliation cron.
+  getProvider(): ethers.JsonRpcProvider {
+    return this.provider;
+  }
+
+  isReady(): boolean {
+    return Boolean(this.contract && this.wallet);
+  }
+}

@@ -2,12 +2,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution } from '../../database/entities/institution.entity';
 import { ApprovalStatus, NotificationType } from '../../database/enums';
+import { BlockchainService } from '../blockchain/blockchain.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApproveInstitutionDto } from './dto/approve-institution.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
@@ -15,10 +17,13 @@ import { UpdateInstitutionDto } from './dto/update-institution.dto';
 
 @Injectable()
 export class InstitutionsService {
+  private readonly logger = new Logger(InstitutionsService.name);
+
   constructor(
     @InjectRepository(Institution)
     private readonly repo: Repository<Institution>,
     private readonly notifications: NotificationsService,
+    private readonly blockchain: BlockchainService,
   ) {}
 
   async create(
@@ -81,6 +86,24 @@ export class InstitutionsService {
     const saved = await this.repo.save(institution);
 
     if (dto.approvalStatus === ApprovalStatus.APPROVED) {
+      if (saved.blockchainAddress) {
+        try {
+          await this.blockchain.addIssuerOnChain({
+            institutionId: saved.id,
+            address: saved.blockchainAddress,
+            initiatedBy: adminId,
+          });
+        } catch (err) {
+          this.logger.error(
+            `addIssuer on-chain failed for institution ${saved.id}: ${(err as Error).message}`,
+          );
+        }
+      } else {
+        this.logger.warn(
+          `Institution ${saved.id} approved without a blockchain_address; skipping addIssuer.`,
+        );
+      }
+
       await this.notifications.create({
         userId: saved.userId,
         type: NotificationType.INSTITUTION_APPROVED,
