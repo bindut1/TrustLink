@@ -4,20 +4,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { ethers } from 'ethers';
+import { DataSource, MoreThan, Repository } from 'typeorm';
 import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { CredentialType } from '../../database/entities/credential-type.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
+import { VerificationCache } from '../../database/entities/verification-cache.entity';
 import {
   ApprovalStatus,
   CredentialStatus,
   NotificationType,
   UserRole,
+  VerificationResult,
 } from '../../database/enums';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { VcService } from '../blockchain/vc.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
@@ -27,6 +32,15 @@ import {
   ExtractedSkill,
   extractSkillsFromMetadata,
 } from './helpers/skill-extractor';
+
+export interface VerificationOutcome {
+  result: VerificationResult;
+  on_chain_verified: boolean;
+  vc_signature_valid: boolean;
+  issuer_authorized: boolean;
+  details: Record<string, unknown>;
+  cached: boolean;
+}
 
 @Injectable()
 export class CredentialsService {
@@ -41,9 +55,13 @@ export class CredentialsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(CandidateSkill)
     private readonly skillRepo: Repository<CandidateSkill>,
+    @InjectRepository(VerificationCache)
+    private readonly verificationCacheRepo: Repository<VerificationCache>,
     private readonly dataSource: DataSource,
+    private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly blockchain: BlockchainService,
+    private readonly vcService: VcService,
   ) {}
 
   async create(
@@ -199,6 +217,168 @@ export class CredentialsService {
     });
 
     return saved;
+  }
+
+  /**
+   * Return the W3C VC payload for download. Both the JWT and the JSON form
+   * are included; the JWT is the authoritative signed artifact.
+   */
+  async getVc(id: string): Promise<{
+    vc_jwt: string;
+    vc_json: Record<string, unknown>;
+    issuer_did: string;
+  }> {
+    const credential = await this.credRepo.findOne({ where: { id } });
+    if (!credential) throw new NotFoundException('Credential not found');
+    if (!credential.vcJwt || !credential.vcJson || !credential.issuerDid) {
+      throw new BadRequestException(
+        'VC has not been issued for this credential yet',
+      );
+    }
+    return {
+      vc_jwt: credential.vcJwt,
+      vc_json: credential.vcJson,
+      issuer_did: credential.issuerDid,
+    };
+  }
+
+  /**
+   * 1-click verification: cache lookup → on-chain check → VC signature →
+   * issuer authorization. Caches the composite result with a configurable TTL.
+   */
+  async verify(
+    id: string,
+    verifierUserId?: string,
+  ): Promise<VerificationOutcome> {
+    const credential = await this.credRepo.findOne({ where: { id } });
+    if (!credential) throw new NotFoundException('Credential not found');
+    if (!credential.credentialHash) {
+      throw new BadRequestException(
+        'Credential has not been hashed yet — cannot verify',
+      );
+    }
+
+    const cached = await this.verificationCacheRepo.findOne({
+      where: {
+        credentialId: id,
+        expiresAt: MoreThan(new Date()),
+      },
+      order: { verifiedAt: 'DESC' },
+    });
+    if (cached) {
+      return {
+        result: cached.result,
+        on_chain_verified: cached.onChainVerified,
+        vc_signature_valid: cached.vcSignatureValid,
+        issuer_authorized: cached.issuerAuthorized,
+        details: cached.verificationDetails,
+        cached: true,
+      };
+    }
+
+    const outcome = await this.computeVerification(credential);
+
+    const ttlSeconds = parseInt(
+      this.config.get<string>('VERIFICATION_CACHE_TTL_SECONDS', '3600'),
+      10,
+    );
+    const expiresAt = new Date(
+      Date.now() + (Number.isFinite(ttlSeconds) ? ttlSeconds : 3600) * 1000,
+    );
+
+    await this.verificationCacheRepo.save(
+      this.verificationCacheRepo.create({
+        credentialId: credential.id,
+        credentialHash: credential.credentialHash,
+        result: outcome.result,
+        onChainVerified: outcome.on_chain_verified,
+        vcSignatureValid: outcome.vc_signature_valid,
+        issuerAuthorized: outcome.issuer_authorized,
+        verificationDetails: outcome.details,
+        verifiedBy: verifierUserId ?? null,
+        verifiedAt: new Date(),
+        expiresAt,
+      }),
+    );
+
+    return { ...outcome, cached: false };
+  }
+
+  private async computeVerification(
+    credential: Credential,
+  ): Promise<Omit<VerificationOutcome, 'cached'>> {
+    const details: Record<string, unknown> = {};
+
+    let onChainVerified = false;
+    let onChainIssuer: string | null = null;
+    let onChainRevoked = false;
+    let onChainExists = false;
+    try {
+      const onChain = await this.blockchain.verifyCredentialOnChain(
+        credential.credentialHash!,
+      );
+      onChainExists = onChain.exists;
+      onChainIssuer = onChain.issuer;
+      onChainRevoked = onChain.isRevoked;
+      onChainVerified = onChain.exists && !onChain.isRevoked;
+      details.onChain = {
+        exists: onChain.exists,
+        issuer: onChain.issuer,
+        timestamp: onChain.timestamp,
+        isRevoked: onChain.isRevoked,
+      };
+    } catch (err) {
+      details.onChainError = (err as Error).message;
+      return {
+        result: VerificationResult.ERROR,
+        on_chain_verified: false,
+        vc_signature_valid: false,
+        issuer_authorized: false,
+        details,
+      };
+    }
+
+    let vcSignatureValid = false;
+    if (credential.vcJwt) {
+      const verified = await this.vcService.verifyJwt(credential.vcJwt);
+      vcSignatureValid = verified.valid;
+      details.vc = {
+        valid: verified.valid,
+        issuerDid: verified.issuerDid,
+        signerAddress: verified.signerAddress,
+        ...(verified.error ? { error: verified.error } : {}),
+      };
+    } else {
+      details.vc = { valid: false, error: 'No VC JWT on credential' };
+    }
+
+    let issuerAuthorized = false;
+    if (onChainIssuer && onChainIssuer !== ethers.ZeroAddress) {
+      issuerAuthorized = await this.blockchain.isIssuerAuthorized(onChainIssuer);
+      details.issuerAuthorization = {
+        address: onChainIssuer,
+        authorized: issuerAuthorized,
+      };
+    }
+
+    let result: VerificationResult;
+    if (!onChainExists) {
+      result = VerificationResult.NOT_FOUND;
+    } else if (onChainRevoked) {
+      result = VerificationResult.REVOKED;
+    } else if (onChainVerified && vcSignatureValid && issuerAuthorized) {
+      result = VerificationResult.VALID;
+    } else {
+      result = VerificationResult.INVALID;
+    }
+
+    return {
+      result,
+      on_chain_verified: onChainVerified,
+      vc_signature_valid: vcSignatureValid,
+      issuer_authorized: issuerAuthorized,
+      details,
+    };
   }
 
   /**

@@ -82,4 +82,20 @@ export class CredentialsController {
   ) {
     return this.service.revoke(id, user.id, dto);
   }
+
+  @Get(':id/vc')
+  @RequireActions('credential.view')
+  @ApiOperation({ summary: 'Download W3C Verifiable Credential (JWT + JSON)' })
+  @ApiOkResponse({ description: 'VC payload' })
+  async getVc(@Param('id') id: string) {
+    return this.service.getVc(id);
+  }
+
+  @Get(':id/verify')
+  @RequireActions('credential.verify')
+  @ApiOperation({ summary: '1-click credential verification (cached)' })
+  @ApiOkResponse({ description: 'Verification outcome' })
+  async verify(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.service.verify(id, user?.id);
+  }
 }

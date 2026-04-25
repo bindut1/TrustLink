@@ -12,6 +12,8 @@ import { ethers } from 'ethers';
 import { Repository } from 'typeorm';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
 import { Credential } from '../../database/entities/credential.entity';
+import { Institution } from '../../database/entities/institution.entity';
+import { User } from '../../database/entities/user.entity';
 import {
   CredentialStatus,
   TxStatus,
@@ -24,6 +26,7 @@ import {
   BlockchainTxJobData,
 } from './blockchain.constants';
 import { CREDENTIAL_REGISTRY_ABI } from './contract/credential-registry.abi';
+import { VcService } from './vc.service';
 
 export interface OnChainVerification {
   exists: boolean;
@@ -50,7 +53,12 @@ export class BlockchainService implements OnModuleInit {
     private readonly txRepo: Repository<BlockchainTransaction>,
     @InjectRepository(Credential)
     private readonly credRepo: Repository<Credential>,
+    @InjectRepository(Institution)
+    private readonly institutionRepo: Repository<Institution>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     @InjectQueue(BLOCKCHAIN_QUEUE) private readonly queue: Queue<BlockchainTxJobData>,
+    private readonly vcService: VcService,
   ) {}
 
   onModuleInit(): void {
@@ -251,6 +259,26 @@ export class BlockchainService implements OnModuleInit {
   }
 
   /**
+   * Read-only check: is this address registered as an authorized issuer on
+   * the contract? Returns false on any error so callers can fold this into a
+   * verification result without throwing.
+   */
+  async isIssuerAuthorized(address: string): Promise<boolean> {
+    if (!this.contract) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+    if (!ethers.isAddress(address)) return false;
+    try {
+      return Boolean(await this.contract.isIssuer(address));
+    } catch (err) {
+      this.logger.warn(
+        `isIssuerAuthorized(${address}) failed: ${(err as Error).message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
    * Read-only verification — no gas, no signing.
    */
   async verifyCredentialOnChain(hash: string): Promise<OnChainVerification> {
@@ -363,11 +391,62 @@ export class BlockchainService implements OnModuleInit {
       credential.blockchainTxHash = tx.txHash;
       credential.blockchainBlockNumber = tx.blockNumber;
       credential.blockchainTimestamp = blockTimestamp;
-    } else if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
+      await this.credRepo.save(credential);
+      await this.signAndSaveVc(credential);
+      return;
+    }
+    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
       credential.status = CredentialStatus.REVOKED;
       if (!credential.revokedAt) credential.revokedAt = blockTimestamp;
     }
     await this.credRepo.save(credential);
+  }
+
+  /**
+   * Generate a W3C VC JWT once a credential is confirmed on-chain. Failures
+   * are logged but don't block — credential remains issued; we can re-sign
+   * later via reconciliation if needed.
+   */
+  private async signAndSaveVc(credential: Credential): Promise<void> {
+    if (credential.vcJwt) return;
+
+    if (!credential.institutionId || !credential.candidateId) {
+      this.logger.warn(
+        `VC signing skipped for credential ${credential.id}: missing institutionId or candidateId`,
+      );
+      return;
+    }
+
+    try {
+      const [institution, candidate] = await Promise.all([
+        this.institutionRepo.findOne({
+          where: { id: credential.institutionId },
+        }),
+        this.userRepo.findOne({ where: { id: credential.candidateId } }),
+      ]);
+      if (!institution || !candidate) {
+        this.logger.warn(
+          `VC signing skipped for credential ${credential.id}: institution or candidate not found`,
+        );
+        return;
+      }
+
+      const signed = await this.vcService.signCredential({
+        credential,
+        institution,
+        candidate,
+      });
+
+      credential.vcJwt = signed.vcJwt;
+      credential.vcJson = signed.vcJson;
+      credential.issuerDid = signed.issuerDid;
+      credential.digitalSignature = signed.vcJwt;
+      await this.credRepo.save(credential);
+    } catch (err) {
+      this.logger.error(
+        `Failed to sign VC for credential ${credential.id}: ${(err as Error).message}`,
+      );
+    }
   }
 
   private async handleFailure(
