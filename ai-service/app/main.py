@@ -36,5 +36,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router, tags=["health"])
-app.include_router(embedding.router, prefix="/api/v1", tags=["embeddings"])
+app.include_router(embedding.router, tags=["embeddings"])
 app.include_router(matching.router, prefix="/api/v1", tags=["matching"])
