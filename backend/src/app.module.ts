@@ -18,6 +18,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { MatchingModule } from './modules/matching/matching.module';
 
 @Module({
   imports: [
@@ -32,7 +33,9 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService): TypeOrmModuleOptions => ({
-        ...(config.get<TypeOrmModuleOptions>('database') as TypeOrmModuleOptions),
+        ...(config.get<TypeOrmModuleOptions>(
+          'database',
+        ) as TypeOrmModuleOptions),
         autoLoadEntities: true,
         entities: [join(__dirname, 'database', 'entities', '*.entity.{ts,js}')],
         migrations: [join(__dirname, 'database', 'migrations', '*.{ts,js}')],
@@ -58,6 +61,7 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
     CredentialTypesModule,
     CredentialsModule,
     NotificationsModule,
+    MatchingModule,
     JobsModule,
     ApplicationsModule,
   ],

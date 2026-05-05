@@ -11,6 +11,7 @@ import type { Queue } from 'bull';
 import { ethers } from 'ethers';
 import { Repository } from 'typeorm';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
+import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
@@ -26,6 +27,7 @@ import {
   BlockchainTxJobData,
 } from './blockchain.constants';
 import { CREDENTIAL_REGISTRY_ABI } from './contract/credential-registry.abi';
+import { EmbeddingService } from '../matching/embedding.service';
 import { VcService } from './vc.service';
 
 export interface OnChainVerification {
@@ -57,8 +59,11 @@ export class BlockchainService implements OnModuleInit {
     private readonly institutionRepo: Repository<Institution>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(CandidateSkill)
+    private readonly skillRepo: Repository<CandidateSkill>,
     @InjectQueue(BLOCKCHAIN_QUEUE) private readonly queue: Queue<BlockchainTxJobData>,
     private readonly vcService: VcService,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   onModuleInit(): void {
@@ -393,6 +398,8 @@ export class BlockchainService implements OnModuleInit {
       credential.blockchainTimestamp = blockTimestamp;
       await this.credRepo.save(credential);
       await this.signAndSaveVc(credential);
+      await this.setSkillsVerified(credential.id, true);
+      await this.refreshCandidateEmbedding(credential.candidateId);
       return;
     }
     if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
@@ -400,6 +407,42 @@ export class BlockchainService implements OnModuleInit {
       if (!credential.revokedAt) credential.revokedAt = blockTimestamp;
     }
     await this.credRepo.save(credential);
+    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
+      await this.setSkillsVerified(credential.id, false);
+      await this.refreshCandidateEmbedding(credential.candidateId);
+    }
+  }
+
+  /**
+   * Flip the `is_verified` flag on every candidate_skill that traces back to
+   * this credential. Issue → true (skill is now backed by an on-chain proof);
+   * revoke → false. Skills sourced from other still-valid credentials are
+   * untouched because the WHERE filter is by `source_credential_id`.
+   */
+  private async setSkillsVerified(
+    credentialId: string,
+    verified: boolean,
+  ): Promise<void> {
+    await this.skillRepo.update(
+      { sourceCredentialId: credentialId },
+      { isVerified: verified },
+    );
+  }
+
+  private async refreshCandidateEmbedding(
+    candidateId: string | null | undefined,
+  ): Promise<void> {
+    if (!candidateId) return;
+    try {
+      await this.embeddings.updateCandidateEmbedding(candidateId);
+    } catch (err) {
+      // Embedding refresh is best-effort: a failure here must not roll back
+      // the on-chain confirmation we already wrote. Log and move on; the
+      // reconciliation job (or a manual reindex) can retry later.
+      this.logger.warn(
+        `Failed to refresh embedding for candidate ${candidateId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   /**

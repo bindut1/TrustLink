@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,41 +17,47 @@ import {
   NotificationType,
   UserRole,
 } from '../../database/enums';
+import { MatchingService } from '../matching/matching.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
-const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> =
-  {
-    [ApplicationStatus.APPLIED]: [
-      ApplicationStatus.REVIEWING,
-      ApplicationStatus.REJECTED,
-    ],
-    [ApplicationStatus.REVIEWING]: [
-      ApplicationStatus.SHORTLISTED,
-      ApplicationStatus.REJECTED,
-    ],
-    [ApplicationStatus.SHORTLISTED]: [
-      ApplicationStatus.INTERVIEW,
-      ApplicationStatus.REJECTED,
-    ],
-    [ApplicationStatus.INTERVIEW]: [
-      ApplicationStatus.OFFERED,
-      ApplicationStatus.REJECTED,
-    ],
-    [ApplicationStatus.OFFERED]: [ApplicationStatus.REJECTED],
-    [ApplicationStatus.REJECTED]: [],
-    [ApplicationStatus.WITHDRAWN]: [],
-  };
+const ALLOWED_STATUS_TRANSITIONS: Record<
+  ApplicationStatus,
+  ApplicationStatus[]
+> = {
+  [ApplicationStatus.APPLIED]: [
+    ApplicationStatus.REVIEWING,
+    ApplicationStatus.REJECTED,
+  ],
+  [ApplicationStatus.REVIEWING]: [
+    ApplicationStatus.SHORTLISTED,
+    ApplicationStatus.REJECTED,
+  ],
+  [ApplicationStatus.SHORTLISTED]: [
+    ApplicationStatus.INTERVIEW,
+    ApplicationStatus.REJECTED,
+  ],
+  [ApplicationStatus.INTERVIEW]: [
+    ApplicationStatus.OFFERED,
+    ApplicationStatus.REJECTED,
+  ],
+  [ApplicationStatus.OFFERED]: [ApplicationStatus.REJECTED],
+  [ApplicationStatus.REJECTED]: [],
+  [ApplicationStatus.WITHDRAWN]: [],
+};
 
 @Injectable()
 export class ApplicationsService {
+  private readonly logger = new Logger(ApplicationsService.name);
+
   constructor(
     @InjectRepository(Application)
     private readonly repo: Repository<Application>,
     @InjectRepository(Job)
     private readonly jobRepo: Repository<Job>,
     private readonly notifications: NotificationsService,
+    private readonly matching: MatchingService,
   ) {}
 
   async create(
@@ -67,6 +74,39 @@ export class ApplicationsService {
       throw new BadRequestException('Job is not open for applications');
     }
 
+    // Snapshot the match score at apply time. Failures (e.g. AI service
+    // unreachable, embeddings not yet built) leave the score columns null —
+    // the application still goes through, and recruiters see it sorted
+    // NULLS LAST in `findForJob`.
+    let scoreSnapshot: {
+      matchScore: string;
+      keywordScore: string;
+      semanticScore: string;
+      verifiedBonus: string;
+      breakdown: Record<string, unknown>;
+    } | null = null;
+    try {
+      const score = await this.matching.calculateScore(candidate.id, job.id);
+      scoreSnapshot = {
+        matchScore: score.totalScore.toFixed(2),
+        keywordScore: score.keywordScore.toFixed(2),
+        semanticScore: score.semanticScore.toFixed(2),
+        verifiedBonus: score.verifiedBonus.toFixed(2),
+        breakdown: {
+          totalScore: score.totalScore,
+          keywordScore: score.keywordScore,
+          semanticScore: score.semanticScore,
+          verifiedBonus: score.verifiedBonus,
+          weights: { keyword: 0.4, semantic: 0.5, verified: 0.1 },
+          computedAt: new Date().toISOString(),
+        },
+      };
+    } catch (err) {
+      this.logger.warn(
+        `Match score snapshot failed for candidate=${candidate.id} job=${job.id}: ${(err as Error).message}`,
+      );
+    }
+
     const application = this.repo.create({
       jobId: job.id,
       candidateId: candidate.id,
@@ -74,7 +114,11 @@ export class ApplicationsService {
       resumeUrl: dto.resumeUrl ?? null,
       status: ApplicationStatus.APPLIED,
       statusChangedAt: new Date(),
-      // match_score* fields are filled later by the AI matching module.
+      matchScore: scoreSnapshot?.matchScore ?? null,
+      keywordScore: scoreSnapshot?.keywordScore ?? null,
+      semanticScore: scoreSnapshot?.semanticScore ?? null,
+      verifiedBonus: scoreSnapshot?.verifiedBonus ?? null,
+      scoreBreakdown: scoreSnapshot?.breakdown ?? {},
     });
 
     let saved: Application;
@@ -138,9 +182,7 @@ export class ApplicationsService {
     });
     if (!application) throw new NotFoundException('Application not found');
     if (application.job.recruiterId !== recruiterId) {
-      throw new ForbiddenException(
-        'Not the owner of this job / application',
-      );
+      throw new ForbiddenException('Not the owner of this job / application');
     }
 
     if (dto.status !== application.status) {

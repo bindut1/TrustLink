@@ -3,12 +3,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
+import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
-import {
-  CredentialStatus,
-  TxStatus,
-  TxType,
-} from '../../database/enums';
+import { CredentialStatus, TxStatus, TxType } from '../../database/enums';
+import { EmbeddingService } from '../matching/embedding.service';
 import { BlockchainService } from './blockchain.service';
 
 const STALE_AFTER_MS = 10 * 60 * 1000;
@@ -23,6 +21,9 @@ export class BlockchainReconciliationService {
     private readonly credRepo: Repository<Credential>,
     @InjectRepository(BlockchainTransaction)
     private readonly txRepo: Repository<BlockchainTransaction>,
+    @InjectRepository(CandidateSkill)
+    private readonly skillRepo: Repository<CandidateSkill>,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   /**
@@ -97,6 +98,21 @@ export class BlockchainReconciliationService {
       credential.blockchainBlockNumber = issueTx.blockNumber;
     }
     await this.credRepo.save(credential);
+
+    await this.skillRepo.update(
+      { sourceCredentialId: credential.id },
+      { isVerified: credential.status === CredentialStatus.ISSUED },
+    );
+
+    if (credential.candidateId) {
+      try {
+        await this.embeddings.updateCandidateEmbedding(credential.candidateId);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to refresh embedding for candidate ${credential.candidateId}: ${(err as Error).message}`,
+        );
+      }
+    }
 
     this.logger.log(
       `Reconciled credential ${credential.id} -> ${credential.status}`,

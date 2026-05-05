@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from '../../database/entities/job.entity';
 import { JobStatus } from '../../database/enums';
+import { EmbeddingService } from '../matching/embedding.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { ListJobsQueryDto } from './dto/list-jobs.query.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -29,9 +31,12 @@ export interface PaginatedJobs {
 
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
+
   constructor(
     @InjectRepository(Job)
     private readonly repo: Repository<Job>,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   async create(recruiterId: string, dto: CreateJobDto): Promise<Job> {
@@ -67,7 +72,9 @@ export class JobsService {
       maxApplications: dto.maxApplications ?? null,
       status: JobStatus.DRAFT,
     });
-    return this.repo.save(job);
+    const saved = await this.repo.save(job);
+    await this.refreshEmbedding(saved.id);
+    return saved;
   }
 
   async findAll(query: ListJobsQueryDto): Promise<PaginatedJobs> {
@@ -158,6 +165,21 @@ export class JobsService {
       throw new BadRequestException('salaryMin must be <= salaryMax');
     }
 
-    return this.repo.save(job);
+    const saved = await this.repo.save(job);
+    await this.refreshEmbedding(saved.id);
+    return saved;
+  }
+
+  private async refreshEmbedding(jobId: string): Promise<void> {
+    try {
+      await this.embeddings.updateJobEmbedding(jobId);
+    } catch (err) {
+      // Best-effort: a temporary AI service outage must not block the
+      // recruiter's create/update — the job exists; matching just won't
+      // surface it until the embedding is rebuilt.
+      this.logger.warn(
+        `Failed to refresh embedding for job ${jobId}: ${(err as Error).message}`,
+      );
+    }
   }
 }
