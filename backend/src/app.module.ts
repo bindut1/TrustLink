@@ -20,6 +20,7 @@ import { ApplicationsModule } from './modules/applications/applications.module';
 import { BatchImportsModule } from './modules/batch-imports/batch-imports.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { MatchingModule } from './modules/matching/matching.module';
     MatchingModule,
     JobsModule,
     ApplicationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

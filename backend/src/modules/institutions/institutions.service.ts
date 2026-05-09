@@ -39,7 +39,12 @@ export class InstitutionsService {
   }
 
   async findAll(): Promise<Institution[]> {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+    return this.repo
+      .createQueryBuilder('inst')
+      .leftJoin('inst.user', 'u')
+      .addSelect(['u.id', 'u.email', 'u.fullName'])
+      .orderBy('inst.createdAt', 'DESC')
+      .getMany();
   }
 
   async findById(id: string): Promise<Institution> {
