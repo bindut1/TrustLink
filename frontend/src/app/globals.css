@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
+/* ───────── Design tokens ─────────
+ * Light is default. Dark is opt-in via `[data-theme="dark"]`. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #FFFFFF;
+  --bg-1: #FFFFFF;
+  --bg-2: #F8FAFC;
+  --bg-3: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+  --border: #E5E7EB;
+  --border-strong: #CBD5E1;
+  --text: #0F172A;
+  --text-2: #475569;
+  --text-3: #64748B;
+  --text-faint: #94A3B8;
+
+  --accent: #25C9D0;
+  --accent-2: #10B981;
+  --warn: #F59E0B;
+  --danger: #EF4444;
+
+  --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -8px rgba(15,23,42,0.10);
 }
 
+[data-theme="dark"] {
+  --bg: #0A0E1A;
+  --bg-1: #0F1424;
+  --bg-2: #141A2E;
+  --bg-3: #1A2138;
+  --surface: #141A2E;
+  --surface-2: #1A2138;
+  --border: #232B47;
+  --border-strong: #2E375A;
+  --text: #ECEFF7;
+  --text-2: #B4BCD8;
+  --text-3: #7E89AD;
+  --text-faint: #525B7E;
+
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* Expose tokens as Tailwind utilities */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--bg);
+  --color-surface-1: var(--bg-1);
+  --color-surface-2: var(--bg-2);
+  --color-surface-3: var(--bg-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-2);
+  --color-fg-subtle: var(--text-3);
+  --color-fg-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-success: var(--accent-2);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ───────── Base ───────── */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), 'Inter Tight', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
 }
+
+/* ───────── Auth shell gradient ───────── */
+/* Light (default) shell: clean white with a soft teal halo in the corner */
+.auth-shell-bg {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 95% -10%, rgba(37,201,208,0.10), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 0% 110%, rgba(37,201,208,0.05), transparent 65%);
+}
+/* Dark shell variant — kept for future use */
+[data-theme="dark"] .auth-shell-bg {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 60% 80% at 100% 0%, rgba(37,201,208,0.10), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 0% 100%, rgba(52,224,161,0.06), transparent 60%);
+}
+
+/* ───────── Custom scrollbar (subtle) ───────── */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
