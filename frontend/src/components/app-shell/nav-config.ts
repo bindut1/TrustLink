@@ -11,6 +11,7 @@ import {
   ScrollText,
   Search,
   ShieldCheck,
+  Sparkles,
   UserCircle,
   Users,
   Wallet,
@@ -82,6 +83,12 @@ const CANDIDATE_NAV: NavSection[] = [
     items: [
       { label: "Credentials", href: "/candidate/credentials", icon: Wallet },
       { label: "Applications", href: "/candidate/applications", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Find work",
+    items: [
+      { label: "Recommended", href: "/candidate/recommendations", icon: Sparkles },
       { label: "Find jobs", href: "/candidate/jobs", icon: Search },
     ],
   },

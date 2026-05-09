@@ -16,19 +16,25 @@ export class CandidateProfilesService {
   ) {}
 
   async findById(id: string): Promise<CandidateProfile> {
-    const profile = await this.repo.findOne({
-      where: { id },
-      relations: ['user'],
-    });
+    // Explicitly selecting user fields keeps `passwordHash` out of the API
+    // response while still allowing callers to render the candidate's name.
+    const profile = await this.repo
+      .createQueryBuilder('p')
+      .leftJoin('p.user', 'u')
+      .addSelect(['u.id', 'u.email', 'u.fullName', 'u.avatarUrl'])
+      .where('p.id = :id', { id })
+      .getOne();
     if (!profile) throw new NotFoundException('Candidate profile not found');
     return profile;
   }
 
   async findByUserId(userId: string): Promise<CandidateProfile> {
-    const profile = await this.repo.findOne({
-      where: { userId },
-      relations: ['user'],
-    });
+    const profile = await this.repo
+      .createQueryBuilder('p')
+      .leftJoin('p.user', 'u')
+      .addSelect(['u.id', 'u.email', 'u.fullName', 'u.avatarUrl'])
+      .where('p.userId = :userId', { userId })
+      .getOne();
     if (!profile) throw new NotFoundException('Candidate profile not found');
     return profile;
   }
