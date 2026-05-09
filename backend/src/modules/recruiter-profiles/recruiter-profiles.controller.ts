@@ -19,6 +19,13 @@ import { UpdateRecruiterProfileDto } from './dto/update-recruiter-profile.dto';
 export class RecruiterProfilesController {
   constructor(private readonly service: RecruiterProfilesService) {}
 
+  @Get('me')
+  @ApiOperation({ summary: "Get the current recruiter's own profile" })
+  @ApiOkResponse({ description: 'Recruiter profile owned by the current user' })
+  async findMine(@CurrentUser() user: User) {
+    return this.service.findByUserId(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'View recruiter/company profile by ID' })
   @ApiOkResponse({ description: 'Recruiter profile' })

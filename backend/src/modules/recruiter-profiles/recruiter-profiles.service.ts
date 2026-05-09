@@ -12,19 +12,23 @@ export class RecruiterProfilesService {
   ) {}
 
   async findById(id: string): Promise<RecruiterProfile> {
-    const profile = await this.repo.findOne({
-      where: { id },
-      relations: ['user'],
-    });
+    const profile = await this.repo
+      .createQueryBuilder('p')
+      .leftJoin('p.user', 'u')
+      .addSelect(['u.id', 'u.email', 'u.fullName', 'u.avatarUrl'])
+      .where('p.id = :id', { id })
+      .getOne();
     if (!profile) throw new NotFoundException('Recruiter profile not found');
     return profile;
   }
 
   async findByUserId(userId: string): Promise<RecruiterProfile> {
-    const profile = await this.repo.findOne({
-      where: { userId },
-      relations: ['user'],
-    });
+    const profile = await this.repo
+      .createQueryBuilder('p')
+      .leftJoin('p.user', 'u')
+      .addSelect(['u.id', 'u.email', 'u.fullName', 'u.avatarUrl'])
+      .where('p.userId = :userId', { userId })
+      .getOne();
     if (!profile) throw new NotFoundException('Recruiter profile not found');
     return profile;
   }

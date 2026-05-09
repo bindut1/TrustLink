@@ -5,7 +5,6 @@ import {
   Building2,
   ClipboardList,
   FileText,
-  GraduationCap,
   LayoutDashboard,
   Link2,
   ScrollText,
@@ -107,8 +106,6 @@ const RECRUITER_NAV: NavSection[] = [
     label: "Hiring",
     items: [
       { label: "Jobs", href: "/recruiter/jobs", icon: Briefcase },
-      { label: "Candidates", href: "/recruiter/candidates", icon: GraduationCap },
-      { label: "Applications", href: "/recruiter/applications", icon: ClipboardList },
     ],
   },
   {
