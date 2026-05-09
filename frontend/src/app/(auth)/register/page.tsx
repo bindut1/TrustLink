@@ -101,7 +101,7 @@ export default function RegisterPage() {
         body: payload,
       });
       saveSession(res);
-      router.push("/");
+      router.push(`/${res.user.role}/dashboard`);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

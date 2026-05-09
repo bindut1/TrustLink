@@ -32,7 +32,7 @@ export default function LoginPage() {
         body: { email, password } satisfies LoginPayload,
       });
       saveSession(res);
-      router.push("/");
+      router.push(`/${res.user.role}/dashboard`);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
