@@ -45,6 +45,13 @@ export class InstitutionsController {
     return this.service.findAll();
   }
 
+  @Get('me')
+  @ApiOperation({ summary: "Get the current issuer's own institution" })
+  @ApiOkResponse({ description: 'Institution owned by the current user' })
+  async findMine(@CurrentUser() user: User) {
+    return this.service.findByUserId(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get institution detail' })
   @ApiOkResponse({ description: 'Institution detail' })

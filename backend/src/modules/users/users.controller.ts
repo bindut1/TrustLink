@@ -1,12 +1,23 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User } from '../../database/entities/user.entity';
+import { UserRole } from '../../database/enums';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireActions } from '../auth/decorators/require-actions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -35,5 +46,21 @@ export class UsersController {
     const updated = await this.usersService.updateMe(user.id, dto);
     const { passwordHash: _ph, ...rest } = updated;
     return rest;
+  }
+
+  @Get('lookup')
+  @RequireActions('credential.issue')
+  @ApiOperation({
+    summary: 'Resolve a candidate by email (for issue credential UI)',
+  })
+  @ApiQuery({ name: 'email', required: true })
+  @ApiOkResponse({ description: 'Candidate id + display info' })
+  async lookupByEmail(@Query('email') email: string) {
+    if (!email) throw new NotFoundException('Email required');
+    const user = await this.usersService.findByEmail(email);
+    if (!user || user.role !== UserRole.CANDIDATE) {
+      throw new NotFoundException('No candidate found with that email');
+    }
+    return { id: user.id, email: user.email, fullName: user.fullName };
   }
 }

@@ -17,6 +17,10 @@ export class UsersService {
     return user;
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepo.findOne({ where: { email: email.toLowerCase() } });
+  }
+
   async updateMe(userId: string, dto: UpdateUserDto): Promise<User> {
     await this.userRepo.update(userId, dto);
     return this.findById(userId);

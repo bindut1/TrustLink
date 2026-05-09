@@ -56,6 +56,14 @@ export class InstitutionsService {
     return institution;
   }
 
+  async findByUserId(userId: string): Promise<Institution> {
+    const institution = await this.repo.findOne({ where: { userId } });
+    if (!institution) {
+      throw new NotFoundException('No institution registered for this user');
+    }
+    return institution;
+  }
+
   async update(
     id: string,
     userId: string,
