@@ -74,6 +74,34 @@ body {
 }
 
 /* ───────── Auth shell gradient ───────── */
+/* ───────── Landing (light) — layered soft gradients on white ───────── */
+.landing-bg {
+  position: relative;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 85% -5%, rgba(37,201,208,0.10), transparent 60%),
+    radial-gradient(ellipse 60% 60% at 0% 30%, rgba(137,90,255,0.05), transparent 65%),
+    radial-gradient(ellipse 60% 50% at 100% 70%, rgba(37,201,208,0.05), transparent 60%);
+  background-attachment: fixed;
+}
+/* Subtle float animation for decorative pieces */
+@keyframes tl-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: tl-float 6s ease-in-out infinite;
+}
+
+/* Slow background shimmer for accent glows */
+@keyframes tl-pulse-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.animate-pulse-glow {
+  animation: tl-pulse-glow 5s ease-in-out infinite;
+}
+
 /* Light (default) shell: clean white with a soft teal halo in the corner */
 .auth-shell-bg {
   background-color: var(--bg);
