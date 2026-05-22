@@ -24,7 +24,7 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
   const [showRaw, setShowRaw] = useState(false);
 
   if (!tx) return null;
-  const parsed = parseBlockchainError(tx.errorMessage);
+  const parsed = parseBlockchainError(tx.errorMessage ?? null);
 
   return (
     <Modal

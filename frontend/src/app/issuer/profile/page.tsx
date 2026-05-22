@@ -84,7 +84,9 @@ export default function IssuerProfilePage() {
       const patch: Partial<Institution> = {};
       for (const { key } of FIELDS) {
         const value = draft[key];
-        if (value !== inst[key]) patch[key] = value as Institution[typeof key];
+        if (value !== inst[key]) {
+          (patch as Record<string, unknown>)[key] = value;
+        }
       }
       const next = await updateInstitution(inst.id, patch);
       setInst(next);
