@@ -1,0 +1,20 @@
+# Production overrides — used with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Pulls pre-built images from Docker Hub instead of building locally.
+services:
+  backend:
+    image: ${DOCKERHUB_USERNAME}/trustlink-backend:${IMAGE_TAG:-latest}
+    build:
+      target: prod
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/trustlink-frontend:${IMAGE_TAG:-latest}
+    build:
+      target: prod
+
+  ai-service:
+    image: ${DOCKERHUB_USERNAME}/trustlink-ai-service:${IMAGE_TAG:-latest}
+
+  pgadmin:
+    profiles:
+      - dev
