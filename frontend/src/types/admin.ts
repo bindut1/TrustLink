@@ -81,3 +81,45 @@ export type AdminDashboardStats = {
   institutions: { total: number; pending: number; approved: number };
   transactions: { queued: number; failed: number; confirmed: number };
 };
+
+export type CredentialCategory =
+  | "degree"
+  | "it_certificate"
+  | "language_certificate"
+  | "award"
+  | "professional_certificate"
+  | "other";
+
+export type CredentialTypeField = {
+  key: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  options?: string[];
+};
+
+export type CredentialType = {
+  id: string;
+  category: CredentialCategory;
+  name: string;
+  nameEn?: string | null;
+  description?: string | null;
+  fieldSchema: { fields: CredentialTypeField[] };
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuditLog = {
+  id: string;
+  userId: string | null;
+  user?: { id: string; email: string; fullName: string } | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  oldValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+};

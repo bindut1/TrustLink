@@ -10,7 +10,9 @@ import type {
   AdminDashboardStats,
   AdminInstitution,
   AdminUser,
+  AuditLog,
   BlockchainTx,
+  CredentialType,
   UserActionOverride,
 } from "@/types/admin";
 
@@ -131,4 +133,61 @@ export function fetchTransactions(filter?: {
       ? `?status=${filter.status}`
       : "";
   return apiRequest(`/admin/blockchain/transactions${qs}`, authOpts());
+}
+
+// ───────────── Credential types ─────────────
+
+export function fetchCredentialTypes(): Promise<CredentialType[]> {
+  return apiRequest("/credential-types", authOpts());
+}
+
+export function createCredentialType(payload: {
+  category: string;
+  name: string;
+  nameEn?: string;
+  description?: string;
+  fieldSchema: { fields: Array<Record<string, unknown>> };
+  isActive?: boolean;
+}): Promise<CredentialType> {
+  return apiRequest("/credential-types", {
+    method: "POST",
+    body: payload,
+    ...authOpts(),
+  });
+}
+
+export function updateCredentialType(
+  id: string,
+  payload: Partial<{
+    category: string;
+    name: string;
+    nameEn: string;
+    description: string;
+    fieldSchema: { fields: Array<Record<string, unknown>> };
+    isActive: boolean;
+  }>,
+): Promise<CredentialType> {
+  return apiRequest(`/credential-types/${id}`, {
+    method: "PATCH",
+    body: payload,
+    ...authOpts(),
+  });
+}
+
+// ───────────── Audit logs ─────────────
+
+export function fetchAuditLogs(filter?: {
+  userId?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  limit?: number;
+}): Promise<AuditLog[]> {
+  const entries = Object.entries(filter ?? {}).filter(
+    ([, v]) => v !== undefined && v !== "" && v !== null,
+  ) as [string, string | number][];
+  const qs = new URLSearchParams(
+    entries.map(([k, v]) => [k, String(v)]),
+  ).toString();
+  return apiRequest(`/admin/audit-logs${qs ? `?${qs}` : ""}`, authOpts());
 }
