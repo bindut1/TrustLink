@@ -5,20 +5,100 @@ import {
   Award,
   Building2,
   CheckCircle2,
-  Clock,
+  Link2,
+  LogIn,
+  ShieldOff,
+  UserCog,
   Users,
+  XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { StatsCard } from "@/components/admin/StatsCard";
-import { fetchDashboardStats } from "@/lib/admin-api";
-import type { AdminDashboardStats } from "@/types/admin";
+import { fetchAuditLogs, fetchDashboardStats } from "@/lib/admin-api";
+import type { AdminDashboardStats, AuditLog } from "@/types/admin";
+
+type ActivityTone = "success" | "warn" | "danger" | "info" | "neutral";
+
+const ACTION_META: Record<
+  string,
+  { icon: ReactNode; tone: ActivityTone; label: (log: AuditLog) => string }
+> = {
+  "auth.login": {
+    icon: <LogIn size={14} />,
+    tone: "neutral",
+    label: (log) => `${log.user?.fullName ?? "User"} logged in`,
+  },
+  "credential.issue": {
+    icon: <Award size={14} />,
+    tone: "success",
+    label: (log) => `${log.user?.fullName ?? "Issuer"} issued a credential`,
+  },
+  "credential.revoke": {
+    icon: <XCircle size={14} />,
+    tone: "warn",
+    label: (log) => `${log.user?.fullName ?? "Issuer"} revoked a credential`,
+  },
+  "institution.approved": {
+    icon: <CheckCircle2 size={14} />,
+    tone: "success",
+    label: (log) =>
+      `${log.user?.fullName ?? "Admin"} approved an institution`,
+  },
+  "institution.rejected": {
+    icon: <AlertTriangle size={14} />,
+    tone: "danger",
+    label: (log) =>
+      `${log.user?.fullName ?? "Admin"} rejected an institution`,
+  },
+  "user.status_change": {
+    icon: <ShieldOff size={14} />,
+    tone: "warn",
+    label: (log) => {
+      const next = log.newValues?.status as string | undefined;
+      const verb = next === "suspended" ? "suspended" : "updated";
+      return `${log.user?.fullName ?? "Admin"} ${verb} a user`;
+    },
+  },
+  "user.override_set": {
+    icon: <UserCog size={14} />,
+    tone: "info",
+    label: (log) =>
+      `${log.user?.fullName ?? "Admin"} set a permission override`,
+  },
+  "user.override_removed": {
+    icon: <UserCog size={14} />,
+    tone: "neutral",
+    label: (log) =>
+      `${log.user?.fullName ?? "Admin"} removed a permission override`,
+  },
+};
+
+const FALLBACK_META = {
+  icon: <Link2 size={14} />,
+  tone: "neutral" as ActivityTone,
+};
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [activity, setActivity] = useState<AuditLog[] | null>(null);
 
   useEffect(() => {
     fetchDashboardStats().then(setStats);
+    fetchAuditLogs({ limit: 6 }).then(setActivity);
   }, []);
 
   return (
@@ -71,29 +151,38 @@ export default function AdminDashboardPage() {
                 Recent activity
               </h2>
               <p className="text-[13.5px] text-fg-subtle leading-relaxed">
-                Connect a real activity feed once <code>/admin/dashboard</code>{" "}
-                returns recent events.
+                Latest privileged actions from the audit log.
               </p>
-              <ul className="mt-5 flex flex-col gap-3.5">
-                <ActivityRow
-                  icon={<CheckCircle2 size={14} />}
-                  tone="success"
-                  text="HUST issued 12 credentials in the last hour"
-                  time="just now"
-                />
-                <ActivityRow
-                  icon={<Clock size={14} />}
-                  tone="warn"
-                  text="3 institutions awaiting your approval"
-                  time="2h ago"
-                />
-                <ActivityRow
-                  icon={<AlertTriangle size={14} />}
-                  tone="danger"
-                  text="Transaction tx_6 failed after 3 retries"
-                  time="6h ago"
-                />
-              </ul>
+              {activity === null ? (
+                <p className="mt-5 text-[13.5px] text-fg-subtle">Loading…</p>
+              ) : activity.length === 0 ? (
+                <p className="mt-5 text-[13.5px] text-fg-subtle">
+                  No activity yet.
+                </p>
+              ) : (
+                <ul className="mt-5 flex flex-col gap-3.5">
+                  {activity.map((log) => {
+                    const meta = ACTION_META[log.action];
+                    return (
+                      <ActivityRow
+                        key={log.id}
+                        icon={meta?.icon ?? FALLBACK_META.icon}
+                        tone={meta?.tone ?? FALLBACK_META.tone}
+                        text={meta?.label(log) ?? log.action}
+                        time={relativeTime(log.createdAt)}
+                      />
+                    );
+                  })}
+                </ul>
+              )}
+              <div className="mt-5 pt-4 border-t border-border">
+                <a
+                  href="/admin/audit-logs"
+                  className="text-[13px] text-accent hover:underline"
+                >
+                  View all audit logs →
+                </a>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-canvas p-6">
@@ -128,32 +217,36 @@ export default function AdminDashboardPage() {
   );
 }
 
+const TONE_CLASS: Record<ActivityTone, string> = {
+  success: "bg-success/12 text-success",
+  warn: "bg-warn/15 text-warn",
+  danger: "bg-danger/12 text-danger",
+  info: "bg-accent/12 text-accent",
+  neutral: "bg-surface-2 text-fg-muted",
+};
+
 function ActivityRow({
   icon,
   tone,
   text,
   time,
 }: {
-  icon: React.ReactNode;
-  tone: "success" | "warn" | "danger";
+  icon: ReactNode;
+  tone: ActivityTone;
   text: string;
   time: string;
 }) {
-  const toneClass =
-    tone === "success"
-      ? "bg-success/12 text-success"
-      : tone === "warn"
-        ? "bg-warn/15 text-warn"
-        : "bg-danger/12 text-danger";
   return (
     <li className="flex items-center gap-3">
       <span
-        className={`shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full ${toneClass}`}
+        className={`shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full ${TONE_CLASS[tone]}`}
       >
         {icon}
       </span>
       <span className="flex-1 text-[14px] text-fg">{text}</span>
-      <span className="text-[12px] text-fg-subtle font-mono">{time}</span>
+      <span className="text-[12px] text-fg-subtle font-mono whitespace-nowrap">
+        {time}
+      </span>
     </li>
   );
 }
