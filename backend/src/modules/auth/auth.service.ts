@@ -22,6 +22,8 @@ import {
   ApprovalStatus,
   UserRole,
 } from '../../database/enums';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './types/jwt-payload';
@@ -49,6 +51,8 @@ export class AuthService {
     private readonly refreshTokenRepo: Repository<RefreshToken>,
     @InjectRepository(PasswordResetToken)
     private readonly resetTokenRepo: Repository<PasswordResetToken>,
+    private readonly email: EmailService,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async register(dto: RegisterDto): Promise<{ user: User; tokens: AuthTokens }> {
@@ -126,6 +130,14 @@ export class AuthService {
     await this.userRepo.save(user);
 
     const tokens = await this.issueTokens(user);
+
+    await this.auditLogs.record({
+      userId: user.id,
+      action: 'auth.login',
+      entityType: 'user',
+      entityId: user.id,
+    });
+
     return { user, tokens };
   }
 
@@ -183,8 +195,7 @@ export class AuthService {
     const frontendUrl =
       this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
-    // Mock email — log the reset URL
-    this.logger.log(`[MOCK EMAIL] Password reset for ${user.email}: ${resetUrl}`);
+    await this.email.sendPasswordReset(user.email, resetUrl);
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {

@@ -59,9 +59,10 @@ export class AdminController {
   @ApiOperation({ summary: 'Update user account status' })
   async updateUser(
     @Param('id') id: string,
+    @CurrentUser() admin: User,
     @Body() dto: UpdateUserStatusDto,
   ) {
-    return this.admin.updateUserStatus(id, dto.status);
+    return this.admin.updateUserStatus(id, dto.status, admin.id);
   }
 
   // ───────────── Action overrides ─────────────
@@ -98,8 +99,9 @@ export class AdminController {
   async removeOverride(
     @Param('id') userId: string,
     @Param('actionId') actionId: string,
+    @CurrentUser() admin: User,
   ) {
-    await this.admin.removeOverride(userId, actionId);
+    await this.admin.removeOverride(userId, actionId, admin.id);
   }
 
   // ───────────── Blockchain ─────────────
@@ -109,5 +111,26 @@ export class AdminController {
   @ApiOperation({ summary: 'List blockchain transactions (status filter)' })
   async listTransactions(@Query() query: ListTxQuery) {
     return this.admin.listTransactions(query);
+  }
+
+  // ───────────── Audit logs ─────────────
+
+  @Get('audit-logs')
+  @RequireActions('admin.dashboard')
+  @ApiOperation({ summary: 'Query audit log entries (latest first)' })
+  async listAuditLogs(
+    @Query('userId') userId?: string,
+    @Query('action') action?: string,
+    @Query('entityType') entityType?: string,
+    @Query('entityId') entityId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.admin.listAuditLogs({
+      userId,
+      action,
+      entityType,
+      entityId,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 }

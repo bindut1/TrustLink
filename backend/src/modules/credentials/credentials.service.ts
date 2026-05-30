@@ -21,6 +21,7 @@ import {
   UserRole,
   VerificationResult,
 } from '../../database/enums';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { VcService } from '../blockchain/vc.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -62,6 +63,7 @@ export class CredentialsService {
     private readonly notifications: NotificationsService,
     private readonly blockchain: BlockchainService,
     private readonly vcService: VcService,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(
@@ -150,6 +152,19 @@ export class CredentialsService {
       referenceId: saved.id,
     });
 
+    await this.auditLogs.record({
+      userId: issuerUserId,
+      action: 'credential.issue',
+      entityType: 'credential',
+      entityId: saved.id,
+      newValues: {
+        credentialNumber: saved.credentialNumber,
+        title: saved.title,
+        candidateId: saved.candidateId,
+        institutionId: saved.institutionId,
+      },
+    });
+
     return saved;
   }
 
@@ -214,6 +229,27 @@ export class CredentialsService {
     await this.blockchain.revokeCredentialOnChain({
       credentialId: saved.id,
       initiatedBy: issuerUserId,
+    });
+
+    if (saved.candidateId) {
+      await this.notifications.create({
+        userId: saved.candidateId,
+        type: NotificationType.CREDENTIAL_REVOKED,
+        title: 'Credential revoked',
+        message: `Your credential "${saved.title}" has been revoked${
+          dto.reason ? `: ${dto.reason}` : ''
+        }.`,
+        referenceType: 'credential',
+        referenceId: saved.id,
+      });
+    }
+
+    await this.auditLogs.record({
+      userId: issuerUserId,
+      action: 'credential.revoke',
+      entityType: 'credential',
+      entityId: saved.id,
+      newValues: { reason: dto.reason },
     });
 
     return saved;

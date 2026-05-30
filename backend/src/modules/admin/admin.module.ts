@@ -7,6 +7,7 @@ import { Institution } from '../../database/entities/institution.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { UserActionOverride } from '../../database/entities/user-action-override.entity';
 import { User } from '../../database/entities/user.entity';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -23,6 +24,7 @@ import { AdminService } from './admin.service';
       RefreshToken,
     ]),
     AuthModule,
+    AuditLogsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

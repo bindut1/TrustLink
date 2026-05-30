@@ -5,6 +5,8 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Action } from '../../database/entities/action.entity';
 import { CandidateProfile } from '../../database/entities/candidate-profile.entity';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
+import { EmailModule } from '../email/email.module';
 import { Institution } from '../../database/entities/institution.entity';
 import { PasswordResetToken } from '../../database/entities/password-reset-token.entity';
 import { RecruiterProfile } from '../../database/entities/recruiter-profile.entity';
@@ -34,6 +36,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       UserActionOverride,
     ]),
     PassportModule,
+    EmailModule,
+    AuditLogsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

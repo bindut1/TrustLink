@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution } from '../../database/entities/institution.entity';
 import { ApprovalStatus, NotificationType } from '../../database/enums';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApproveInstitutionDto } from './dto/approve-institution.dto';
@@ -24,6 +25,7 @@ export class InstitutionsService {
     private readonly repo: Repository<Institution>,
     private readonly notifications: NotificationsService,
     private readonly blockchain: BlockchainService,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(
@@ -137,6 +139,17 @@ export class InstitutionsService {
         referenceId: saved.id,
       });
     }
+
+    await this.auditLogs.record({
+      userId: adminId,
+      action: `institution.${dto.approvalStatus}`,
+      entityType: 'institution',
+      entityId: saved.id,
+      newValues: {
+        approvalStatus: saved.approvalStatus,
+        rejectionReason: saved.rejectionReason,
+      },
+    });
 
     return saved;
   }

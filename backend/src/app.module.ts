@@ -21,6 +21,8 @@ import { BatchImportsModule } from './modules/batch-imports/batch-imports.module
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { AdminModule } from './modules/admin/admin.module';
     JobsModule,
     ApplicationsModule,
     AdminModule,
+    AuditLogsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,6 +15,7 @@ import {
   TxStatus,
   UserRole,
 } from '../../database/enums';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { ListTxQuery } from './dto/list-tx.query';
 import { ListUsersQuery } from './dto/list-users.query';
 import { SetOverrideDto } from './dto/set-override.dto';
@@ -34,6 +35,7 @@ export class AdminService {
     private readonly overrideRepo: Repository<UserActionOverride>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   // ───────────── Dashboard ─────────────
@@ -128,12 +130,23 @@ export class AdminService {
   async updateUserStatus(
     id: string,
     status: AccountStatus,
+    adminId?: string,
   ): Promise<Omit<User, 'passwordHash'>> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
+    const previousStatus = user.status;
     user.status = status;
     await this.userRepo.save(user);
+
+    await this.auditLogs.record({
+      userId: adminId ?? null,
+      action: 'user.status_change',
+      entityType: 'user',
+      entityId: user.id,
+      oldValues: { status: previousStatus },
+      newValues: { status },
+    });
 
     // On suspension, revoke all active refresh tokens so the user is forced
     // out of every session.
@@ -196,15 +209,38 @@ export class AdminService {
       overriddenBy: adminId,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
     });
-    return this.overrideRepo.save(override);
+    const saved = await this.overrideRepo.save(override);
+    await this.auditLogs.record({
+      userId: adminId,
+      action: 'user.override_set',
+      entityType: 'user_action_override',
+      entityId: saved.id,
+      newValues: {
+        targetUserId: userId,
+        actionId: dto.actionId,
+        isEnabled: dto.isEnabled,
+        reason: dto.reason,
+      },
+    });
+    return saved;
   }
 
-  async removeOverride(userId: string, actionId: string): Promise<void> {
+  async removeOverride(
+    userId: string,
+    actionId: string,
+    adminId?: string,
+  ): Promise<void> {
     await this.assertUserExists(userId);
     const result = await this.overrideRepo.delete({ userId, actionId });
     if (!result.affected) {
       throw new NotFoundException('Override not found');
     }
+    await this.auditLogs.record({
+      userId: adminId ?? null,
+      action: 'user.override_removed',
+      entityType: 'user_action_override',
+      oldValues: { targetUserId: userId, actionId },
+    });
   }
 
   // ───────────── Blockchain ─────────────
@@ -236,6 +272,18 @@ export class AdminService {
       confirmedAt: t.confirmedAt,
       failedAt: t.failedAt,
     }));
+  }
+
+  // ───────────── Audit logs ─────────────
+
+  async listAuditLogs(filter: {
+    userId?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+    limit?: number;
+  }) {
+    return this.auditLogs.query(filter);
   }
 
   // ───────────── helpers ─────────────
