@@ -9,13 +9,16 @@ import {
   type ReactNode,
 } from "react";
 import {
+  DEFAULT_LANG,
+  LANG_COOKIE_KEY,
+  LANG_COOKIE_MAX_AGE,
+  LANG_STORAGE_KEY,
+} from "./config";
+import {
   TRANSLATIONS,
   type Language,
   type TranslationKey,
 } from "./translations";
-
-const STORAGE_KEY = "trustlink.lang";
-const DEFAULT_LANG: Language = "vi";
 
 type LanguageContextValue = {
   lang: Language;
@@ -25,26 +28,54 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-function readStoredLang(): Language {
-  if (typeof window === "undefined") return DEFAULT_LANG;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "en" || stored === "vi" ? stored : DEFAULT_LANG;
+function isLanguage(value: string | null | undefined): value is Language {
+  return value === "vi" || value === "en";
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  // Start with default to avoid hydration mismatch — hydrate from storage in effect.
-  const [lang, setLangState] = useState<Language>(DEFAULT_LANG);
+function readCookieLang(): Language | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${LANG_COOKIE_KEY}=([^;]+)`),
+  );
+  const value = match ? decodeURIComponent(match[1]) : null;
+  return isLanguage(value) ? value : null;
+}
 
+function writeCookieLang(lang: Language) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${LANG_COOKIE_KEY}=${lang}; path=/; max-age=${LANG_COOKIE_MAX_AGE}; samesite=lax`;
+}
+
+export function LanguageProvider({
+  children,
+  initialLang,
+}: {
+  children: ReactNode;
+  initialLang?: Language;
+}) {
+  // Server passes the lang it read from the cookie. Hydration matches because
+  // client mounts with the same value — no flash.
+  const [lang, setLangState] = useState<Language>(initialLang ?? DEFAULT_LANG);
+
+  // One-time migration for users who only have the legacy localStorage value
+  // and no cookie yet. Runs after first paint; will cause a single flash on
+  // the very first visit post-migration, then never again.
   useEffect(() => {
-    const stored = readStoredLang();
-    if (stored !== DEFAULT_LANG) setLangState(stored);
+    if (readCookieLang()) return;
+    const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+    if (isLanguage(stored)) {
+      writeCookieLang(stored);
+      if (stored !== lang) setLangState(stored);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLang = useCallback((next: Language) => {
     setLangState(next);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      window.localStorage.setItem(LANG_STORAGE_KEY, next);
     }
+    writeCookieLang(next);
   }, []);
 
   const t = useCallback(
