@@ -1050,6 +1050,18 @@ export const TRANSLATIONS = {
     "a11y.toggleLanguage": "Chuyển sang tiếng Anh",
     "a11y.showPassword": "Hiển thị mật khẩu",
     "a11y.hidePassword": "Ẩn mật khẩu",
+
+    // ───────────── Not Found (404) ─────────────
+    "notFound.eyebrow": "Lỗi 404",
+    "notFound.title": "Không tìm thấy trang bạn cần",
+    "notFound.description":
+      "Trang bạn đang truy cập có thể đã bị di chuyển, đổi tên hoặc chưa từng tồn tại. Hãy kiểm tra lại đường dẫn — hoặc quay về nơi an toàn.",
+    "notFound.goHome": "Về trang chủ",
+    "notFound.goBack": "Quay lại",
+    "notFound.helpfulLinksTitle": "Bạn có thể thử",
+    "notFound.helpfulLinks.login": "Đăng nhập tài khoản",
+    "notFound.helpfulLinks.register": "Tạo tài khoản mới",
+    "notFound.helpfulLinks.product": "Khám phá sản phẩm",
   },
   en: {
     // ───────────── Common ─────────────
@@ -2084,5 +2096,17 @@ export const TRANSLATIONS = {
     "a11y.toggleLanguage": "Switch to Vietnamese",
     "a11y.showPassword": "Show password",
     "a11y.hidePassword": "Hide password",
+
+    // Not Found (404)
+    "notFound.eyebrow": "Error 404",
+    "notFound.title": "We can't find that page",
+    "notFound.description":
+      "The page you're looking for may have been moved, renamed, or never existed. Double-check the URL — or jump back to safer ground.",
+    "notFound.goHome": "Back to home",
+    "notFound.goBack": "Go back",
+    "notFound.helpfulLinksTitle": "Try one of these",
+    "notFound.helpfulLinks.login": "Sign in to your account",
+    "notFound.helpfulLinks.register": "Create a new account",
+    "notFound.helpfulLinks.product": "Explore the product",
   },
 } as const;
