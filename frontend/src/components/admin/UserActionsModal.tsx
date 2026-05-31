@@ -10,6 +10,7 @@ import {
   removeUserOverride,
   setUserOverride,
 } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AdminAction, AdminUser, UserActionOverride } from "@/types/admin";
 
 type UserActionsModalProps = {
@@ -19,6 +20,7 @@ type UserActionsModalProps = {
 };
 
 export function UserActionsModal({ user, open, onClose }: UserActionsModalProps) {
+  const { t } = useLanguage();
   const [actions, setActions] = useState<AdminAction[]>([]);
   const [overrides, setOverrides] = useState<UserActionOverride[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,13 +44,15 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
       })
       .catch((e: unknown) => {
         if (!cancelled)
-          setError(e instanceof Error ? e.message : "Failed to load actions");
+          setError(
+            e instanceof Error ? e.message : t("userActions.failedLoad"),
+          );
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [open, user.id]);
+  }, [open, user.id, t]);
 
   const isBlocked = (actionId: string) =>
     overrides.some((o) => o.actionId === actionId && !o.isEnabled);
@@ -73,7 +77,7 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
         });
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : t("userActions.failedSave"));
     } finally {
       setSavingId(null);
     }
@@ -84,17 +88,17 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
       open={open}
       onClose={onClose}
       size="lg"
-      title="Action overrides"
+      title={t("userActions.title")}
       description={
         <>
-          Block specific actions for{" "}
-          <strong className="text-fg">{user.fullName}</strong>. Overrides take
-          effect immediately and replace the role default.
+          {t("userActions.description").split("[user]")[0]}
+          <strong className="text-fg">{user.fullName}</strong>
+          {t("userActions.description").split("[user]")[1] ?? ""}
         </>
       }
       footer={
         <Button variant="secondary" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
       }
     >
@@ -106,7 +110,7 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
 
       {loading ? (
         <div className="py-10 text-center text-[14px] text-fg-subtle">
-          Loading actions…
+          {t("userActions.loading")}
         </div>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
@@ -131,7 +135,7 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
                       onChange={(e) =>
                         setReasons((r) => ({ ...r, [a.id]: e.target.value }))
                       }
-                      placeholder="Reason (optional)"
+                      placeholder={t("userActions.reasonPlaceholder")}
                       className="mt-2 h-9 w-full rounded-md border border-border bg-surface-1 px-3 text-[13px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors"
                     />
                   )}
@@ -142,7 +146,7 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
                   loading={saving}
                   onClick={() => toggleBlock(a)}
                 >
-                  {blocked ? "Unblock" : "Block"}
+                  {blocked ? t("admin.users.unblock") : t("admin.users.block")}
                 </Button>
               </li>
             );

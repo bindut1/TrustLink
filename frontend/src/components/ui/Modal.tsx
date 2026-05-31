@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 export type ModalProps = {
   open: boolean;
@@ -28,6 +29,7 @@ export function Modal({
   children,
   footer,
 }: ModalProps) {
+  const { t } = useLanguage();
   // ESC to close + lock body scroll while open
   useEffect(() => {
     if (!open) return;
@@ -84,7 +86,7 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("a11y.close")}
               className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
             >
               <X size={16} />

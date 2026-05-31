@@ -1,8 +1,11 @@
 "use client";
 
+"use client";
+
 import { FormField } from "@/components/ui/FormField";
 import { Input, Select } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { FieldSchema } from "@/types/issuer";
 
 type FieldValue = string | number | undefined;
@@ -26,6 +29,7 @@ export function DynamicForm({
   errors,
   className,
 }: DynamicFormProps) {
+  const { t } = useLanguage();
   function set(key: string, v: FieldValue) {
     onChange({ ...value, [key]: v });
   }
@@ -59,7 +63,9 @@ export function DynamicForm({
                   onChange={(e) => set(field.key, e.target.value || undefined)}
                   required={field.required}
                 >
-                  <option value="">{field.placeholder ?? "Select…"}</option>
+                  <option value="">
+                    {field.placeholder ?? t("dynForm.selectPlaceholder")}
+                  </option>
                   {(field.options ?? []).map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}

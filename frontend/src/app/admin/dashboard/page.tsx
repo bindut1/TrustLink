@@ -16,61 +16,58 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { fetchAuditLogs, fetchDashboardStats } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AdminDashboardStats, AuditLog } from "@/types/admin";
 
 type ActivityTone = "success" | "warn" | "danger" | "info" | "neutral";
 
-const ACTION_META: Record<
-  string,
-  { icon: ReactNode; tone: ActivityTone; label: (log: AuditLog) => string }
-> = {
+type ActionMeta = {
+  icon: ReactNode;
+  tone: ActivityTone;
+  labelKey: TranslationKey;
+};
+
+const ACTION_META: Record<string, ActionMeta> = {
   "auth.login": {
     icon: <LogIn size={14} />,
     tone: "neutral",
-    label: (log) => `${log.user?.fullName ?? "User"} logged in`,
+    labelKey: "admin.dashboard.actLoggedIn",
   },
   "credential.issue": {
     icon: <Award size={14} />,
     tone: "success",
-    label: (log) => `${log.user?.fullName ?? "Issuer"} issued a credential`,
+    labelKey: "admin.dashboard.actIssuedCredential",
   },
   "credential.revoke": {
     icon: <XCircle size={14} />,
     tone: "warn",
-    label: (log) => `${log.user?.fullName ?? "Issuer"} revoked a credential`,
+    labelKey: "admin.dashboard.actRevokedCredential",
   },
   "institution.approved": {
     icon: <CheckCircle2 size={14} />,
     tone: "success",
-    label: (log) =>
-      `${log.user?.fullName ?? "Admin"} approved an institution`,
+    labelKey: "admin.dashboard.actApprovedInstitution",
   },
   "institution.rejected": {
     icon: <AlertTriangle size={14} />,
     tone: "danger",
-    label: (log) =>
-      `${log.user?.fullName ?? "Admin"} rejected an institution`,
+    labelKey: "admin.dashboard.actRejectedInstitution",
   },
   "user.status_change": {
     icon: <ShieldOff size={14} />,
     tone: "warn",
-    label: (log) => {
-      const next = log.newValues?.status as string | undefined;
-      const verb = next === "suspended" ? "suspended" : "updated";
-      return `${log.user?.fullName ?? "Admin"} ${verb} a user`;
-    },
+    labelKey: "admin.dashboard.actSuspendedUser",
   },
   "user.override_set": {
     icon: <UserCog size={14} />,
     tone: "info",
-    label: (log) =>
-      `${log.user?.fullName ?? "Admin"} set a permission override`,
+    labelKey: "admin.dashboard.actSetOverride",
   },
   "user.override_removed": {
     icon: <UserCog size={14} />,
     tone: "neutral",
-    label: (log) =>
-      `${log.user?.fullName ?? "Admin"} removed a permission override`,
+    labelKey: "admin.dashboard.actRemovedOverride",
   },
 };
 
@@ -79,20 +76,25 @@ const FALLBACK_META = {
   tone: "neutral" as ActivityTone,
 };
 
-function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(diffMs / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day}d ago`;
-  return new Date(iso).toLocaleDateString();
+function useRelativeTime() {
+  const { t } = useLanguage();
+  return (iso: string): string => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const sec = Math.floor(diffMs / 1000);
+    if (sec < 60) return t("common.justNow");
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min} ${t("common.minutesAgo")}`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} ${t("common.hoursAgo")}`;
+    const day = Math.floor(hr / 24);
+    if (day < 30) return `${day} ${t("common.daysAgo")}`;
+    return new Date(iso).toLocaleDateString();
+  };
 }
 
 export default function AdminDashboardPage() {
+  const { t } = useLanguage();
+  const relativeTime = useRelativeTime();
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [activity, setActivity] = useState<AuditLog[] | null>(null);
 
@@ -104,42 +106,42 @@ export default function AdminDashboardPage() {
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        description="System health at a glance — users, credentials, pending approvals and on-chain activity."
+        title={t("admin.dashboard.title")}
+        description={t("admin.dashboard.description")}
       />
 
       {!stats ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatsCard
-              label="Total users"
+              label={t("admin.dashboard.totalUsers")}
               value={stats.users.total.toLocaleString()}
-              hint={`${stats.users.byRole.candidate} candidates · ${stats.users.byRole.recruiter} recruiters · ${stats.users.byRole.issuer} issuers`}
+              hint={`${stats.users.byRole.candidate} ${t("admin.dashboard.candidates")} · ${stats.users.byRole.recruiter} ${t("admin.dashboard.recruiters")} · ${stats.users.byRole.issuer} ${t("admin.dashboard.issuers")}`}
               icon={Users}
               tone="accent"
             />
             <StatsCard
-              label="Credentials"
+              label={t("admin.dashboard.credentials")}
               value={stats.credentials.total.toLocaleString()}
-              hint={`${stats.credentials.issued.toLocaleString()} issued · ${stats.credentials.revoked.toLocaleString()} revoked`}
+              hint={`${stats.credentials.issued.toLocaleString()} ${t("admin.dashboard.issued")} · ${stats.credentials.revoked.toLocaleString()} ${t("admin.dashboard.revoked")}`}
               icon={Award}
               tone="success"
             />
             <StatsCard
-              label="Pending institutions"
+              label={t("admin.dashboard.pendingInstitutions")}
               value={stats.institutions.pending}
-              hint={`${stats.institutions.approved} approved · ${stats.institutions.total} total`}
+              hint={`${stats.institutions.approved} ${t("admin.dashboard.approved")} · ${stats.institutions.total} ${t("admin.dashboard.total")}`}
               icon={Building2}
               tone="warn"
             />
             <StatsCard
-              label="Failed transactions"
+              label={t("admin.dashboard.failedTransactions")}
               value={stats.transactions.failed}
-              hint={`${stats.transactions.queued} queued · ${stats.transactions.confirmed.toLocaleString()} confirmed`}
+              hint={`${stats.transactions.queued} ${t("admin.dashboard.queued")} · ${stats.transactions.confirmed.toLocaleString()} ${t("admin.dashboard.confirmed")}`}
               icon={AlertTriangle}
               tone={stats.transactions.failed > 0 ? "danger" : "neutral"}
             />
@@ -148,27 +150,32 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 rounded-2xl border border-border bg-canvas p-6">
               <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-fg mb-1">
-                Recent activity
+                {t("admin.dashboard.recentActivity")}
               </h2>
               <p className="text-[13.5px] text-fg-subtle leading-relaxed">
-                Latest privileged actions from the audit log.
+                {t("admin.dashboard.recentActivityDesc")}
               </p>
               {activity === null ? (
-                <p className="mt-5 text-[13.5px] text-fg-subtle">Loading…</p>
+                <p className="mt-5 text-[13.5px] text-fg-subtle">
+                  {t("common.loading")}
+                </p>
               ) : activity.length === 0 ? (
                 <p className="mt-5 text-[13.5px] text-fg-subtle">
-                  No activity yet.
+                  {t("admin.dashboard.noActivity")}
                 </p>
               ) : (
                 <ul className="mt-5 flex flex-col gap-3.5">
                   {activity.map((log) => {
                     const meta = ACTION_META[log.action];
+                    const actor =
+                      log.user?.fullName ?? t("admin.dashboard.systemActor");
+                    const label = meta ? t(meta.labelKey) : log.action;
                     return (
                       <ActivityRow
                         key={log.id}
                         icon={meta?.icon ?? FALLBACK_META.icon}
                         tone={meta?.tone ?? FALLBACK_META.tone}
-                        text={meta?.label(log) ?? log.action}
+                        text={`${actor} ${label}`}
                         time={relativeTime(log.createdAt)}
                       />
                     );
@@ -180,32 +187,32 @@ export default function AdminDashboardPage() {
                   href="/admin/audit-logs"
                   className="text-[13px] text-accent hover:underline"
                 >
-                  View all audit logs →
+                  {t("admin.dashboard.viewAllAuditLogs")}
                 </a>
               </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-canvas p-6">
               <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-fg mb-1">
-                Quick links
+                {t("admin.dashboard.quickLinks")}
               </h2>
               <p className="text-[13.5px] text-fg-subtle">
-                Jump straight to what needs attention.
+                {t("admin.dashboard.quickLinksDesc")}
               </p>
               <div className="mt-4 flex flex-col gap-2">
                 <QuickLink
                   href="/admin/institutions?status=pending"
-                  label="Approve institutions"
+                  label={t("admin.dashboard.approveInstitutions")}
                   count={stats.institutions.pending}
                 />
                 <QuickLink
                   href="/admin/blockchain?status=failed"
-                  label="Review failed transactions"
+                  label={t("admin.dashboard.reviewFailedTx")}
                   count={stats.transactions.failed}
                 />
                 <QuickLink
                   href="/admin/users?status=suspended"
-                  label="Suspended users"
+                  label={t("admin.dashboard.suspendedUsers")}
                   count={1}
                 />
               </div>

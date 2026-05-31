@@ -9,6 +9,8 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api";
 import { fetchMyProfile, updateMyProfile } from "@/lib/candidate-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   CandidateProfile,
   UpdateCandidateProfilePayload,
@@ -16,16 +18,17 @@ import type {
 
 const URL_FIELDS: Array<{
   key: keyof UpdateCandidateProfilePayload;
-  label: string;
+  labelKey: TranslationKey;
   placeholder: string;
 }> = [
-  { key: "resumeUrl", label: "Resume URL", placeholder: "https://" },
-  { key: "linkedinUrl", label: "LinkedIn", placeholder: "https://linkedin.com/in/…" },
-  { key: "githubUrl", label: "GitHub", placeholder: "https://github.com/…" },
-  { key: "portfolioUrl", label: "Portfolio", placeholder: "https://" },
+  { key: "resumeUrl", labelKey: "candidate.profile.fldResume", placeholder: "https://" },
+  { key: "linkedinUrl", labelKey: "candidate.profile.fldLinkedIn", placeholder: "https://linkedin.com/in/…" },
+  { key: "githubUrl", labelKey: "candidate.profile.fldGithub", placeholder: "https://github.com/…" },
+  { key: "portfolioUrl", labelKey: "candidate.profile.fldPortfolio", placeholder: "https://" },
 ];
 
 export default function CandidateProfilePage() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [draft, setDraft] = useState<UpdateCandidateProfilePayload>({});
   const [locationInput, setLocationInput] = useState("");
@@ -44,7 +47,9 @@ export default function CandidateProfilePage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load profile");
+        setError(
+          e instanceof Error ? e.message : t("candidate.profile.failedLoad"),
+        );
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -86,7 +91,7 @@ export default function CandidateProfilePage() {
       setSaved(true);
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : "Save failed. Please try again.",
+        e instanceof ApiError ? e.message : t("candidate.profile.saveFailed"),
       );
     } finally {
       setSaving(false);
@@ -96,9 +101,9 @@ export default function CandidateProfilePage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Profile" />
+        <PageHeader title={t("candidate.profile.title")} />
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("candidate.profile.loading")}
         </div>
       </>
     );
@@ -107,8 +112,8 @@ export default function CandidateProfilePage() {
   if (!profile) {
     return (
       <>
-        <PageHeader title="Profile" />
-        <Alert variant="error">{error ?? "Profile not found."}</Alert>
+        <PageHeader title={t("candidate.profile.title")} />
+        <Alert variant="error">{error ?? t("candidate.profile.notFound")}</Alert>
       </>
     );
   }
@@ -116,13 +121,15 @@ export default function CandidateProfilePage() {
   return (
     <>
       <PageHeader
-        title="Profile"
-        description="Your bio, links and preferences shape how recruiters and the AI matcher see you."
+        title={t("candidate.profile.title")}
+        description={t("candidate.profile.description")}
         actions={
           profile.isOpenToWork ? (
-            <Badge variant="success">Open to work</Badge>
+            <Badge variant="success">{t("candidate.profile.openToWork")}</Badge>
           ) : (
-            <Badge variant="neutral">Closed to offers</Badge>
+            <Badge variant="neutral">
+              {t("candidate.profile.closedToOffers")}
+            </Badge>
           )
         }
       />
@@ -135,26 +142,29 @@ export default function CandidateProfilePage() {
         className="flex flex-col gap-5"
       >
         {error && <Alert variant="error">{error}</Alert>}
-        {saved && <Alert variant="success">Profile saved.</Alert>}
+        {saved && <Alert variant="success">{t("candidate.profile.saved")}</Alert>}
 
         {/* About */}
-        <Card title="About">
-          <FormField label="Short bio" hint="A few sentences — used for AI semantic matching too.">
+        <Card title={t("candidate.profile.sectionAbout")}>
+          <FormField
+            label={t("candidate.profile.fldBio")}
+            hint={t("candidate.profile.fldBioHint")}
+          >
             <textarea
               rows={5}
               value={(draft.bio as string) ?? ""}
               onChange={(e) => update("bio", e.target.value)}
-              placeholder="Briefly describe your background, focus and what you're looking for."
+              placeholder={t("candidate.profile.fldBioPlaceholder")}
               className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
             />
           </FormField>
         </Card>
 
         {/* Links */}
-        <Card title="Links">
+        <Card title={t("candidate.profile.sectionLinks")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {URL_FIELDS.map((f) => (
-              <FormField key={f.key} label={f.label}>
+              <FormField key={f.key} label={t(f.labelKey)}>
                 <Input
                   type="url"
                   value={(draft[f.key] as string | undefined) ?? ""}
@@ -167,16 +177,16 @@ export default function CandidateProfilePage() {
         </Card>
 
         {/* Career preferences */}
-        <Card title="Career preferences">
+        <Card title={t("candidate.profile.sectionCareer")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Desired position">
+            <FormField label={t("candidate.profile.fldDesiredPosition")}>
               <Input
                 value={(draft.desiredPosition as string | undefined) ?? ""}
                 onChange={(e) => update("desiredPosition", e.target.value)}
-                placeholder="e.g. Smart Contract Engineer"
+                placeholder={t("candidate.profile.fldDesiredPositionPlaceholder")}
               />
             </FormField>
-            <FormField label="Years of experience">
+            <FormField label={t("candidate.profile.fldYearsExperience")}>
               <Input
                 type="number"
                 min={0}
@@ -195,8 +205,8 @@ export default function CandidateProfilePage() {
               />
             </FormField>
             <FormField
-              label="Salary min"
-              hint="Thousand VND / month"
+              label={t("candidate.profile.fldSalaryMin")}
+              hint={t("candidate.profile.fldSalaryUnit")}
             >
               <Input
                 type="number"
@@ -215,8 +225,8 @@ export default function CandidateProfilePage() {
               />
             </FormField>
             <FormField
-              label="Salary max"
-              hint="Thousand VND / month"
+              label={t("candidate.profile.fldSalaryMax")}
+              hint={t("candidate.profile.fldSalaryUnit")}
             >
               <Input
                 type="number"
@@ -237,7 +247,7 @@ export default function CandidateProfilePage() {
           </div>
 
           <div className="mt-4">
-            <FormField label="Preferred locations">
+            <FormField label={t("candidate.profile.fldLocations")}>
               <div className="flex gap-2">
                 <Input
                   value={locationInput}
@@ -248,7 +258,7 @@ export default function CandidateProfilePage() {
                       addLocation();
                     }
                   }}
-                  placeholder="e.g. Hanoi"
+                  placeholder={t("candidate.profile.fldLocationPlaceholder")}
                 />
                 <Button
                   type="button"
@@ -256,7 +266,7 @@ export default function CandidateProfilePage() {
                   onClick={addLocation}
                   disabled={!locationInput.trim()}
                 >
-                  Add
+                  {t("candidate.profile.fldLocationAdd")}
                 </Button>
               </div>
             </FormField>
@@ -286,11 +296,11 @@ export default function CandidateProfilePage() {
                 className="h-4 w-4 rounded border-border-strong text-accent focus:ring-accent/30"
               />
               <span className="text-[14px] text-fg font-medium">
-                I&apos;m open to new opportunities
+                {t("candidate.profile.openToWorkLabel")}
               </span>
             </label>
             <p className="text-[12.5px] text-fg-subtle mt-1.5 ml-7">
-              Toggle off to hide yourself from recruiter searches.
+              {t("candidate.profile.openToWorkHint")}
             </p>
           </div>
         </Card>
@@ -301,10 +311,10 @@ export default function CandidateProfilePage() {
             variant="secondary"
             onClick={() => setDraft(profile)}
           >
-            Discard changes
+            {t("candidate.profile.discard")}
           </Button>
           <Button type="submit" loading={saving}>
-            Save profile
+            {t("candidate.profile.save")}
           </Button>
         </div>
       </form>

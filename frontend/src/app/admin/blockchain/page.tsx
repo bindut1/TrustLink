@@ -8,16 +8,19 @@ import { TxStatusBadge } from "@/components/admin/TxStatusBadge";
 import { Select } from "@/components/ui/Input";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchTransactions } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { BlockchainTx, TxStatus, TxType } from "@/types/admin";
 
-const TX_TYPE_LABEL: Record<TxType, string> = {
-  issue_credential: "Issue credential",
-  revoke_credential: "Revoke credential",
-  add_issuer: "Add issuer",
-  remove_issuer: "Remove issuer",
+const TX_TYPE_KEY: Record<TxType, TranslationKey> = {
+  issue_credential: "tx.type.issue_credential",
+  revoke_credential: "tx.type.revoke_credential",
+  add_issuer: "tx.type.add_issuer",
+  remove_issuer: "tx.type.remove_issuer",
 };
 
 export default function AdminBlockchainPage() {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<TxStatus | "all">("all");
   const [items, setItems] = useState<BlockchainTx[] | null>(null);
   const [failureTarget, setFailureTarget] = useState<BlockchainTx | null>(null);
@@ -36,14 +39,18 @@ export default function AdminBlockchainPage() {
   return (
     <>
       <PageHeader
-        title="Blockchain transactions"
-        description="Monitor every Polygon transaction the system has queued, submitted, confirmed or failed."
+        title={t("admin.blockchain.title")}
+        description={t("admin.blockchain.description")}
       />
 
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="text-[12.5px] text-fg-subtle">
           {items
-            ? `${items.length} ${items.length === 1 ? "transaction" : "transactions"}`
+            ? t(
+                items.length === 1
+                  ? "admin.blockchain.summaryOne"
+                  : "admin.blockchain.summaryMany",
+              ).replace("{n}", String(items.length))
             : ""}
         </div>
         <Select
@@ -51,38 +58,38 @@ export default function AdminBlockchainPage() {
           onChange={(e) => setStatus(e.target.value as TxStatus | "all")}
           className="h-10 w-[180px]"
         >
-          <option value="all">All statuses</option>
-          <option value="queued">Queued</option>
-          <option value="submitted">Submitted</option>
-          <option value="retrying">Retrying</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="failed">Failed</option>
+          <option value="all">{t("status.tx.all")}</option>
+          <option value="queued">{t("status.tx.queued")}</option>
+          <option value="submitted">{t("status.tx.submitted")}</option>
+          <option value="retrying">{t("status.tx.retrying")}</option>
+          <option value="confirmed">{t("status.tx.confirmed")}</option>
+          <option value="failed">{t("status.tx.failed")}</option>
         </Select>
       </div>
 
       <Table>
         <THead>
           <TR>
-            <TH>Status</TH>
-            <TH>Type</TH>
-            <TH>Tx hash</TH>
-            <TH>Block</TH>
-            <TH>Initiated by</TH>
-            <TH>Queued at</TH>
-            <TH>Retries</TH>
+            <TH>{t("common.status")}</TH>
+            <TH>{t("common.type")}</TH>
+            <TH>{t("admin.blockchain.txHash")}</TH>
+            <TH>{t("admin.blockchain.block")}</TH>
+            <TH>{t("admin.blockchain.initiatedBy")}</TH>
+            <TH>{t("admin.blockchain.queuedAt")}</TH>
+            <TH>{t("admin.blockchain.retries")}</TH>
           </TR>
         </THead>
         <TBody>
           {!items ? (
             <TR>
               <TD colSpan={7} className="text-center text-fg-subtle py-10">
-                Loading transactions…
+                {t("admin.blockchain.loading")}
               </TD>
             </TR>
           ) : items.length === 0 ? (
             <TR>
               <TD colSpan={7} className="text-center text-fg-subtle py-10">
-                No transactions match this filter.
+                {t("admin.blockchain.empty")}
               </TD>
             </TR>
           ) : (
@@ -97,13 +104,15 @@ export default function AdminBlockchainPage() {
                       ? "bg-danger/[0.03] cursor-pointer hover:bg-danger/[0.08]"
                       : ""
                   }
-                  title={failed ? "Click to see failure reason" : undefined}
+                  title={
+                    failed ? t("admin.blockchain.clickFailureReason") : undefined
+                  }
                 >
                   <TD>
                     <TxStatusBadge status={tx.status} />
                   </TD>
                   <TD className="text-fg">
-                    {TX_TYPE_LABEL[tx.transactionType]}
+                    {t(TX_TYPE_KEY[tx.transactionType])}
                   </TD>
                   <TD>
                     {tx.txHash ? (
@@ -119,7 +128,7 @@ export default function AdminBlockchainPage() {
                           href={`https://amoy.polygonscan.com/tx/${tx.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title="View on PolygonScan"
+                          title={t("admin.blockchain.viewOnPolygonScan")}
                           className="inline-flex h-6 w-6 items-center justify-center rounded text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
                         >
                           <ExternalLink size={11} />
@@ -163,10 +172,12 @@ export default function AdminBlockchainPage() {
 }
 
 function CopyBtn({ value }: { value: string }) {
+  const { t } = useLanguage();
   return (
     <button
       type="button"
-      title="Copy hash"
+      title={t("a11y.copyHash")}
+      aria-label={t("a11y.copyHash")}
       onClick={() => navigator.clipboard.writeText(value)}
       className="inline-flex h-6 w-6 items-center justify-center rounded text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
     >

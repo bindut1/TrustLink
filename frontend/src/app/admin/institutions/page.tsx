@@ -5,18 +5,21 @@ import { PageHeader } from "@/components/app-shell/PageHeader";
 import { InstitutionCard } from "@/components/admin/InstitutionCard";
 import { fetchInstitutions } from "@/lib/admin-api";
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AdminInstitution, ApprovalStatus } from "@/types/admin";
 
 type FilterTab = "pending" | "approved" | "rejected" | "all";
 
-const TABS: { key: FilterTab; label: string }[] = [
-  { key: "pending", label: "Pending" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
-  { key: "all", label: "All" },
+const TABS: { key: FilterTab; labelKey: TranslationKey }[] = [
+  { key: "pending", labelKey: "admin.institutions.tabPending" },
+  { key: "approved", labelKey: "admin.institutions.tabApproved" },
+  { key: "rejected", labelKey: "admin.institutions.tabRejected" },
+  { key: "all", labelKey: "admin.institutions.tabAll" },
 ];
 
 export default function AdminInstitutionsPage() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<FilterTab>("pending");
   const [items, setItems] = useState<AdminInstitution[] | null>(null);
 
@@ -34,7 +37,6 @@ export default function AdminInstitutionsPage() {
   function handleChange(next: AdminInstitution) {
     setItems((prev) => {
       if (!prev) return prev;
-      // Re-filter so it stays consistent with the current tab
       const updated = prev.map((x) => (x.id === next.id ? next : x));
       if (tab === "all") return updated;
       return updated.filter((x) => x.approvalStatus === (tab as ApprovalStatus));
@@ -44,37 +46,37 @@ export default function AdminInstitutionsPage() {
   return (
     <>
       <PageHeader
-        title="Institutions"
-        description="Approve issuers to grant them on-chain credential issuance rights."
+        title={t("admin.institutions.title")}
+        description={t("admin.institutions.description")}
       />
 
       <div role="tablist" className="flex flex-wrap gap-1 mb-5">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.key}
+            key={tabItem.key}
             type="button"
             role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
+            aria-selected={tab === tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className={cn(
               "h-9 px-3.5 rounded-md text-[13.5px] font-medium transition-colors",
-              tab === t.key
+              tab === tabItem.key
                 ? "bg-surface-2 text-fg border border-border"
                 : "text-fg-muted hover:text-fg hover:bg-surface-2/60",
             )}
           >
-            {t.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>
 
       {!items ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          No institutions in this view.
+          {t("admin.institutions.empty")}
         </div>
       ) : (
         <div className="flex flex-col gap-3">

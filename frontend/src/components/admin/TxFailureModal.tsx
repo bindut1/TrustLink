@@ -5,14 +5,16 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { parseBlockchainError } from "@/lib/parse-blockchain-error";
 import type { BlockchainTx } from "@/types/admin";
 
-const TX_TYPE_LABEL: Record<BlockchainTx["transactionType"], string> = {
-  issue_credential: "Issue credential",
-  revoke_credential: "Revoke credential",
-  add_issuer: "Add issuer",
-  remove_issuer: "Remove issuer",
+const TX_TYPE_KEY: Record<BlockchainTx["transactionType"], TranslationKey> = {
+  issue_credential: "tx.type.issue_credential",
+  revoke_credential: "tx.type.revoke_credential",
+  add_issuer: "tx.type.add_issuer",
+  remove_issuer: "tx.type.remove_issuer",
 };
 
 type TxFailureModalProps = {
@@ -21,6 +23,7 @@ type TxFailureModalProps = {
 };
 
 export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
+  const { t } = useLanguage();
   const [showRaw, setShowRaw] = useState(false);
 
   if (!tx) return null;
@@ -30,11 +33,11 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
     <Modal
       open
       onClose={onClose}
-      title="Transaction failed"
-      description="The blockchain rejected this transaction after retries. Below is the reason reported by the contract."
+      title={t("txFailure.title")}
+      description={t("txFailure.description")}
       footer={
         <Button variant="secondary" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
       }
     >
@@ -44,7 +47,7 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.10em] text-danger/80 mb-1">
-            Reason
+            {t("txFailure.reason")}
           </div>
           <div className="text-[15px] font-semibold text-fg leading-snug">
             {parsed.reason}
@@ -58,34 +61,34 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
       </div>
 
       <dl className="mt-5 grid grid-cols-[140px_1fr] gap-y-3 text-[13.5px]">
-        <dt className="text-fg-subtle">Type</dt>
-        <dd className="text-fg">{TX_TYPE_LABEL[tx.transactionType]}</dd>
+        <dt className="text-fg-subtle">{t("common.type")}</dt>
+        <dd className="text-fg">{t(TX_TYPE_KEY[tx.transactionType])}</dd>
 
-        <dt className="text-fg-subtle">Initiated by</dt>
+        <dt className="text-fg-subtle">{t("txFailure.initiatedBy")}</dt>
         <dd className="text-fg">{tx.initiatedByName}</dd>
 
-        <dt className="text-fg-subtle">Retries</dt>
+        <dt className="text-fg-subtle">{t("txFailure.retries")}</dt>
         <dd className="text-fg font-semibold">
           <span className={tx.retryCount >= 3 ? "text-danger" : ""}>
             {tx.retryCount}/3
           </span>
         </dd>
 
-        <dt className="text-fg-subtle">Contract method</dt>
+        <dt className="text-fg-subtle">{t("txFailure.contractMethod")}</dt>
         <dd className="font-mono text-fg-muted text-[12.5px]">
           {tx.contractMethod}
         </dd>
 
         {tx.txHash && (
           <>
-            <dt className="text-fg-subtle">Tx hash</dt>
+            <dt className="text-fg-subtle">{t("admin.blockchain.txHash")}</dt>
             <dd className="font-mono text-fg-muted text-[12px] break-all">
               {tx.txHash}
             </dd>
           </>
         )}
 
-        <dt className="text-fg-subtle">Queued at</dt>
+        <dt className="text-fg-subtle">{t("admin.blockchain.queuedAt")}</dt>
         <dd className="text-fg-muted font-mono text-[12.5px]">
           {new Date(tx.queuedAt).toLocaleString()}
         </dd>
@@ -102,7 +105,7 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
               size={14}
               className={`transition-transform ${showRaw ? "rotate-180" : ""}`}
             />
-            {showRaw ? "Hide" : "Show"} technical details
+            {showRaw ? t("txFailure.hideDetails") : t("txFailure.showDetails")}
           </button>
           {showRaw && (
             <pre className="mt-3 rounded-lg border border-border bg-surface-2/60 p-3.5 text-[11.5px] font-mono text-fg-muted leading-relaxed whitespace-pre-wrap break-all max-h-[260px] overflow-y-auto">

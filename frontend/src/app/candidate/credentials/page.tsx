@@ -20,9 +20,11 @@ import {
   verifyCredential,
   type VerificationResult,
 } from "@/lib/candidate-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Credential } from "@/types/issuer";
 
 export default function CandidateCredentialsPage() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<Credential[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export default function CandidateCredentialsPage() {
         setError(
           e instanceof ApiError
             ? e.message
-            : "Failed to load credentials",
+            : t("issuer.credentials.failedLoad"),
         );
       });
     return () => {
@@ -55,7 +57,9 @@ export default function CandidateCredentialsPage() {
       const r = await verifyCredential(c.id);
       setResults((p) => ({ ...p, [c.id]: r }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Verification failed");
+      setError(
+        e instanceof Error ? e.message : t("candidate.credentials.verifyFailed"),
+      );
     } finally {
       setVerifying(null);
     }
@@ -70,7 +74,9 @@ export default function CandidateCredentialsPage() {
         `${c.credentialNumber || c.id}.vc.json`,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Download failed");
+      setError(
+        e instanceof Error ? e.message : t("candidate.credentials.downloadFailed"),
+      );
     } finally {
       setDownloading(null);
     }
@@ -79,8 +85,8 @@ export default function CandidateCredentialsPage() {
   return (
     <>
       <PageHeader
-        title="My credentials"
-        description="Every credential issued to you. Download as a W3C Verifiable Credential JSON, or verify on-chain at any time."
+        title={t("candidate.credentials.title")}
+        description={t("candidate.credentials.description")}
       />
 
       {error && (
@@ -91,17 +97,16 @@ export default function CandidateCredentialsPage() {
 
       {!items ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
           <Award size={32} className="mx-auto text-fg-subtle mb-4" />
           <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            No credentials yet
+            {t("candidate.credentials.emptyTitle")}
           </h3>
           <p className="text-[13.5px] text-fg-muted max-w-[40ch] mx-auto">
-            When an issuing institution publishes a credential to your account,
-            it will appear here.
+            {t("candidate.credentials.emptyDesc")}
           </p>
         </div>
       ) : (
@@ -138,6 +143,7 @@ function CredentialCard({
   onDownload: () => void;
   downloading: boolean;
 }) {
+  const { t } = useLanguage();
   const tx = credential.blockchainTxHash;
   const isFinal = credential.status === "issued";
   return (
@@ -158,13 +164,17 @@ function CredentialCard({
       </div>
 
       <dl className="grid grid-cols-2 gap-y-2 gap-x-4 text-[13px] mb-4">
-        <dt className="text-fg-subtle">Issued</dt>
+        <dt className="text-fg-subtle">
+          {t("candidate.credentials.issued")}
+        </dt>
         <dd className="text-fg-muted">
           {new Date(credential.issuedDate).toLocaleDateString()}
         </dd>
         {credential.expiryDate && (
           <>
-            <dt className="text-fg-subtle">Expires</dt>
+            <dt className="text-fg-subtle">
+              {t("candidate.credentials.expires")}
+            </dt>
             <dd className="text-fg-muted">
               {new Date(credential.expiryDate).toLocaleDateString()}
             </dd>
@@ -203,21 +213,24 @@ function CredentialCard({
               <XCircle size={16} />
             )}
             {verification.result === "valid"
-              ? "Authentic & unrevoked"
-              : `Verification result: ${verification.result}`}
+              ? t("candidate.credentials.authentic")
+              : t("candidate.credentials.verifyResult").replace(
+                  "{result}",
+                  verification.result,
+                )}
           </div>
           <ul className="text-[12.5px] text-fg-muted leading-relaxed grid grid-cols-3 gap-2">
             <Check
               ok={verification.onChainVerified}
-              label="On-chain"
+              label={t("candidate.credentials.onChain")}
             />
             <Check
               ok={verification.vcSignatureValid}
-              label="VC signature"
+              label={t("candidate.credentials.vcSignature")}
             />
             <Check
               ok={verification.issuerAuthorized}
-              label="Issuer authorized"
+              label={t("candidate.credentials.issuerAuthorized")}
             />
           </ul>
         </div>
@@ -231,7 +244,7 @@ function CredentialCard({
           leftIcon={<ShieldCheck size={14} />}
           disabled={!isFinal}
         >
-          Verify
+          {t("candidate.credentials.verify")}
         </Button>
         <Button
           onClick={onDownload}
@@ -239,7 +252,7 @@ function CredentialCard({
           leftIcon={<Download size={14} />}
           disabled={!isFinal}
         >
-          Download VC
+          {t("candidate.credentials.downloadVc")}
         </Button>
       </div>
     </article>

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchUsers, updateUserStatus } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AccountStatus, AdminUser } from "@/types/admin";
 
 const STATUS_VARIANT: Record<AccountStatus, BadgeVariant> = {
@@ -18,14 +20,15 @@ const STATUS_VARIANT: Record<AccountStatus, BadgeVariant> = {
   pending_verification: "warn",
 };
 
-const STATUS_LABEL: Record<AccountStatus, string> = {
-  active: "Active",
-  suspended: "Suspended",
-  inactive: "Inactive",
-  pending_verification: "Pending verification",
+const STATUS_KEY: Record<AccountStatus, TranslationKey> = {
+  active: "status.account.active",
+  suspended: "status.account.suspended",
+  inactive: "status.account.inactive",
+  pending_verification: "status.account.pending_verification",
 };
 
 export default function AdminUsersPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
   const [status, setStatus] = useState("all");
@@ -59,14 +62,16 @@ export default function AdminUsersPage() {
 
   const summary = useMemo(() => {
     if (!users) return "";
-    return `${users.length} ${users.length === 1 ? "user" : "users"}`;
-  }, [users]);
+    const key =
+      users.length === 1 ? "admin.users.summaryOne" : "admin.users.summaryMany";
+    return t(key).replace("{n}", String(users.length));
+  }, [users, t]);
 
   return (
     <>
       <PageHeader
-        title="Users"
-        description="Search, filter, suspend and manage per-user action overrides."
+        title={t("admin.users.title")}
+        description={t("admin.users.description")}
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -77,7 +82,7 @@ export default function AdminUsersPage() {
           />
           <Input
             type="search"
-            placeholder="Search by name or email…"
+            placeholder={t("admin.users.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-11"
@@ -88,22 +93,24 @@ export default function AdminUsersPage() {
           onChange={(e) => setRole(e.target.value)}
           className="h-11 sm:w-[180px]"
         >
-          <option value="all">All roles</option>
-          <option value="admin">Admin</option>
-          <option value="issuer">Issuer</option>
-          <option value="candidate">Candidate</option>
-          <option value="recruiter">Recruiter</option>
+          <option value="all">{t("role.all")}</option>
+          <option value="admin">{t("role.admin")}</option>
+          <option value="issuer">{t("role.issuer")}</option>
+          <option value="candidate">{t("role.candidate")}</option>
+          <option value="recruiter">{t("role.recruiter")}</option>
         </Select>
         <Select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           className="h-11 sm:w-[200px]"
         >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="pending_verification">Pending verification</option>
-          <option value="inactive">Inactive</option>
+          <option value="all">{t("status.account.all")}</option>
+          <option value="active">{t("status.account.active")}</option>
+          <option value="suspended">{t("status.account.suspended")}</option>
+          <option value="pending_verification">
+            {t("status.account.pending_verification")}
+          </option>
+          <option value="inactive">{t("status.account.inactive")}</option>
         </Select>
       </div>
 
@@ -112,24 +119,24 @@ export default function AdminUsersPage() {
       <Table>
         <THead>
           <TR>
-            <TH>User</TH>
-            <TH>Role</TH>
-            <TH>Status</TH>
-            <TH>Last login</TH>
-            <TH className="text-right">Actions</TH>
+            <TH>{t("admin.users.userColumn")}</TH>
+            <TH>{t("admin.users.roleColumn")}</TH>
+            <TH>{t("common.status")}</TH>
+            <TH>{t("admin.users.lastLogin")}</TH>
+            <TH className="text-right">{t("common.actions")}</TH>
           </TR>
         </THead>
         <TBody>
           {!users ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                Loading users…
+                {t("admin.users.loading")}
               </TD>
             </TR>
           ) : users.length === 0 ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                No users match these filters.
+                {t("admin.users.empty")}
               </TD>
             </TR>
           ) : (
@@ -150,10 +157,10 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
                 </TD>
-                <TD className="capitalize text-fg-muted">{u.role}</TD>
+                <TD className="text-fg-muted">{t(`role.${u.role}`)}</TD>
                 <TD>
                   <Badge variant={STATUS_VARIANT[u.status]}>
-                    {STATUS_LABEL[u.status]}
+                    {t(STATUS_KEY[u.status])}
                   </Badge>
                 </TD>
                 <TD className="font-mono text-[12.5px] text-fg-subtle">
@@ -167,7 +174,7 @@ export default function AdminUsersPage() {
                       leftIcon={<ShieldOff size={14} />}
                       onClick={() => setOverrideTarget(u)}
                     >
-                      Overrides
+                      {t("admin.users.overrides")}
                     </Button>
                     <Button
                       variant={u.status === "suspended" ? "primary" : "secondary"}
@@ -175,7 +182,9 @@ export default function AdminUsersPage() {
                       loading={savingId === u.id}
                       onClick={() => toggleSuspended(u)}
                     >
-                      {u.status === "suspended" ? "Unblock" : "Block"}
+                      {u.status === "suspended"
+                        ? t("admin.users.unblock")
+                        : t("admin.users.block")}
                     </Button>
                   </div>
                 </TD>

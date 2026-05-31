@@ -20,6 +20,8 @@ import {
   fetchRecommendedCandidates,
   updateJob,
 } from "@/lib/recruiter-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { ApplicationStatus, JobItem } from "@/types/candidate";
 import type {
   ApplicationWithCandidate,
@@ -29,13 +31,14 @@ import type {
 
 type Tab = "overview" | "candidates" | "applications";
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "candidates", label: "Recommended candidates" },
-  { key: "applications", label: "Applications" },
+const TABS: { key: Tab; labelKey: TranslationKey }[] = [
+  { key: "overview", labelKey: "recruiter.jobDetail.tabOverview" },
+  { key: "candidates", labelKey: "recruiter.jobDetail.tabCandidates" },
+  { key: "applications", labelKey: "recruiter.jobDetail.tabApplications" },
 ];
 
 export default function RecruiterJobDetailPage() {
+  const { t } = useLanguage();
   const params = useParams<{ id: string }>();
   const jobId = params?.id;
 
@@ -47,9 +50,11 @@ export default function RecruiterJobDetailPage() {
   useEffect(() => {
     if (!jobId) return;
     fetchJob(jobId).then(setJob).catch((e: unknown) => {
-      setError(e instanceof Error ? e.message : "Failed to load job");
+      setError(
+        e instanceof Error ? e.message : t("recruiter.jobDetail.failedLoad"),
+      );
     });
-  }, [jobId]);
+  }, [jobId, t]);
 
   async function transition(status: JobStatus) {
     if (!job) return;
@@ -58,7 +63,11 @@ export default function RecruiterJobDetailPage() {
       const next = await updateJob(job.id, { status });
       setJob(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Status update failed");
+      setError(
+        e instanceof Error
+          ? e.message
+          : t("recruiter.jobDetail.statusUpdateFailed"),
+      );
     } finally {
       setStatusSaving(false);
     }
@@ -67,7 +76,7 @@ export default function RecruiterJobDetailPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Job" />
+        <PageHeader title={t("recruiter.jobDetail.titleFallback")} />
         <Alert variant="error">{error}</Alert>
       </>
     );
@@ -76,9 +85,9 @@ export default function RecruiterJobDetailPage() {
   if (!job) {
     return (
       <>
-        <PageHeader title="Job" />
+        <PageHeader title={t("recruiter.jobDetail.titleFallback")} />
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       </>
     );
@@ -98,7 +107,7 @@ export default function RecruiterJobDetailPage() {
                 onClick={() => transition("open")}
                 loading={statusSaving}
               >
-                Publish
+                {t("recruiter.jobDetail.publish")}
               </Button>
             )}
             {job.status === "open" && (
@@ -108,12 +117,12 @@ export default function RecruiterJobDetailPage() {
                 onClick={() => transition("closed")}
                 loading={statusSaving}
               >
-                Close
+                {t("recruiter.jobDetail.close")}
               </Button>
             )}
             <Link href={`/recruiter/jobs/${job.id}/edit`}>
               <Button size="md" variant="secondary" leftIcon={<Edit2 size={13} />}>
-                Edit
+                {t("recruiter.jobDetail.edit")}
               </Button>
             </Link>
           </div>
@@ -127,7 +136,7 @@ export default function RecruiterJobDetailPage() {
             {job.city ?? job.location}
           </span>
         )}
-        {job.isRemote && <Badge variant="info">Remote</Badge>}
+        {job.isRemote && <Badge variant="info">{t("common.remote")}</Badge>}
         {job.jobType && (
           <span className="inline-flex items-center gap-1.5">
             <Briefcase size={13} className="text-fg-subtle" />
@@ -141,21 +150,21 @@ export default function RecruiterJobDetailPage() {
 
       {/* Tabs */}
       <div role="tablist" className="flex flex-wrap gap-1 mb-5 border-b border-border">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.key}
+            key={tabItem.key}
             type="button"
             role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
+            aria-selected={tab === tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className={cn(
               "h-10 px-4 -mb-px border-b-2 text-[14px] font-medium transition-colors",
-              tab === t.key
+              tab === tabItem.key
                 ? "border-accent text-fg"
                 : "border-transparent text-fg-muted hover:text-fg",
             )}
           >
-            {t.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>
@@ -168,23 +177,24 @@ export default function RecruiterJobDetailPage() {
 }
 
 function OverviewTab({ job }: { job: JobItem }) {
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 rounded-2xl border border-border bg-canvas p-5 sm:p-6">
-        <Section title="Description">
+        <Section title={t("recruiter.jobDetail.secDescription")}>
           <p className="text-[14.5px] text-fg-muted whitespace-pre-wrap leading-relaxed">
             {job.description}
           </p>
         </Section>
         {job.requirements && (
-          <Section title="Requirements">
+          <Section title={t("recruiter.jobDetail.secRequirements")}>
             <p className="text-[14.5px] text-fg-muted whitespace-pre-wrap leading-relaxed">
               {job.requirements}
             </p>
           </Section>
         )}
         {job.benefits && (
-          <Section title="Benefits">
+          <Section title={t("recruiter.jobDetail.secBenefits")}>
             <p className="text-[14.5px] text-fg-muted whitespace-pre-wrap leading-relaxed">
               {job.benefits}
             </p>
@@ -193,9 +203,11 @@ function OverviewTab({ job }: { job: JobItem }) {
       </div>
 
       <aside className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 h-fit">
-        <Section title="Required skills">
+        <Section title={t("recruiter.jobDetail.secRequiredSkills")}>
           {job.requiredSkills.length === 0 ? (
-            <p className="text-[13px] text-fg-subtle">None added.</p>
+            <p className="text-[13px] text-fg-subtle">
+              {t("recruiter.jobDetail.noSkills")}
+            </p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {job.requiredSkills.map((s) => (
@@ -210,7 +222,7 @@ function OverviewTab({ job }: { job: JobItem }) {
           )}
         </Section>
         {job.preferredSkills && job.preferredSkills.length > 0 && (
-          <Section title="Preferred skills">
+          <Section title={t("recruiter.jobDetail.secPreferredSkills")}>
             <div className="flex flex-wrap gap-1.5">
               {job.preferredSkills.map((s) => (
                 <span
@@ -229,6 +241,7 @@ function OverviewTab({ job }: { job: JobItem }) {
 }
 
 function CandidatesTab({ jobId }: { jobId: string }) {
+  const { t } = useLanguage();
   const [items, setItems] = useState<RankedCandidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<{
@@ -244,25 +257,28 @@ function CandidatesTab({ jobId }: { jobId: string }) {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load candidates");
+        setError(
+          e instanceof Error
+            ? e.message
+            : t("recruiter.jobDetail.candidatesFailedLoad"),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [jobId, t]);
 
   if (error) return <Alert variant="error">{error}</Alert>;
   if (!items)
     return (
       <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-        Computing AI rankings…
+        {t("recruiter.jobDetail.candidatesLoading")}
       </div>
     );
   if (items.length === 0)
     return (
       <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-        No candidates ranked yet — try once you have candidate embeddings in
-        the system.
+        {t("recruiter.jobDetail.candidatesEmpty")}
       </div>
     );
 
@@ -307,7 +323,7 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                     })
                   }
                 >
-                  1-click verify
+                  {t("recruiter.jobDetail.verifyClick")}
                 </Button>
               </div>
             </div>
@@ -323,6 +339,7 @@ function CandidatesTab({ jobId }: { jobId: string }) {
 }
 
 function ApplicationsTab({ jobId }: { jobId: string }) {
+  const { t } = useLanguage();
   const [items, setItems] = useState<ApplicationWithCandidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<{
@@ -345,12 +362,16 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load applications");
+        setError(
+          e instanceof Error
+            ? e.message
+            : t("recruiter.jobDetail.appsFailedLoad"),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [jobId, t]);
 
   function handleStatusChange(appId: string, status: ApplicationStatus) {
     setItems((prev) =>
@@ -364,13 +385,13 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
   if (!items)
     return (
       <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-        Loading…
+        {t("common.loading")}
       </div>
     );
   if (items.length === 0)
     return (
       <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-        No applications yet.
+        {t("recruiter.jobDetail.appsEmpty")}
       </div>
     );
 
@@ -391,7 +412,8 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                   </span>
                 </div>
                 <h3 className="text-[16px] font-semibold text-fg leading-snug">
-                  {app.candidate?.fullName ?? "Anonymous candidate"}
+                  {app.candidate?.fullName ??
+                    t("recruiter.jobDetail.anonymousCandidate")}
                 </h3>
                 {app.candidate?.email && (
                   <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5">

@@ -1,4 +1,8 @@
-import { formatValidationMessages } from "./format-validation-errors";
+import {
+  formatValidationMessages,
+  localizeBackendMessage,
+} from "./format-validation-errors";
+import type { Language } from "./i18n/translations";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -22,6 +26,27 @@ type RequestOptions = {
   token?: string;
 };
 
+const NETWORK_ERROR: Record<Language, string> = {
+  en: "Cannot reach the server. Please try again.",
+  vi: "Không kết nối được tới máy chủ. Vui lòng thử lại.",
+};
+
+const REQUEST_FAILED: Record<Language, (status: number) => string> = {
+  en: (status) => `Request failed (${status})`,
+  vi: (status) => `Yêu cầu thất bại (${status})`,
+};
+
+/**
+ * Read the current UI language straight from localStorage. `LanguageProvider`
+ * is the writer; reading directly here avoids threading React context through
+ * every API call. Defaults to "vi" (system default) when unavailable.
+ */
+function currentLanguage(): Language {
+  if (typeof window === "undefined") return "vi";
+  const stored = window.localStorage.getItem("trustlink.lang");
+  return stored === "en" || stored === "vi" ? stored : "vi";
+}
+
 export async function apiRequest<T>(
   path: string,
   { method = "GET", body, token }: RequestOptions = {},
@@ -29,6 +54,8 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const lang = currentLanguage();
 
   let res: Response;
   try {
@@ -38,7 +65,7 @@ export async function apiRequest<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError("Cannot reach the server. Please try again.", 0);
+    throw new ApiError(NETWORK_ERROR[lang], 0);
   }
 
   if (res.status === 204) return undefined as T;
@@ -53,16 +80,15 @@ export async function apiRequest<T>(
   if (!res.ok) {
     const payload = (data ?? {}) as { message?: unknown; error?: unknown };
     const raw = payload.message ?? payload.error;
-    let message = `Request failed (${res.status})`;
+    let message = REQUEST_FAILED[lang](res.status);
     let fields: Record<string, string> | undefined;
 
     if (Array.isArray(raw)) {
-      // class-validator returns array of strings — convert to friendly form
-      const formatted = formatValidationMessages(raw as string[]);
+      const formatted = formatValidationMessages(raw as string[], lang);
       message = formatted.summary;
       fields = formatted.fields;
     } else if (typeof raw === "string") {
-      message = raw;
+      message = localizeBackendMessage(raw, lang);
     }
 
     throw new ApiError(message, res.status, fields);

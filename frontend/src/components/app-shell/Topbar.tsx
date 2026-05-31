@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { clearSession } from "@/lib/auth-storage";
+import { Bell } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AuthUser } from "@/types/auth";
+import { LanguageToggle } from "./LanguageToggle";
+import { UserMenu } from "./UserMenu";
 
 type TopbarProps = {
   user: AuthUser;
@@ -12,14 +13,7 @@ type TopbarProps = {
 };
 
 export function Topbar({ user, title, description }: TopbarProps) {
-  const router = useRouter();
-  const initials = getInitials(user.fullName);
-
-  function handleSignOut() {
-    clearSession();
-    router.replace("/login");
-  }
-
+  const { t } = useLanguage();
   return (
     <header className="sticky top-0 z-20 h-16 px-5 sm:px-7 flex items-center gap-4 border-b border-border bg-canvas/85 backdrop-blur-md">
       <div className="min-w-0 flex-1">
@@ -35,48 +29,18 @@ export function Topbar({ user, title, description }: TopbarProps) {
         )}
       </div>
 
+      <LanguageToggle />
+
       <button
         type="button"
-        title="Notifications"
+        title={t("a11y.notifications")}
+        aria-label={t("a11y.notifications")}
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
       >
         <Bell size={18} />
       </button>
 
-      <div className="flex items-center gap-2.5 pl-3 border-l border-border">
-        <span
-          aria-hidden
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-accent text-[12.5px] font-semibold"
-        >
-          {initials}
-        </span>
-        <div className="hidden lg:flex flex-col leading-tight">
-          <span className="text-[13px] font-semibold text-fg">
-            {user.fullName}
-          </span>
-          <span className="text-[11.5px] text-fg-subtle capitalize">
-            {user.role}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          title="Sign out"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
+      <UserMenu user={user} />
     </header>
   );
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }

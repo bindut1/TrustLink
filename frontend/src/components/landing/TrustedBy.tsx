@@ -1,13 +1,17 @@
+"use client";
+
 import { Reveal } from "@/components/motion/Reveal";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { TRUSTED_BY } from "./landing-config";
 
 export function TrustedBy() {
+  const { t } = useLanguage();
   return (
     <section className="border-y border-border/70 bg-surface-2/50 backdrop-blur-sm">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-6 py-12 sm:py-14">
         <Reveal>
           <p className="text-center text-[13px] uppercase tracking-[0.14em] font-semibold text-fg-subtle mb-9">
-            Trusted by leading institutions and forward-thinking companies
+            {t("landing.trustedBy.title")}
           </p>
         </Reveal>
         <Reveal delay={120}>

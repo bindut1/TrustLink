@@ -12,9 +12,11 @@ import {
   fetchMyApplications,
   fetchRecommendedJobs,
 } from "@/lib/candidate-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { JobItem, RankedJob } from "@/types/candidate";
 
 export default function RecommendationsPage() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<RankedJob[] | null>(null);
   const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
   const [loadingApply, setLoadingApply] = useState(false);
@@ -29,7 +31,9 @@ export default function RecommendationsPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load");
+        setError(
+          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
+        );
       });
     fetchMyApplications()
       .then((apps) => {
@@ -47,7 +51,7 @@ export default function RecommendationsPage() {
       const job = await fetchJob(jobId);
       setApplyTarget(job);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load job");
+      setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
     } finally {
       setLoadingApply(false);
     }
@@ -56,8 +60,8 @@ export default function RecommendationsPage() {
   return (
     <>
       <PageHeader
-        title="Recommended for you"
-        description="Top open jobs ranked by our 3-tier AI matcher: keyword overlap (40%), semantic similarity (50%), and verified-skill bonus (10%)."
+        title={t("candidate.recs.title")}
+        description={t("candidate.recs.description")}
       />
 
       {error && (
@@ -68,17 +72,16 @@ export default function RecommendationsPage() {
 
       {!items ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading recommendations…
+          {t("candidate.recs.loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
           <Sparkles size={32} className="mx-auto text-fg-subtle mb-4" />
           <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            No recommendations yet
+            {t("candidate.recs.emptyTitle")}
           </h3>
           <p className="text-[13.5px] text-fg-muted max-w-[44ch] mx-auto">
-            Once your profile and credentials are populated, we&apos;ll suggest
-            jobs that fit your real, verified skills.
+            {t("candidate.recs.emptyDesc")}
           </p>
         </div>
       ) : (
@@ -119,6 +122,7 @@ function RankedJobCard({
   alreadyApplied: boolean;
   onApply: () => void;
 }) {
+  const { t } = useLanguage();
   // Build a synthetic JobItem for the JobCard component (server returns a
   // pruned shape on `ranked.job`).
   const job: JobItem = {
@@ -168,7 +172,7 @@ function RankedJobCard({
               />
               {alreadyApplied && (
                 <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[12px] font-medium text-success">
-                  Applied
+                  {t("candidate.recs.applied")}
                 </span>
               )}
             </div>

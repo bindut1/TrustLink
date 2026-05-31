@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ApiError } from "@/lib/api";
 import { applyToJob } from "@/lib/candidate-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { JobItem } from "@/types/candidate";
 
 type ApplyModalProps = {
@@ -15,6 +16,7 @@ type ApplyModalProps = {
 };
 
 export function ApplyModal({ job, onClose, onApplied }: ApplyModalProps) {
+  const { t } = useLanguage();
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +37,9 @@ export function ApplyModal({ job, onClose, onApplied }: ApplyModalProps) {
       setError(
         e instanceof ApiError
           ? e.status === 409
-            ? "You've already applied to this job."
+            ? t("applyModal.alreadyApplied")
             : e.message
-          : "Application failed",
+          : t("applyModal.failed"),
       );
     } finally {
       setSubmitting(false);
@@ -50,15 +52,15 @@ export function ApplyModal({ job, onClose, onApplied }: ApplyModalProps) {
     <Modal
       open
       onClose={onClose}
-      title={`Apply to "${job.title}"?`}
-      description="Your verified credentials and skills are used to compute a match score that the recruiter will see."
+      title={t("applyModal.title")}
+      description={t("applyModal.description")}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={submit} loading={submitting}>
-            Submit application
+            {submitting ? t("applyModal.submitting") : t("applyModal.submit")}
           </Button>
         </>
       }
@@ -69,15 +71,21 @@ export function ApplyModal({ job, onClose, onApplied }: ApplyModalProps) {
         </Alert>
       )}
       <label className="text-[14px] font-medium text-fg mb-2 block">
-        Cover letter <span className="text-fg-faint font-normal">· optional</span>
+        {t("applyModal.coverLetter")}{" "}
+        <span className="text-fg-faint font-normal">
+          · {t("common.optional")}
+        </span>
       </label>
       <textarea
         value={coverLetter}
         onChange={(e) => setCoverLetter(e.target.value)}
         rows={6}
-        placeholder="Why are you a good fit? Mention experience that's not in your credentials."
+        placeholder={t("applyModal.coverLetterPlaceholder")}
         className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[14px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
       />
+      <p className="mt-2 text-[12px] text-fg-subtle">
+        {t("applyModal.coverLetterHint")}
+      </p>
     </Modal>
   );
 }

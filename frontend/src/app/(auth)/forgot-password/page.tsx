@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { ApiError, apiRequest } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ForgotPasswordPayload } from "@/types/auth";
 
 export default function ForgotPasswordPage() {
+  const { t, lang } = useLanguage();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function ForgotPasswordPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t("common.somethingWentWrong"));
       }
     } finally {
       setLoading(false);
@@ -38,29 +40,30 @@ export default function ForgotPasswordPage() {
   }
 
   if (submitted) {
+    // Render the localized subtitle by splitting around {email} and injecting the value as a styled span.
+    const subtitleTemplate = t("forgot.successSubtitle");
+    const parts = subtitleTemplate.split("{email}");
     return (
       <AuthCard>
         <AuthHeader
-          title="Check your email"
+          title={t("forgot.successTitle")}
           subtitle={
             <>
-              If an account exists for <strong className="text-fg">{email}</strong>, we
-              just sent a reset link.
+              {parts[0]}
+              <strong className="text-fg">{email}</strong>
+              {parts[1] ?? ""}
             </>
           }
         />
         <div className="mt-7">
-          <Alert variant="success">
-            The link expires in 1 hour. Don&apos;t see it? Check your spam
-            folder, then try again.
-          </Alert>
+          <Alert variant="success">{t("forgot.alertNote")}</Alert>
         </div>
         <AuthCardFooter>
           <Link
             href="/login"
             className="font-medium text-accent hover:underline"
           >
-            Back to sign in
+            {t("forgot.backToSignIn")}
           </Link>
         </AuthCardFooter>
       </AuthCard>
@@ -68,11 +71,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthCard>
-      <AuthHeader
-        title="Reset your password"
-        subtitle="Enter the email tied to your account and we'll send you a reset link."
-      />
+    <AuthCard key={lang}>
+      <AuthHeader title={t("forgot.title")} subtitle={t("forgot.subtitle")} />
 
       <form
         onSubmit={(e) => {
@@ -84,12 +84,12 @@ export default function ForgotPasswordPage() {
       >
         {error && <Alert variant="error">{error}</Alert>}
 
-        <FormField label="Email" required>
+        <FormField label={t("login.email")} required>
           <Input
             name="email"
             type="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder={t("login.emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -97,13 +97,13 @@ export default function ForgotPasswordPage() {
         </FormField>
 
         <Button type="submit" size="lg" block loading={loading}>
-          {loading ? "Sending…" : "Send reset link"}
+          {loading ? t("forgot.submitting") : t("forgot.submit")}
         </Button>
       </form>
 
       <AuthCardFooter>
         <Link href="/login" className="font-medium text-accent hover:underline">
-          Back to sign in
+          {t("forgot.backToSignIn")}
         </Link>
       </AuthCardFooter>
     </AuthCard>

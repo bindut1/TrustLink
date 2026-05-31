@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/Label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { ApiError, apiRequest } from "@/lib/api";
 import { saveSession } from "@/lib/auth-storage";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AuthResponse, RegisterPayload } from "@/types/auth";
 
 type FormState = {
@@ -56,6 +57,7 @@ const INITIAL: FormState = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [role, setRole] = useState<RegisterRole | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,7 @@ export default function RegisterPage() {
 
   async function submit() {
     if (!role) {
-      setError("Please choose an account type.");
+      setError(t("register.pickAccountType"));
       return;
     }
     setError(null);
@@ -107,7 +109,7 @@ export default function RegisterPage() {
         setError(err.message);
         if (err.fields) setFieldErrors(err.fields);
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t("common.somethingWentWrong"));
       }
     } finally {
       setLoading(false);
@@ -118,8 +120,8 @@ export default function RegisterPage() {
     <AuthCard size="lg">
       <AuthHeader
         size="lg"
-        title="Create your TrustLink account"
-        subtitle="Pick how you'll use TrustLink — your role decides which tools you'll see next."
+        title={t("register.title")}
+        subtitle={t("register.subtitle")}
       />
 
       <form
@@ -133,7 +135,7 @@ export default function RegisterPage() {
         {error && <Alert variant="error">{error}</Alert>}
 
         <fieldset className="flex flex-col gap-3">
-          <Label required>Account type</Label>
+          <Label required>{t("register.accountType")}</Label>
           <RoleSelector
             options={REGISTER_ROLES}
             value={role}
@@ -143,21 +145,21 @@ export default function RegisterPage() {
 
         {role && (
           <>
-            <AuthSectionLabel>Account details</AuthSectionLabel>
+            <AuthSectionLabel>{t("register.accountDetails")}</AuthSectionLabel>
 
             <FormField
-              label={role === "issuer" ? "Contact person" : "Full name"}
+              label={
+                role === "issuer"
+                  ? t("register.contactPerson")
+                  : t("register.fullName")
+              }
               required
               error={fieldErrors.fullName}
             >
               <Input
                 name="fullName"
                 autoComplete="name"
-                placeholder={
-                  role === "issuer"
-                    ? "Person managing this account"
-                    : "Your full name"
-                }
+                placeholder={t("register.fullNamePlaceholder")}
                 value={form.fullName}
                 onChange={set("fullName")}
                 required
@@ -165,20 +167,20 @@ export default function RegisterPage() {
             </FormField>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Email" required error={fieldErrors.email}>
+              <FormField label={t("register.email")} required error={fieldErrors.email}>
                 <Input
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@example.com"
+                  placeholder={t("login.emailPlaceholder")}
                   value={form.email}
                   onChange={set("email")}
                   required
                 />
               </FormField>
               <FormField
-                label="Phone"
-                hint="Optional"
+                label={t("register.phone")}
+                hint={t("common.optional")}
                 error={fieldErrors.phone}
               >
                 <Input
@@ -192,9 +194,9 @@ export default function RegisterPage() {
             </div>
 
             <FormField
-              label="Password"
+              label={t("register.password")}
               required
-              hint="At least 8 characters"
+              hint={t("register.passwordHint")}
               error={fieldErrors.password}
             >
               <PasswordInput
@@ -208,15 +210,17 @@ export default function RegisterPage() {
 
             {role === "issuer" && (
               <>
-                <AuthSectionLabel>Institution</AuthSectionLabel>
+                <AuthSectionLabel>
+                  {t("register.institutionSection")}
+                </AuthSectionLabel>
                 <FormField
-                  label="Institution name"
+                  label={t("register.institutionName")}
                   required
                   error={fieldErrors.institutionName}
                 >
                   <Input
                     name="institutionName"
-                    placeholder="e.g. Hanoi University of Science"
+                    placeholder={t("register.institutionNamePlaceholder")}
                     value={form.institutionName}
                     onChange={set("institutionName")}
                     required
@@ -224,7 +228,7 @@ export default function RegisterPage() {
                 </FormField>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
-                    label="Institution type"
+                    label={t("register.institutionType")}
                     required
                     error={fieldErrors.institutionType}
                   >
@@ -234,17 +238,17 @@ export default function RegisterPage() {
                       onChange={set("institutionType")}
                       required
                     >
-                      <option value="">Select…</option>
-                      {INSTITUTION_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
+                      <option value="">{t("register.selectPlaceholder")}</option>
+                      {INSTITUTION_TYPES.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {t(opt.labelKey)}
                         </option>
                       ))}
                     </Select>
                   </FormField>
                   <FormField
-                    label="Tax / registration code"
-                    hint="Optional"
+                    label={t("register.taxCode")}
+                    hint={t("common.optional")}
                     error={fieldErrors.taxCode}
                   >
                     <Input
@@ -255,8 +259,8 @@ export default function RegisterPage() {
                   </FormField>
                 </div>
                 <FormField
-                  label="Website"
-                  hint="Optional"
+                  label={t("register.website")}
+                  hint={t("common.optional")}
                   error={fieldErrors.website}
                 >
                   <Input
@@ -272,15 +276,17 @@ export default function RegisterPage() {
 
             {role === "recruiter" && (
               <>
-                <AuthSectionLabel>Company</AuthSectionLabel>
+                <AuthSectionLabel>
+                  {t("register.companySection")}
+                </AuthSectionLabel>
                 <FormField
-                  label="Company name"
+                  label={t("register.companyName")}
                   required
                   error={fieldErrors.companyName}
                 >
                   <Input
                     name="companyName"
-                    placeholder="e.g. Mercurial Labs"
+                    placeholder={t("register.companyNamePlaceholder")}
                     value={form.companyName}
                     onChange={set("companyName")}
                     required
@@ -288,20 +294,20 @@ export default function RegisterPage() {
                 </FormField>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
-                    label="Industry"
-                    hint="Optional"
+                    label={t("register.industry")}
+                    hint={t("common.optional")}
                     error={fieldErrors.industry}
                   >
                     <Input
                       name="industry"
-                      placeholder="e.g. Fintech"
+                      placeholder={t("jobForm.industryPlaceholder")}
                       value={form.industry}
                       onChange={set("industry")}
                     />
                   </FormField>
                   <FormField
-                    label="Company size"
-                    hint="Optional"
+                    label={t("register.companySize")}
+                    hint={t("common.optional")}
                     error={fieldErrors.companySize}
                   >
                     <Select
@@ -309,10 +315,10 @@ export default function RegisterPage() {
                       value={form.companySize}
                       onChange={set("companySize")}
                     >
-                      <option value="">Select…</option>
+                      <option value="">{t("register.selectPlaceholder")}</option>
                       {COMPANY_SIZES.map((s) => (
                         <option key={s.value} value={s.value}>
-                          {s.label}
+                          {t(s.labelKey)}
                         </option>
                       ))}
                     </Select>
@@ -322,16 +328,16 @@ export default function RegisterPage() {
             )}
 
             <Button type="submit" size="lg" block loading={loading}>
-              {loading ? "Creating account…" : "Create account"}
+              {loading ? t("register.submitting") : t("register.submit")}
             </Button>
           </>
         )}
       </form>
 
       <AuthCardFooter>
-        Already have an account?{" "}
+        {t("register.alreadyHaveAccount")}{" "}
         <Link href="/login" className="font-medium text-accent hover:underline">
-          Sign in
+          {t("register.signIn")}
         </Link>
       </AuthCardFooter>
     </AuthCard>

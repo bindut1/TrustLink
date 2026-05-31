@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
   type CandidateVerificationItem,
   verifyAllCredentialsForCandidate,
@@ -19,6 +20,7 @@ export function CandidateVerifyModal({
   candidate,
   onClose,
 }: CandidateVerifyModalProps) {
+  const { t } = useLanguage();
   const [results, setResults] = useState<CandidateVerificationItem[] | null>(
     null,
   );
@@ -37,9 +39,7 @@ export function CandidateVerifyModal({
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(
-          e instanceof Error ? e.message : "Verification failed",
-        );
+        setError(e instanceof Error ? e.message : t("candVerify.failed"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -47,7 +47,7 @@ export function CandidateVerifyModal({
     return () => {
       cancelled = true;
     };
-  }, [candidate]);
+  }, [candidate, t]);
 
   const stats = useMemo(() => {
     if (!results) return null;
@@ -65,17 +65,17 @@ export function CandidateVerifyModal({
       open
       onClose={onClose}
       size="lg"
-      title="1-click verification"
+      title={t("candVerify.title")}
       description={
         <>
-          Checking every credential for{" "}
-          <strong className="text-fg">{candidate.fullName}</strong> against
-          on-chain hash, VC signature, and authorized issuer.
+          {t("candVerify.descBefore")}
+          <strong className="text-fg">{candidate.fullName}</strong>
+          {t("candVerify.descAfter")}
         </>
       }
       footer={
         <Button variant="secondary" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
       }
     >
@@ -87,7 +87,7 @@ export function CandidateVerifyModal({
 
       {loading && (
         <div className="rounded-xl border border-border bg-surface-2/40 p-6 text-center text-fg-subtle text-[13.5px]">
-          Running checks…
+          {t("candVerify.running")}
         </div>
       )}
 
@@ -107,13 +107,15 @@ export function CandidateVerifyModal({
           />
           <div className="leading-tight">
             <div className="text-[15px] font-semibold text-fg">
-              {stats.valid} valid · {stats.revoked} revoked · {stats.invalid}{" "}
-              invalid
+              {t("candVerify.summary")
+                .replace("{valid}", String(stats.valid))
+                .replace("{revoked}", String(stats.revoked))
+                .replace("{invalid}", String(stats.invalid))}
             </div>
             <div className="text-[12.5px] text-fg-muted">
               {stats.total === 0
-                ? "This candidate has no credentials yet."
-                : "Click any row to expand its on-chain check details."}
+                ? t("candVerify.noCredentials")
+                : t("candVerify.clickToExpand")}
             </div>
           </div>
         </div>
@@ -133,15 +135,24 @@ export function CandidateVerifyModal({
                   <div className="text-[14px] font-semibold text-fg truncate">
                     {r.title}
                   </div>
-                  <div className="text-[12px] text-fg-subtle font-mono mt-0.5 capitalize">
-                    {r.result}
+                  <div className="text-[12px] text-fg-subtle font-mono mt-0.5">
+                    {resultLabel(r.result, t)}
                   </div>
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 pl-7">
-                <Tick ok={r.onChainVerified} label="On-chain" />
-                <Tick ok={r.vcSignatureValid} label="VC signature" />
-                <Tick ok={r.issuerAuthorized} label="Issuer authorized" />
+                <Tick
+                  ok={r.onChainVerified}
+                  label={t("candidate.credentials.onChain")}
+                />
+                <Tick
+                  ok={r.vcSignatureValid}
+                  label={t("candidate.credentials.vcSignature")}
+                />
+                <Tick
+                  ok={r.issuerAuthorized}
+                  label={t("candidate.credentials.issuerAuthorized")}
+                />
               </div>
             </li>
           ))}
@@ -162,4 +173,20 @@ function Tick({ ok, label }: { ok: boolean; label: string }) {
       <span className="text-fg-muted truncate">{label}</span>
     </div>
   );
+}
+
+function resultLabel(
+  result: string,
+  t: (
+    key: "status.cred.issued" | "status.cred.revoked" | "status.cred.pending",
+  ) => string,
+): string {
+  switch (result) {
+    case "valid":
+      return t("status.cred.issued");
+    case "revoked":
+      return t("status.cred.revoked");
+    default:
+      return result;
+  }
 }

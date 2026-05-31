@@ -198,6 +198,44 @@ export class AuthService {
     await this.email.sendPasswordReset(user.email, resetUrl);
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('Account not found');
+    }
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must differ from current password',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, userId, { passwordHash });
+      // Revoke all active refresh tokens — user must re-login on all devices
+      await manager.update(
+        RefreshToken,
+        { userId, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
+    });
+
+    await this.auditLogs.record({
+      userId,
+      action: 'auth.password_change',
+      entityType: 'user',
+      entityId: userId,
+    });
+  }
+
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const tokenHash = this.hashToken(token);
     const stored = await this.resetTokenRepo.findOne({

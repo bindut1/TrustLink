@@ -1,4 +1,8 @@
+"use client";
+
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { ApplicationStatus } from "@/types/candidate";
 
 const VARIANT: Record<ApplicationStatus, BadgeVariant> = {
@@ -11,14 +15,14 @@ const VARIANT: Record<ApplicationStatus, BadgeVariant> = {
   withdrawn: "neutral",
 };
 
-const LABEL: Record<ApplicationStatus, string> = {
-  applied: "Applied",
-  reviewing: "Reviewing",
-  shortlisted: "Shortlisted",
-  interview: "Interview",
-  offered: "Offered",
-  rejected: "Rejected",
-  withdrawn: "Withdrawn",
+const KEY: Record<ApplicationStatus, TranslationKey> = {
+  applied: "status.app.applied",
+  reviewing: "status.app.reviewing",
+  shortlisted: "status.app.shortlisted",
+  interview: "status.app.interview",
+  offered: "status.app.offered",
+  rejected: "status.app.rejected",
+  withdrawn: "status.app.withdrawn",
 };
 
 export function ApplicationStatusBadge({
@@ -26,5 +30,6 @@ export function ApplicationStatusBadge({
 }: {
   status: ApplicationStatus;
 }) {
-  return <Badge variant={VARIANT[status]}>{LABEL[status]}</Badge>;
+  const { t } = useLanguage();
+  return <Badge variant={VARIANT[status]}>{t(KEY[status])}</Badge>;
 }

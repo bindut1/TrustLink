@@ -1,4 +1,8 @@
+"use client";
+
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   ApprovalStatus,
   BatchStatus,
@@ -12,15 +16,16 @@ const CRED_VARIANT: Record<CredentialStatus, BadgeVariant> = {
   reissued: "info",
 };
 
-const CRED_LABEL: Record<CredentialStatus, string> = {
-  pending: "Pending",
-  issued: "Issued",
-  revoked: "Revoked",
-  reissued: "Reissued",
+const CRED_KEY: Record<CredentialStatus, TranslationKey> = {
+  pending: "status.cred.pending",
+  issued: "status.cred.issued",
+  revoked: "status.cred.revoked",
+  reissued: "status.cred.reissued",
 };
 
 export function CredentialStatusBadge({ status }: { status: CredentialStatus }) {
-  return <Badge variant={CRED_VARIANT[status]}>{CRED_LABEL[status]}</Badge>;
+  const { t } = useLanguage();
+  return <Badge variant={CRED_VARIANT[status]}>{t(CRED_KEY[status])}</Badge>;
 }
 
 const APPROVAL_VARIANT: Record<ApprovalStatus, BadgeVariant> = {
@@ -29,14 +34,17 @@ const APPROVAL_VARIANT: Record<ApprovalStatus, BadgeVariant> = {
   rejected: "danger",
 };
 
-const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
-  pending: "Pending review",
-  approved: "Approved",
-  rejected: "Rejected",
+const APPROVAL_KEY: Record<ApprovalStatus, TranslationKey> = {
+  pending: "status.approval.pending",
+  approved: "status.approval.approved",
+  rejected: "status.approval.rejected",
 };
 
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
-  return <Badge variant={APPROVAL_VARIANT[status]}>{APPROVAL_LABEL[status]}</Badge>;
+  const { t } = useLanguage();
+  return (
+    <Badge variant={APPROVAL_VARIANT[status]}>{t(APPROVAL_KEY[status])}</Badge>
+  );
 }
 
 const BATCH_VARIANT: Record<BatchStatus, BadgeVariant> = {
@@ -48,15 +56,16 @@ const BATCH_VARIANT: Record<BatchStatus, BadgeVariant> = {
   partially_completed: "warn",
 };
 
-const BATCH_LABEL: Record<BatchStatus, string> = {
-  uploading: "Uploading",
-  validating: "Validating",
-  processing: "Processing",
-  completed: "Completed",
-  failed: "Failed",
-  partially_completed: "Partially completed",
+const BATCH_KEY: Record<BatchStatus, TranslationKey> = {
+  uploading: "status.batch.uploading",
+  validating: "status.batch.validating",
+  processing: "status.batch.processing",
+  completed: "status.batch.completed",
+  failed: "status.batch.failed",
+  partially_completed: "status.batch.partially_completed",
 };
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
-  return <Badge variant={BATCH_VARIANT[status]}>{BATCH_LABEL[status]}</Badge>;
+  const { t } = useLanguage();
+  return <Badge variant={BATCH_VARIANT[status]}>{t(BATCH_KEY[status])}</Badge>;
 }

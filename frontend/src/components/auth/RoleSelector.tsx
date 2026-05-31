@@ -1,4 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { RegisterRole, RoleOption } from "./auth-config";
 
 export type RoleSelectorProps = {
@@ -14,10 +17,11 @@ export function RoleSelector({
   onChange,
   className,
 }: RoleSelectorProps) {
+  const { t } = useLanguage();
   return (
     <div
       role="radiogroup"
-      aria-label="Account type"
+      aria-label={t("register.accountType")}
       className={cn("grid grid-cols-1 gap-2", className)}
     >
       {options.map((opt) => {
@@ -50,10 +54,10 @@ export function RoleSelector({
             </span>
             <span className="flex-1 min-w-0">
               <span className="block text-[16.5px] font-semibold leading-snug text-fg">
-                {opt.title}
+                {t(opt.titleKey)}
               </span>
               <span className="mt-1 block text-[14px] text-fg-subtle leading-relaxed">
-                {opt.description}
+                {t(opt.descriptionKey)}
               </span>
             </span>
             <span

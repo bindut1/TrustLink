@@ -14,6 +14,7 @@ import {
   fetchCredentialTypes,
   issueCredential,
 } from "@/lib/issuer-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type {
   CandidateLookupResult,
   CredentialType,
@@ -23,6 +24,7 @@ import type {
 type FieldValue = string | number | undefined;
 
 export default function IssueCredentialPage() {
+  const { t } = useLanguage();
   const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [typeId, setTypeId] = useState("");
   const [credentialNumber, setCredentialNumber] = useState("");
@@ -53,11 +55,11 @@ export default function IssueCredentialPage() {
 
   async function submit() {
     if (!candidate) {
-      setError("Please look up the candidate by email first.");
+      setError(t("issuer.issue.errLookupFirst"));
       return;
     }
     if (!selectedType) {
-      setError("Please choose a credential type.");
+      setError(t("issuer.issue.errPickType"));
       return;
     }
     setSubmitting(true);
@@ -89,7 +91,7 @@ export default function IssueCredentialPage() {
         setError(e.message);
         if (e.fields) setFieldErrors(e.fields);
       } else {
-        setError("Issue failed. Please try again.");
+        setError(t("issuer.issue.errSubmit"));
       }
     } finally {
       setSubmitting(false);
@@ -99,8 +101,8 @@ export default function IssueCredentialPage() {
   return (
     <>
       <PageHeader
-        title="Issue credential"
-        description="Pick a credential type, fill the dynamic fields, and we'll sign + queue the on-chain transaction."
+        title={t("issuer.issue.title")}
+        description={t("issuer.issue.description")}
       />
 
       <form
@@ -112,12 +114,12 @@ export default function IssueCredentialPage() {
       >
         {issuedId && (
           <Alert variant="success">
-            Credential issued — queued for blockchain confirmation.{" "}
+            {t("issuer.issue.queued")}{" "}
             <a
               href="/issuer/credentials"
               className="font-semibold underline-offset-2 hover:underline"
             >
-              View in credentials list
+              {t("issuer.issue.viewInList")}
             </a>
           </Alert>
         )}
@@ -126,27 +128,27 @@ export default function IssueCredentialPage() {
         {/* Step 1: Type */}
         <Section
           step="01"
-          title="Credential type"
-          subtitle="The chosen type defines the metadata fields below."
+          title={t("issuer.issue.stepType")}
+          subtitle={t("issuer.issue.stepTypeDesc")}
         >
           {!types ? (
             <div className="text-fg-subtle text-[14px]">
-              Loading types…
+              {t("issuer.batch.loadingTypes")}
             </div>
           ) : (
-            <FormField label="Type" required>
+            <FormField label={t("issuer.issue.fldType")} required>
               <Select
                 value={typeId}
                 onChange={(e) => setTypeId(e.target.value)}
                 required
               >
-                <option value="">Select credential type…</option>
+                <option value="">{t("issuer.issue.selectTypePlaceholder")}</option>
                 {types
-                  .filter((t) => t.isActive)
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                      {t.nameEn ? ` · ${t.nameEn}` : ""}
+                  .filter((ct) => ct.isActive)
+                  .map((ct) => (
+                    <option key={ct.id} value={ct.id}>
+                      {ct.name}
+                      {ct.nameEn ? ` · ${ct.nameEn}` : ""}
                     </option>
                   ))}
               </Select>
@@ -157,8 +159,8 @@ export default function IssueCredentialPage() {
         {/* Step 2: Candidate */}
         <Section
           step="02"
-          title="Recipient"
-          subtitle="The candidate must already have a TrustLink account."
+          title={t("issuer.issue.stepRecipient")}
+          subtitle={t("issuer.issue.stepRecipientDesc")}
         >
           <CandidateLookup value={candidate} onChange={setCandidate} />
         </Section>
@@ -167,36 +169,36 @@ export default function IssueCredentialPage() {
         {selectedType && (
           <Section
             step="03"
-            title="Credential details"
-            subtitle="Required fields are marked with an asterisk."
+            title={t("issuer.issue.stepDetails")}
+            subtitle={t("issuer.issue.stepDetailsDesc")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               <FormField
-                label="Credential number"
+                label={t("issuer.issue.fldCredNumber")}
                 required
                 error={fieldErrors.credentialNumber}
               >
                 <Input
                   value={credentialNumber}
                   onChange={(e) => setCredentialNumber(e.target.value)}
-                  placeholder="e.g. HUST-2026-0123"
+                  placeholder={t("issuer.issue.credNumberPlaceholder")}
                   required
                 />
               </FormField>
               <FormField
-                label="Title"
+                label={t("issuer.issue.fldTitle")}
                 required
                 error={fieldErrors.title}
               >
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Bachelor of Computer Science"
+                  placeholder={t("issuer.issue.titlePlaceholder")}
                   required
                 />
               </FormField>
               <FormField
-                label="Issued date"
+                label={t("issuer.issue.fldIssuedDate")}
                 required
                 error={fieldErrors.issuedDate}
               >
@@ -208,8 +210,8 @@ export default function IssueCredentialPage() {
                 />
               </FormField>
               <FormField
-                label="Expiry date"
-                hint="Leave empty for permanent credentials"
+                label={t("issuer.issue.fldExpiryDate")}
+                hint={t("issuer.issue.fldExpiryHint")}
                 error={fieldErrors.expiryDate}
               >
                 <Input
@@ -223,7 +225,10 @@ export default function IssueCredentialPage() {
             {selectedType.fieldSchema?.fields?.length > 0 && (
               <>
                 <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-3">
-                  {selectedType.name} fields
+                  {t("issuer.issue.dynFieldsLabel").replace(
+                    "{type}",
+                    selectedType.name,
+                  )}
                 </div>
                 <DynamicForm
                   schema={selectedType.fieldSchema}
@@ -244,7 +249,7 @@ export default function IssueCredentialPage() {
             disabled={!candidate || !selectedType}
             leftIcon={<ShieldCheck size={16} />}
           >
-            Issue credential
+            {t("issuer.issue.submit")}
           </Button>
         </div>
       </form>

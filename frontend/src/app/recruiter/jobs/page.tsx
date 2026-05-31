@@ -11,10 +11,12 @@ import { Input, Select } from "@/components/ui/Input";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { fetchJobs } from "@/lib/recruiter-api";
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { JobItem, PaginatedJobs } from "@/types/candidate";
 import type { JobStatus } from "@/types/recruiter-app";
 
 export default function RecruiterJobsPage() {
+  const { t } = useLanguage();
   const { user } = useCurrentUser();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<JobStatus | "all">("all");
@@ -34,12 +36,14 @@ export default function RecruiterJobsPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load jobs");
+        setError(
+          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [search, status]);
+  }, [search, status, t]);
 
   // Backend `/jobs` returns ALL recruiters' jobs — filter to mine.
   const myJobs = useMemo<JobItem[] | null>(() => {
@@ -50,18 +54,20 @@ export default function RecruiterJobsPage() {
   return (
     <>
       <PageHeader
-        title="My jobs"
-        description="Manage every role your team is hiring for. Click a job to see ranked candidates and applications."
+        title={t("recruiter.jobs.title")}
+        description={t("recruiter.jobs.description")}
         actions={
           <Link href="/recruiter/jobs/new">
-            <Button leftIcon={<Plus size={14} />}>Post a job</Button>
+            <Button leftIcon={<Plus size={14} />}>
+              {t("recruiter.jobs.postJob")}
+            </Button>
           </Link>
         }
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <Input
-          placeholder="Search by title…"
+          placeholder={t("recruiter.jobs.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-11 flex-1"
@@ -71,11 +77,11 @@ export default function RecruiterJobsPage() {
           onChange={(e) => setStatus(e.target.value as JobStatus | "all")}
           className="h-11 sm:w-[180px]"
         >
-          <option value="all">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="open">Open</option>
-          <option value="closed">Closed</option>
-          <option value="expired">Expired</option>
+          <option value="all">{t("status.job.all")}</option>
+          <option value="draft">{t("status.job.draft")}</option>
+          <option value="open">{t("status.job.open")}</option>
+          <option value="closed">{t("status.job.closed")}</option>
+          <option value="expired">{t("status.job.expired")}</option>
         </Select>
       </div>
 
@@ -87,19 +93,21 @@ export default function RecruiterJobsPage() {
 
       {!myJobs ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : myJobs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
           <Briefcase size={32} className="mx-auto text-fg-subtle mb-4" />
           <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            No jobs yet
+            {t("recruiter.jobs.emptyTitle")}
           </h3>
           <p className="text-[13.5px] text-fg-muted max-w-[44ch] mx-auto mb-5">
-            Post your first role to start receiving AI-ranked candidates.
+            {t("recruiter.jobs.emptyDesc")}
           </p>
           <Link href="/recruiter/jobs/new">
-            <Button leftIcon={<Plus size={14} />}>Post a job</Button>
+            <Button leftIcon={<Plus size={14} />}>
+              {t("recruiter.jobs.postJob")}
+            </Button>
           </Link>
         </div>
       ) : (
@@ -115,7 +123,9 @@ export default function RecruiterJobsPage() {
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <JobStatusBadge status={job.status as JobStatus} />
                     {job.isRemote && (
-                      <span className="text-[12px] text-fg-subtle">Remote</span>
+                      <span className="text-[12px] text-fg-subtle">
+                        {t("common.remote")}
+                      </span>
                     )}
                   </div>
                   <h3 className="text-[18px] sm:text-[19px] font-bold tracking-[-0.018em] leading-snug text-fg group-hover:text-accent transition-colors mb-2">
@@ -129,7 +139,12 @@ export default function RecruiterJobsPage() {
                       </span>
                     )}
                     {job.viewCount != null && (
-                      <span>{job.viewCount} views</span>
+                      <span>
+                        {t("recruiter.jobs.viewsCount").replace(
+                          "{n}",
+                          String(job.viewCount),
+                        )}
+                      </span>
                     )}
                     <span className="text-fg-subtle font-mono">
                       {new Date(job.createdAt).toLocaleDateString()}

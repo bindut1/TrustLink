@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { ApiError, apiRequest } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ResetPasswordPayload } from "@/types/auth";
 
 export default function ResetPasswordPage() {
@@ -23,6 +24,7 @@ export default function ResetPasswordPage() {
 function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
+  const { t } = useLanguage();
   const token = params.get("token") ?? "";
 
   const [password, setPassword] = useState("");
@@ -35,11 +37,11 @@ function ResetPasswordInner() {
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("reset.tooShort"));
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError(t("reset.mismatch"));
       return;
     }
 
@@ -55,7 +57,7 @@ function ResetPasswordInner() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t("common.somethingWentWrong"));
       }
     } finally {
       setLoading(false);
@@ -66,20 +68,18 @@ function ResetPasswordInner() {
     return (
       <AuthCard>
         <AuthHeader
-          title="Invalid reset link"
-          subtitle="The reset link is missing or malformed."
+          title={t("reset.invalidTitle")}
+          subtitle={t("reset.invalidSubtitle")}
         />
         <div className="mt-7">
-          <Alert variant="error">
-            Open the link from the email we sent, or request a new one.
-          </Alert>
+          <Alert variant="error">{t("reset.invalidAlert")}</Alert>
         </div>
         <AuthCardFooter>
           <Link
             href="/forgot-password"
             className="font-medium text-accent hover:underline"
           >
-            Request a new link
+            {t("reset.requestNew")}
           </Link>
         </AuthCardFooter>
       </AuthCard>
@@ -90,11 +90,11 @@ function ResetPasswordInner() {
     return (
       <AuthCard>
         <AuthHeader
-          title="Password updated"
-          subtitle="You can now sign in with your new password."
+          title={t("reset.successTitle")}
+          subtitle={t("reset.successSubtitle")}
         />
         <div className="mt-7">
-          <Alert variant="success">Redirecting you to the sign-in page…</Alert>
+          <Alert variant="success">{t("reset.successAlert")}</Alert>
         </div>
       </AuthCard>
     );
@@ -102,10 +102,7 @@ function ResetPasswordInner() {
 
   return (
     <AuthCard>
-      <AuthHeader
-        title="Set a new password"
-        subtitle="Choose a strong password you haven't used before."
-      />
+      <AuthHeader title={t("reset.title")} subtitle={t("reset.subtitle")} />
 
       <form
         onSubmit={(e) => {
@@ -118,9 +115,9 @@ function ResetPasswordInner() {
         {error && <Alert variant="error">{error}</Alert>}
 
         <FormField
-          label="New password"
+          label={t("reset.newPassword")}
           required
-          hint="At least 8 characters"
+          hint={t("reset.passwordHint")}
         >
           <PasswordInput
             name="password"
@@ -131,7 +128,7 @@ function ResetPasswordInner() {
           />
         </FormField>
 
-        <FormField label="Confirm new password" required>
+        <FormField label={t("reset.confirmPassword")} required>
           <PasswordInput
             name="confirm"
             autoComplete="new-password"
@@ -142,13 +139,13 @@ function ResetPasswordInner() {
         </FormField>
 
         <Button type="submit" size="lg" block loading={loading}>
-          {loading ? "Updating…" : "Update password"}
+          {loading ? t("reset.submitting") : t("reset.submit")}
         </Button>
       </form>
 
       <AuthCardFooter>
         <Link href="/login" className="font-medium text-accent hover:underline">
-          Back to sign in
+          {t("forgot.backToSignIn")}
         </Link>
       </AuthCardFooter>
     </AuthCard>

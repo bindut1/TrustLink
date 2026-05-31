@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 type SkillChipsInputProps = {
   value: string[];
@@ -16,6 +17,7 @@ export function SkillChipsInput({
   onChange,
   placeholder,
 }: SkillChipsInputProps) {
+  const { t } = useLanguage();
   const [draft, setDraft] = useState("");
 
   function add() {
@@ -45,7 +47,7 @@ export function SkillChipsInput({
               add();
             }
           }}
-          placeholder={placeholder ?? "Type a skill and press Enter…"}
+          placeholder={placeholder ?? t("skillChips.placeholder")}
         />
         <Button
           type="button"
@@ -53,7 +55,7 @@ export function SkillChipsInput({
           onClick={add}
           disabled={!draft.trim()}
         >
-          Add
+          {t("skillChips.add")}
         </Button>
       </div>
       {value.length > 0 && (

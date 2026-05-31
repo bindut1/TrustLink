@@ -3,18 +3,20 @@
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { JobForm } from "@/components/recruiter/JobForm";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { createJob } from "@/lib/recruiter-api";
 
 export default function NewJobPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   return (
     <>
       <PageHeader
-        title="Post a new job"
-        description="Saved as a draft. You can publish it from the job detail page once you're happy with the content."
+        title={t("recruiter.newJob.title")}
+        description={t("recruiter.newJob.description")}
       />
       <JobForm
-        submitLabel="Save as draft"
+        submitLabel={t("recruiter.newJob.submit")}
         onSubmit={async (payload) => {
           const job = await createJob(payload);
           router.push(`/recruiter/jobs/${job.id}`);

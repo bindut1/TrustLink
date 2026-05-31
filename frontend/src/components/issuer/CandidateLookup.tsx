@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { lookupCandidate } from "@/lib/issuer-api";
 import type { CandidateLookupResult } from "@/types/issuer";
 
@@ -15,6 +16,7 @@ type CandidateLookupProps = {
 };
 
 export function CandidateLookup({ value, onChange }: CandidateLookupProps) {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +33,9 @@ export function CandidateLookup({ value, onChange }: CandidateLookupProps) {
       const msg =
         e instanceof ApiError
           ? e.status === 404
-            ? "No candidate found with that email."
+            ? t("candLookup.notFound")
             : e.message
-          : "Lookup failed.";
+          : t("candLookup.failed");
       setError(msg);
       onChange(null);
     } finally {
@@ -44,15 +46,15 @@ export function CandidateLookup({ value, onChange }: CandidateLookupProps) {
   return (
     <div className="flex flex-col gap-3">
       <FormField
-        label="Candidate email"
+        label={t("candLookup.label")}
         required
         error={error ?? undefined}
-        hint={!value && !error ? "Enter the candidate's email and click Find." : undefined}
+        hint={!value && !error ? t("candLookup.hint") : undefined}
       >
         <div className="flex gap-2">
           <Input
             type="email"
-            placeholder="candidate@example.com"
+            placeholder={t("candLookup.placeholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => {
@@ -69,7 +71,7 @@ export function CandidateLookup({ value, onChange }: CandidateLookupProps) {
             loading={loading}
             leftIcon={<Search size={14} />}
           >
-            Find
+            {t("candLookup.find")}
           </Button>
         </div>
       </FormField>
@@ -88,7 +90,7 @@ export function CandidateLookup({ value, onChange }: CandidateLookupProps) {
           <button
             type="button"
             onClick={() => onChange(null)}
-            title="Remove"
+            title={t("candLookup.remove")}
             className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
           >
             <XCircle size={16} />

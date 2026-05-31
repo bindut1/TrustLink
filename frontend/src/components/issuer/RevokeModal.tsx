@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { revokeCredential } from "@/lib/issuer-api";
 import type { Credential } from "@/types/issuer";
 
@@ -18,6 +19,7 @@ export function RevokeModal({
   onClose,
   onRevoked,
 }: RevokeModalProps) {
+  const { t } = useLanguage();
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function RevokeModal({
       setReason("");
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Revoke failed");
+      setError(e instanceof Error ? e.message : t("revoke.failed"));
     } finally {
       setSubmitting(false);
     }
@@ -44,12 +46,12 @@ export function RevokeModal({
     <Modal
       open
       onClose={onClose}
-      title={`Revoke "${credential.title}"?`}
-      description="The credential will be marked revoked and a revocation transaction will be queued on Polygon. The candidate will see this status change immediately."
+      title={t("revoke.title").replace("{title}", credential.title)}
+      description={t("revoke.description")}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -57,7 +59,7 @@ export function RevokeModal({
             loading={submitting}
             disabled={!reason.trim()}
           >
-            Revoke credential
+            {t("revoke.submit")}
           </Button>
         </>
       }
@@ -68,18 +70,16 @@ export function RevokeModal({
         </Alert>
       )}
       <label className="text-[14px] font-medium text-fg mb-2 block">
-        Reason <span className="text-accent">*</span>
+        {t("revoke.reason")} <span className="text-accent">*</span>
       </label>
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         rows={4}
-        placeholder="e.g. Issued in error — duplicate of CR-2026-0034."
+        placeholder={t("revoke.reasonPlaceholder")}
         className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[14px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
       />
-      <p className="mt-2 text-[12px] text-fg-subtle">
-        This reason is stored on the credential and visible to the candidate.
-      </p>
+      <p className="mt-2 text-[12px] text-fg-subtle">{t("revoke.reasonHint")}</p>
     </Modal>
   );
 }

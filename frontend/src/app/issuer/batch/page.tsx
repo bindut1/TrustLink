@@ -16,9 +16,11 @@ import {
   fetchMyBatches,
   uploadBatchExcel,
 } from "@/lib/issuer-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { BatchImport, CredentialType } from "@/types/issuer";
 
 export default function BatchImportPage() {
+  const { t } = useLanguage();
   const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [typeId, setTypeId] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -45,7 +47,7 @@ export default function BatchImportPage() {
       !f.name.toLowerCase().endsWith(".xlsx") &&
       !f.name.toLowerCase().endsWith(".xls")
     ) {
-      setError("Only .xlsx or .xls files are accepted.");
+      setError(t("issuer.batch.invalidFile"));
       return;
     }
     setError(null);
@@ -63,7 +65,7 @@ export default function BatchImportPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       void refreshHistory();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      setError(e instanceof Error ? e.message : t("issuer.batch.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -72,13 +74,13 @@ export default function BatchImportPage() {
   return (
     <>
       <PageHeader
-        title="Batch import"
-        description="Upload an Excel file to issue credentials in bulk. Each row becomes one credential — invalid rows are reported back so you can fix and re-upload."
+        title={t("issuer.batch.title")}
+        description={t("issuer.batch.description")}
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 mb-6">
         <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
-          New upload
+          {t("issuer.batch.newUpload")}
         </div>
 
         {error && (
@@ -88,22 +90,22 @@ export default function BatchImportPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 mb-4 items-end">
-          <FormField label="Credential type" required>
+          <FormField label={t("issuer.batch.credentialType")} required>
             {!types ? (
               <Select disabled>
-                <option>Loading types…</option>
+                <option>{t("issuer.batch.loadingTypes")}</option>
               </Select>
             ) : (
               <Select
                 value={typeId}
                 onChange={(e) => setTypeId(e.target.value)}
               >
-                <option value="">Select credential type…</option>
+                <option value="">{t("issuer.batch.selectType")}</option>
                 {types
-                  .filter((t) => t.isActive)
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
+                  .filter((ct) => ct.isActive)
+                  .map((ct) => (
+                    <option key={ct.id} value={ct.id}>
+                      {ct.name}
                     </option>
                   ))}
               </Select>
@@ -143,16 +145,19 @@ export default function BatchImportPage() {
                 {file.name}
               </div>
               <div className="text-[12.5px] text-fg-subtle font-mono mt-1">
-                {(file.size / 1024).toFixed(1)} KB · ready to upload
+                {t("issuer.batch.readyToUpload").replace(
+                  "{size}",
+                  (file.size / 1024).toFixed(1),
+                )}
               </div>
             </>
           ) : (
             <>
               <div className="text-[14.5px] font-medium text-fg">
-                Drop Excel file here, or click to browse
+                {t("issuer.batch.dropFile")}
               </div>
               <div className="text-[12.5px] text-fg-subtle mt-1">
-                .xlsx or .xls — first row should match the credential type schema
+                {t("issuer.batch.fileNote")}
               </div>
             </>
           )}
@@ -168,7 +173,7 @@ export default function BatchImportPage() {
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
             >
-              Remove file
+              {t("issuer.batch.removeFile")}
             </Button>
           )}
           <Button
@@ -178,7 +183,7 @@ export default function BatchImportPage() {
             disabled={!file || !typeId}
             leftIcon={<Upload size={14} />}
           >
-            Upload &amp; queue
+            {t("issuer.batch.uploadQueue")}
           </Button>
         </div>
       </div>
@@ -186,7 +191,7 @@ export default function BatchImportPage() {
       {activeBatchId && (
         <div className="mb-7">
           <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-fg mb-3">
-            Current batch
+            {t("issuer.batch.currentBatch")}
           </h2>
           <BatchProgress
             batchId={activeBatchId}
@@ -196,26 +201,26 @@ export default function BatchImportPage() {
       )}
 
       <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-fg mb-3">
-        Batch history
+        {t("issuer.batch.history")}
       </h2>
       {!history ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : history.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-          No batch imports yet.
+          {t("issuer.batch.emptyHistory")}
         </div>
       ) : (
         <Table>
           <THead>
             <TR>
-              <TH>File</TH>
-              <TH>Status</TH>
-              <TH className="text-right">Total</TH>
-              <TH className="text-right">Success</TH>
-              <TH className="text-right">Errors</TH>
-              <TH>Created</TH>
+              <TH>{t("issuer.batch.colFile")}</TH>
+              <TH>{t("common.status")}</TH>
+              <TH className="text-right">{t("issuer.batch.colTotal")}</TH>
+              <TH className="text-right">{t("issuer.batch.colSuccess")}</TH>
+              <TH className="text-right">{t("issuer.batch.colErrors")}</TH>
+              <TH>{t("issuer.batch.colCreated")}</TH>
               <TH />
             </TR>
           </THead>
@@ -248,7 +253,7 @@ export default function BatchImportPage() {
                     onClick={() => setActiveBatchId(b.id)}
                     className="text-[13px] font-medium text-accent hover:underline"
                   >
-                    View
+                    {t("common.view")}
                   </button>
                 </TD>
               </TR>

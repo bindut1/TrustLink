@@ -7,9 +7,11 @@ import { ApplicationStatusBadge } from "@/components/candidate/ApplicationStatus
 import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
 import { Alert } from "@/components/ui/Alert";
 import { fetchMyApplications } from "@/lib/candidate-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ApplicationItem } from "@/types/candidate";
 
 export default function CandidateApplicationsPage() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<ApplicationItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,18 +23,20 @@ export default function CandidateApplicationsPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load");
+        setError(
+          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   return (
     <>
       <PageHeader
-        title="My applications"
-        description="Every job you've applied to. Recruiters see the match score that was snapshotted at the time you applied."
+        title={t("candidate.applications.title")}
+        description={t("candidate.applications.description")}
       />
 
       {error && (
@@ -43,7 +47,7 @@ export default function CandidateApplicationsPage() {
 
       {!items ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("common.loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
@@ -52,15 +56,24 @@ export default function CandidateApplicationsPage() {
             className="mx-auto text-fg-subtle mb-4"
           />
           <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            No applications yet
+            {t("candidate.applications.emptyTitle")}
           </h3>
           <p className="text-[13.5px] text-fg-muted max-w-[44ch] mx-auto">
-            Browse <a href="/candidate/jobs" className="text-accent hover:underline">jobs</a>{" "}
-            or{" "}
-            <a href="/candidate/recommendations" className="text-accent hover:underline">
-              AI recommendations
-            </a>{" "}
-            to send your first application.
+            {t("candidate.applications.emptyDescBefore")}
+            <a
+              href="/candidate/jobs"
+              className="text-accent hover:underline"
+            >
+              {t("candidate.applications.emptyDescJobsLink")}
+            </a>
+            {t("candidate.applications.emptyDescOr")}
+            <a
+              href="/candidate/recommendations"
+              className="text-accent hover:underline"
+            >
+              {t("candidate.applications.emptyDescRecsLink")}
+            </a>
+            {t("candidate.applications.emptyDescAfter")}
           </p>
         </div>
       ) : (
@@ -75,6 +88,7 @@ export default function CandidateApplicationsPage() {
 }
 
 function ApplicationCard({ app }: { app: ApplicationItem }) {
+  const { t } = useLanguage();
   const job = app.job;
   return (
     <article className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
@@ -83,12 +97,15 @@ function ApplicationCard({ app }: { app: ApplicationItem }) {
           <div className="flex items-center gap-2 flex-wrap mb-2">
             <ApplicationStatusBadge status={app.status} />
             <span className="text-[12px] text-fg-subtle font-mono">
-              applied {timeAgo(app.createdAt)}
+              {t("candidate.applications.appliedTime").replace(
+                "{time}",
+                timeAgo(app.createdAt, t),
+              )}
             </span>
           </div>
 
           <h3 className="text-[18px] font-semibold tracking-[-0.015em] text-fg leading-snug mb-2">
-            {job?.title ?? "Untitled job"}
+            {job?.title ?? "—"}
           </h3>
 
           {(job?.city || job?.isRemote) && (
@@ -100,14 +117,16 @@ function ApplicationCard({ app }: { app: ApplicationItem }) {
                 </span>
               )}
               {job?.isRemote && (
-                <span className="text-fg-muted">Remote</span>
+                <span className="text-fg-muted">{t("common.remote")}</span>
               )}
             </div>
           )}
 
           {app.recruiterNotes && (
             <p className="text-[13px] text-fg-muted leading-relaxed border-l-2 border-border pl-3 mt-2">
-              <span className="font-semibold text-fg">Recruiter note: </span>
+              <span className="font-semibold text-fg">
+                {t("candidate.applications.recruiterNote")}{" "}
+              </span>
               {app.recruiterNotes}
             </p>
           )}
@@ -129,10 +148,10 @@ function ApplicationCard({ app }: { app: ApplicationItem }) {
   );
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: "common.justNow" | "common.minutesAgo" | "common.hoursAgo" | "common.daysAgo") => string): string {
   const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (sec < 60) return `${sec}s ago`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
-  return `${Math.floor(sec / 86400)}d ago`;
+  if (sec < 60) return t("common.justNow");
+  if (sec < 3600) return `${Math.floor(sec / 60)} ${t("common.minutesAgo")}`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)} ${t("common.hoursAgo")}`;
+  return `${Math.floor(sec / 86400)} ${t("common.daysAgo")}`;
 }

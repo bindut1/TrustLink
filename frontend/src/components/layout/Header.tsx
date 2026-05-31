@@ -4,15 +4,18 @@ import { LogOut, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LanguageToggle } from "@/components/app-shell/LanguageToggle";
 import { Logo } from "@/components/auth/Logo";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { clearSession } from "@/lib/auth-storage";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useCurrentUser } from "@/lib/use-current-user";
 import type { AuthUser } from "@/types/auth";
 import { PUBLIC_NAV } from "./site-config";
 
 export function Header() {
+  const { t } = useLanguage();
   const { user } = useCurrentUser();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -21,7 +24,7 @@ export function Header() {
       <div className="mx-auto max-w-[1200px] flex items-center gap-6 px-5 sm:px-6 h-16">
         <Link
           href="/"
-          aria-label="TrustLink home"
+          aria-label={t("header.trustlinkHome")}
           className="flex items-center gap-2.5 shrink-0 hover:opacity-90 transition-opacity"
         >
           <Logo size={28} />
@@ -33,12 +36,13 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-1 flex-1">
           {PUBLIC_NAV.map((item) => (
             <NavLink key={item.href} href={item.href}>
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
 
         <div className="hidden md:flex items-center gap-2 shrink-0">
+          <LanguageToggle />
           {user ? <UserMenu user={user} /> : <GuestActions />}
         </div>
 
@@ -46,7 +50,7 @@ export function Header() {
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
           className="md:hidden ml-auto inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-label={mobileOpen ? t("header.closeMenu") : t("header.openMenu")}
           aria-expanded={mobileOpen}
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -63,22 +67,25 @@ export function Header() {
                 onClick={() => setMobileOpen(false)}
                 className="px-3 py-2.5 text-[15px] font-medium text-fg-muted hover:text-fg hover:bg-surface-2 rounded-md transition-colors"
               >
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
             <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2">
+              <div className="px-1">
+                <LanguageToggle />
+              </div>
               {user ? (
                 <MobileUserActions user={user} />
               ) : (
                 <>
                   <Link href="/login" onClick={() => setMobileOpen(false)}>
                     <Button variant="secondary" size="md" block>
-                      Sign in
+                      {t("header.signIn")}
                     </Button>
                   </Link>
                   <Link href="/register" onClick={() => setMobileOpen(false)}>
                     <Button size="md" block>
-                      Get started
+                      {t("header.getStarted")}
                     </Button>
                   </Link>
                 </>
@@ -112,23 +119,26 @@ function NavLink({
 }
 
 function GuestActions() {
+  const { t } = useLanguage();
   return (
     <>
       <Link href="/login">
         <Button variant="ghost" size="md">
-          Sign in
+          {t("header.signIn")}
         </Button>
       </Link>
       <Link href="/register">
-        <Button size="md">Get started</Button>
+        <Button size="md">{t("header.getStarted")}</Button>
       </Link>
     </>
   );
 }
 
 function UserMenu({ user }: { user: AuthUser }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const initials = getInitials(user.fullName);
+  const roleKey = `role.${user.role}` as const;
 
   function handleSignOut() {
     clearSession();
@@ -145,12 +155,12 @@ function UserMenu({ user }: { user: AuthUser }) {
       </span>
       <div className="hidden lg:flex flex-col leading-tight">
         <span className="text-[13px] font-semibold text-fg">{user.fullName}</span>
-        <span className="text-[11.5px] text-fg-subtle capitalize">{user.role}</span>
+        <span className="text-[11.5px] text-fg-subtle">{t(roleKey)}</span>
       </div>
       <button
         type="button"
         onClick={handleSignOut}
-        title="Sign out"
+        title={t("header.signOut")}
         className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
       >
         <LogOut size={16} />
@@ -160,7 +170,9 @@ function UserMenu({ user }: { user: AuthUser }) {
 }
 
 function MobileUserActions({ user }: { user: AuthUser }) {
+  const { t } = useLanguage();
   const router = useRouter();
+  const roleKey = `role.${user.role}` as const;
   return (
     <>
       <div className="flex items-center gap-3 px-3 py-2">
@@ -169,7 +181,7 @@ function MobileUserActions({ user }: { user: AuthUser }) {
         </span>
         <div className="flex flex-col leading-tight">
           <span className="text-[14px] font-semibold text-fg">{user.fullName}</span>
-          <span className="text-[12px] text-fg-subtle capitalize">{user.role}</span>
+          <span className="text-[12px] text-fg-subtle">{t(roleKey)}</span>
         </div>
       </div>
       <Button
@@ -182,7 +194,7 @@ function MobileUserActions({ user }: { user: AuthUser }) {
           router.refresh();
         }}
       >
-        Sign out
+        {t("header.signOut")}
       </Button>
     </>
   );

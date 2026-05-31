@@ -8,6 +8,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchAuditLogs } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AuditLog } from "@/types/admin";
 
 const ENTITY_TYPES = [
@@ -29,6 +30,7 @@ const ACTION_PRESETS = [
 ];
 
 export default function AdminAuditLogsPage() {
+  const { t } = useLanguage();
   const [logs, setLogs] = useState<AuditLog[] | null>(null);
   const [entityType, setEntityType] = useState<string>("");
   const [action, setAction] = useState<string>("");
@@ -68,19 +70,19 @@ export default function AdminAuditLogsPage() {
   return (
     <>
       <PageHeader
-        title="Audit logs"
-        description="Track every privileged action across the system (latest first)."
+        title={t("admin.auditLogs.title")}
+        description={t("admin.auditLogs.description")}
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="flex-1">
-          <Label className="mb-1.5">Action</Label>
+          <Label className="mb-1.5">{t("admin.auditLogs.action")}</Label>
           <Select
             value={action}
             onChange={(e) => setAction(e.target.value)}
             className="h-11"
           >
-            <option value="">All actions</option>
+            <option value="">{t("admin.auditLogs.allActions")}</option>
             {ACTION_PRESETS.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -89,22 +91,22 @@ export default function AdminAuditLogsPage() {
           </Select>
         </div>
         <div className="flex-1">
-          <Label className="mb-1.5">Entity type</Label>
+          <Label className="mb-1.5">{t("admin.auditLogs.entityType")}</Label>
           <Select
             value={entityType}
             onChange={(e) => setEntityType(e.target.value)}
             className="h-11"
           >
-            <option value="">All entities</option>
-            {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            <option value="">{t("admin.auditLogs.allEntities")}</option>
+            {ENTITY_TYPES.map((et) => (
+              <option key={et} value={et}>
+                {et}
               </option>
             ))}
           </Select>
         </div>
         <div className="sm:w-[120px]">
-          <Label className="mb-1.5">Limit</Label>
+          <Label className="mb-1.5">{t("admin.auditLogs.limit")}</Label>
           <Input
             type="number"
             min={10}
@@ -115,13 +117,17 @@ export default function AdminAuditLogsPage() {
           />
         </div>
         <Button onClick={load} loading={loading} className="sm:w-auto">
-          Apply
+          {t("common.apply")}
         </Button>
       </div>
 
       <div className="text-[12.5px] text-fg-subtle mb-3">
         {logs
-          ? `${logs.length} ${logs.length === 1 ? "entry" : "entries"}`
+          ? t(
+              logs.length === 1
+                ? "admin.auditLogs.summaryOne"
+                : "admin.auditLogs.summaryMany",
+            ).replace("{n}", String(logs.length))
           : ""}
       </div>
 
@@ -129,23 +135,23 @@ export default function AdminAuditLogsPage() {
         <THead>
           <TR>
             <TH className="w-[40px]"></TH>
-            <TH>When</TH>
-            <TH>Actor</TH>
-            <TH>Action</TH>
-            <TH>Entity</TH>
+            <TH>{t("admin.auditLogs.colWhen")}</TH>
+            <TH>{t("admin.auditLogs.colActor")}</TH>
+            <TH>{t("admin.auditLogs.action")}</TH>
+            <TH>{t("admin.auditLogs.colEntity")}</TH>
           </TR>
         </THead>
         <TBody>
           {!logs ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                Loading…
+                {t("common.loading")}
               </TD>
             </TR>
           ) : logs.length === 0 ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                No audit logs match this filter.
+                {t("admin.auditLogs.empty")}
               </TD>
             </TR>
           ) : (
@@ -181,7 +187,9 @@ export default function AdminAuditLogsPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-fg-faint italic">System</span>
+                        <span className="text-fg-faint italic">
+                          {t("admin.dashboard.systemActor")}
+                        </span>
                       )}
                     </TD>
                     <TD>

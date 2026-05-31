@@ -15,25 +15,28 @@ import {
   fetchCredentialTypes,
   updateCredentialType,
 } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   CredentialCategory,
   CredentialType,
   CredentialTypeField,
 } from "@/types/admin";
 
-const CATEGORIES: { value: CredentialCategory; label: string }[] = [
-  { value: "degree", label: "Degree" },
-  { value: "it_certificate", label: "IT certificate" },
-  { value: "language_certificate", label: "Language certificate" },
-  { value: "award", label: "Award" },
-  { value: "professional_certificate", label: "Professional certificate" },
-  { value: "other", label: "Other" },
+const CATEGORIES: { value: CredentialCategory; labelKey: TranslationKey }[] = [
+  { value: "degree", labelKey: "credCategory.degree" },
+  { value: "it_certificate", labelKey: "credCategory.it_certificate" },
+  {
+    value: "language_certificate",
+    labelKey: "credCategory.language_certificate",
+  },
+  { value: "award", labelKey: "credCategory.award" },
+  {
+    value: "professional_certificate",
+    labelKey: "credCategory.professional_certificate",
+  },
+  { value: "other", labelKey: "credCategory.other" },
 ];
-
-const CATEGORY_LABEL: Record<CredentialCategory, string> = CATEGORIES.reduce(
-  (acc, c) => ({ ...acc, [c.value]: c.label }),
-  {} as Record<CredentialCategory, string>,
-);
 
 type FormState = {
   id?: string;
@@ -55,10 +58,16 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function AdminCredentialTypesPage() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<CredentialType[] | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryLabel = (cat: CredentialCategory) => {
+    const found = CATEGORIES.find((c) => c.value === cat);
+    return found ? t(found.labelKey) : cat;
+  };
 
   async function refresh() {
     setItems(null);
@@ -95,13 +104,13 @@ export default function AdminCredentialTypesPage() {
     try {
       parsedSchema = JSON.parse(form.fieldSchemaJson);
       if (!parsedSchema.fields || !Array.isArray(parsedSchema.fields)) {
-        throw new Error('JSON must contain a "fields" array');
+        throw new Error(t("admin.credTypes.mustHaveFields"));
       }
     } catch (e) {
       setError(
         e instanceof Error
-          ? `Invalid JSON: ${e.message}`
-          : "Invalid field schema JSON",
+          ? `${t("admin.credTypes.invalidJson")} ${e.message}`
+          : t("admin.credTypes.invalidSchema"),
       );
       return;
     }
@@ -124,7 +133,9 @@ export default function AdminCredentialTypesPage() {
       await refresh();
       setForm(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(
+        e instanceof Error ? e.message : t("admin.credTypes.failedSave"),
+      );
     } finally {
       setSaving(false);
     }
@@ -133,42 +144,46 @@ export default function AdminCredentialTypesPage() {
   return (
     <>
       <PageHeader
-        title="Credential types"
-        description="Define the schema (dynamic form fields) for credentials that issuers can grant."
+        title={t("admin.credTypes.title")}
+        description={t("admin.credTypes.description")}
         actions={
           <Button onClick={openCreate} leftIcon={<Plus size={16} />}>
-            New type
+            {t("admin.credTypes.newType")}
           </Button>
         }
       />
 
       <div className="text-[12.5px] text-fg-subtle mb-3">
         {items
-          ? `${items.length} ${items.length === 1 ? "type" : "types"}`
+          ? t(
+              items.length === 1
+                ? "admin.credTypes.summaryOne"
+                : "admin.credTypes.summaryMany",
+            ).replace("{n}", String(items.length))
           : ""}
       </div>
 
       <Table>
         <THead>
           <TR>
-            <TH>Name</TH>
-            <TH>Category</TH>
-            <TH>Fields</TH>
-            <TH>Status</TH>
-            <TH className="text-right">Actions</TH>
+            <TH>{t("admin.credTypes.colName")}</TH>
+            <TH>{t("admin.credTypes.colCategory")}</TH>
+            <TH>{t("admin.credTypes.colFields")}</TH>
+            <TH>{t("common.status")}</TH>
+            <TH className="text-right">{t("common.actions")}</TH>
           </TR>
         </THead>
         <TBody>
           {!items ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                Loading…
+                {t("common.loading")}
               </TD>
             </TR>
           ) : items.length === 0 ? (
             <TR>
               <TD colSpan={5} className="text-center text-fg-subtle py-10">
-                No credential types yet. Click “New type” to create the first one.
+                {t("admin.credTypes.empty")}
               </TD>
             </TR>
           ) : (
@@ -182,15 +197,15 @@ export default function AdminCredentialTypesPage() {
                     </div>
                   )}
                 </TD>
-                <TD className="text-fg-muted">
-                  {CATEGORY_LABEL[it.category]}
-                </TD>
+                <TD className="text-fg-muted">{categoryLabel(it.category)}</TD>
                 <TD className="font-mono text-[12.5px] text-fg-muted">
                   {it.fieldSchema?.fields?.length ?? 0}
                 </TD>
                 <TD>
                   <Badge variant={it.isActive ? "success" : "neutral"}>
-                    {it.isActive ? "Active" : "Inactive"}
+                    {it.isActive
+                      ? t("status.account.active")
+                      : t("status.account.inactive")}
                   </Badge>
                 </TD>
                 <TD className="text-right">
@@ -200,7 +215,7 @@ export default function AdminCredentialTypesPage() {
                     onClick={() => openEdit(it)}
                     className="h-8 px-3 text-[13px]"
                   >
-                    Edit
+                    {t("common.edit")}
                   </Button>
                 </TD>
               </TR>
@@ -212,8 +227,12 @@ export default function AdminCredentialTypesPage() {
       <Modal
         open={form !== null}
         onClose={() => setForm(null)}
-        title={form?.id ? "Edit credential type" : "New credential type"}
-        description="The field schema drives the dynamic form issuers fill when granting a credential of this type."
+        title={
+          form?.id
+            ? t("admin.credTypes.modalEditTitle")
+            : t("admin.credTypes.modalNewTitle")
+        }
+        description={t("admin.credTypes.modalDescription")}
         size="lg"
         footer={
           <>
@@ -222,37 +241,37 @@ export default function AdminCredentialTypesPage() {
               onClick={() => setForm(null)}
               disabled={saving}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSave}
               loading={saving}
               disabled={!form?.name}
             >
-              {form?.id ? "Save changes" : "Create"}
+              {form?.id ? t("common.saveChanges") : t("common.create")}
             </Button>
           </>
         }
       >
         {form && (
           <div className="space-y-4">
-            <FormField label="Name" required>
+            <FormField label={t("admin.credTypes.fldName")} required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Bachelor of Engineering"
+                placeholder={t("admin.credTypes.fldNamePlaceholder")}
               />
             </FormField>
 
-            <FormField label="Name (English)">
+            <FormField label={t("admin.credTypes.fldNameEn")}>
               <Input
                 value={form.nameEn}
                 onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                placeholder="Optional English name"
+                placeholder={t("admin.credTypes.fldNameEnPlaceholder")}
               />
             </FormField>
 
-            <FormField label="Category" required>
+            <FormField label={t("admin.credTypes.fldCategory")} required>
               <Select
                 value={form.category}
                 onChange={(e) =>
@@ -264,13 +283,13 @@ export default function AdminCredentialTypesPage() {
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
+                    {t(c.labelKey)}
                   </option>
                 ))}
               </Select>
             </FormField>
 
-            <FormField label="Description">
+            <FormField label={t("admin.credTypes.fldDescription")}>
               <textarea
                 value={form.description}
                 onChange={(e) =>
@@ -278,15 +297,15 @@ export default function AdminCredentialTypesPage() {
                 }
                 rows={2}
                 className="w-full rounded-lg bg-surface-1 px-4 py-3 text-[15px] text-fg placeholder:text-fg-faint border border-border outline-none hover:border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/15 transition-colors"
-                placeholder="Short description shown to issuers"
+                placeholder={t("admin.credTypes.fldDescriptionPlaceholder")}
               />
             </FormField>
 
             <FormField
-              label="Field schema (JSON)"
+              label={t("admin.credTypes.fldSchema")}
               hint={
                 <>
-                  Example:{" "}
+                  {t("admin.credTypes.fldSchemaHint")}{" "}
                   <code className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] font-mono text-fg-muted">
                     {'{"fields":[{"key":"gpa","label":"GPA","type":"number","required":true}]}'}
                   </code>
@@ -313,7 +332,7 @@ export default function AdminCredentialTypesPage() {
                 }
                 className="h-4 w-4 rounded border-border accent-accent"
               />
-              Active (issuers can use this type)
+              {t("admin.credTypes.fldActive")}
             </label>
 
             {error && <Alert variant="error">{error}</Alert>}

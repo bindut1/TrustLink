@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input, Select } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
   fetchMyRecruiterProfile,
   updateMyRecruiterProfile,
@@ -26,6 +27,7 @@ const COMPANY_SIZES = [
 ];
 
 export default function RecruiterProfilePage() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<RecruiterProfile | null>(null);
   const [draft, setDraft] = useState<UpdateRecruiterProfilePayload>({});
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function RecruiterProfilePage() {
       .catch((e: unknown) => {
         if (cancelled) return;
         setError(
-          e instanceof ApiError ? e.message : "Failed to load profile",
+          e instanceof ApiError ? e.message : t("recruiter.profile.failedLoad"),
         );
       })
       .finally(() => !cancelled && setLoading(false));
@@ -71,7 +73,7 @@ export default function RecruiterProfilePage() {
       setSaved(true);
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : "Save failed. Please try again.",
+        e instanceof ApiError ? e.message : t("recruiter.profile.saveFailed"),
       );
     } finally {
       setSaving(false);
@@ -81,9 +83,9 @@ export default function RecruiterProfilePage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Company profile" />
+        <PageHeader title={t("recruiter.profile.title")} />
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading…
+          {t("recruiter.profile.loading")}
         </div>
       </>
     );
@@ -92,8 +94,10 @@ export default function RecruiterProfilePage() {
   if (!profile) {
     return (
       <>
-        <PageHeader title="Company profile" />
-        <Alert variant="error">{error ?? "Profile not found."}</Alert>
+        <PageHeader title={t("recruiter.profile.title")} />
+        <Alert variant="error">
+          {error ?? t("recruiter.profile.notFound")}
+        </Alert>
       </>
     );
   }
@@ -101,13 +105,13 @@ export default function RecruiterProfilePage() {
   return (
     <>
       <PageHeader
-        title="Company profile"
-        description="Information candidates and the AI matcher use to understand who they're applying to."
+        title={t("recruiter.profile.title")}
+        description={t("recruiter.profile.description")}
         actions={
           profile.isVerified ? (
-            <Badge variant="success">Verified company</Badge>
+            <Badge variant="success">{t("recruiter.profile.verified")}</Badge>
           ) : (
-            <Badge variant="neutral">Not verified</Badge>
+            <Badge variant="neutral">{t("recruiter.profile.notVerified")}</Badge>
           )
         }
       />
@@ -120,50 +124,54 @@ export default function RecruiterProfilePage() {
         className="flex flex-col gap-5"
       >
         {error && <Alert variant="error">{error}</Alert>}
-        {saved && <Alert variant="success">Profile saved.</Alert>}
+        {saved && <Alert variant="success">{t("recruiter.profile.saved")}</Alert>}
 
-        <Card title="Company">
+        <Card title={t("recruiter.profile.sectionCompany")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Company name" required className="sm:col-span-2">
+            <FormField
+              label={t("recruiter.profile.fldCompanyName")}
+              required
+              className="sm:col-span-2"
+            >
               <Input
                 value={(draft.companyName as string | undefined) ?? ""}
                 onChange={(e) => set("companyName", e.target.value)}
                 required
               />
             </FormField>
-            <FormField label="English name">
+            <FormField label={t("recruiter.profile.fldCompanyNameEn")}>
               <Input
                 value={(draft.companyNameEn as string | undefined) ?? ""}
                 onChange={(e) => set("companyNameEn", e.target.value)}
               />
             </FormField>
-            <FormField label="Industry">
+            <FormField label={t("recruiter.profile.fldIndustry")}>
               <Input
                 value={(draft.industry as string | undefined) ?? ""}
                 onChange={(e) => set("industry", e.target.value)}
-                placeholder="e.g. Fintech"
+                placeholder={t("jobForm.industryPlaceholder")}
               />
             </FormField>
-            <FormField label="Company size">
+            <FormField label={t("recruiter.profile.fldCompanySize")}>
               <Select
                 value={(draft.companySize as string | undefined) ?? ""}
                 onChange={(e) => set("companySize", e.target.value || null)}
               >
-                <option value="">Select…</option>
+                <option value="">{t("recruiter.profile.fldSelect")}</option>
                 {COMPANY_SIZES.map((s) => (
                   <option key={s} value={s}>
-                    {s} employees
+                    {t("recruiter.profile.fldEmployees").replace("{size}", s)}
                   </option>
                 ))}
               </Select>
             </FormField>
-            <FormField label="Tax code">
+            <FormField label={t("recruiter.profile.fldTaxCode")}>
               <Input
                 value={(draft.taxCode as string | undefined) ?? ""}
                 onChange={(e) => set("taxCode", e.target.value)}
               />
             </FormField>
-            <FormField label="Website">
+            <FormField label={t("recruiter.profile.fldWebsite")}>
               <Input
                 type="url"
                 value={(draft.companyWebsite as string | undefined) ?? ""}
@@ -171,7 +179,7 @@ export default function RecruiterProfilePage() {
                 placeholder="https://"
               />
             </FormField>
-            <FormField label="Logo URL">
+            <FormField label={t("recruiter.profile.fldLogoUrl")}>
               <Input
                 type="url"
                 value={(draft.companyLogoUrl as string | undefined) ?? ""}
@@ -182,21 +190,24 @@ export default function RecruiterProfilePage() {
           </div>
         </Card>
 
-        <Card title="Location">
+        <Card title={t("recruiter.profile.sectionLocation")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="City">
+            <FormField label={t("recruiter.profile.fldCity")}>
               <Input
                 value={(draft.city as string | undefined) ?? ""}
                 onChange={(e) => set("city", e.target.value)}
               />
             </FormField>
-            <FormField label="Country">
+            <FormField label={t("recruiter.profile.fldCountry")}>
               <Input
                 value={(draft.country as string | undefined) ?? ""}
                 onChange={(e) => set("country", e.target.value)}
               />
             </FormField>
-            <FormField label="Address" className="sm:col-span-2">
+            <FormField
+              label={t("recruiter.profile.fldAddress")}
+              className="sm:col-span-2"
+            >
               <textarea
                 rows={3}
                 value={(draft.companyAddress as string | undefined) ?? ""}
@@ -207,13 +218,13 @@ export default function RecruiterProfilePage() {
           </div>
         </Card>
 
-        <Card title="About the company">
-          <FormField label="Description">
+        <Card title={t("recruiter.profile.sectionAbout")}>
+          <FormField label={t("recruiter.profile.fldDescription")}>
             <textarea
               rows={5}
               value={(draft.description as string | undefined) ?? ""}
               onChange={(e) => set("description", e.target.value)}
-              placeholder="Mission, what you build, recent milestones."
+              placeholder={t("recruiter.profile.fldDescriptionPlaceholder")}
               className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
             />
           </FormField>
@@ -225,10 +236,10 @@ export default function RecruiterProfilePage() {
             variant="secondary"
             onClick={() => setDraft(profile)}
           >
-            Discard changes
+            {t("recruiter.profile.discard")}
           </Button>
           <Button type="submit" loading={saving}>
-            Save profile
+            {t("recruiter.profile.save")}
           </Button>
         </div>
       </form>

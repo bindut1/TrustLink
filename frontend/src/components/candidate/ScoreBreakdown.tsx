@@ -1,4 +1,8 @@
+"use client";
+
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type ScoreBreakdownProps = {
   keywordScore: number;
@@ -28,12 +32,12 @@ export function ScoreBreakdown({
   variant = "compact",
   className,
 }: ScoreBreakdownProps) {
+  const { t } = useLanguage();
   const k = Math.round(toNum(keywordScore));
   const s = Math.round(toNum(semanticScore));
   const v = Math.round(toNum(verifiedBonus));
   const total = Math.round(toNum(totalScore));
 
-  // Bar segments mirror tier weights * tier scores → contributions to total.
   const kContrib = (k * 0.4) / 100;
   const sContrib = (s * 0.5) / 100;
   const vContrib = (v * 0.1) / 100;
@@ -49,7 +53,7 @@ export function ScoreBreakdown({
         >
           {total}
         </span>
-        <span className="text-[12.5px] text-fg-subtle">/ 100 match</span>
+        <span className="text-[12.5px] text-fg-subtle">{t("score.outOf")}</span>
       </div>
 
       <div
@@ -74,9 +78,24 @@ export function ScoreBreakdown({
 
       {variant === "full" && (
         <div className="mt-4 grid grid-cols-3 gap-3">
-          <TierTile label="Keyword" weight="40%" value={k} colorClass={TIER_COLOR.keyword} />
-          <TierTile label="Semantic" weight="50%" value={s} colorClass={TIER_COLOR.semantic} />
-          <TierTile label="Verified" weight="10%" value={v} colorClass={TIER_COLOR.verified} />
+          <TierTile
+            labelKey="score.keyword"
+            weight="40%"
+            value={k}
+            colorClass={TIER_COLOR.keyword}
+          />
+          <TierTile
+            labelKey="score.semantic"
+            weight="50%"
+            value={s}
+            colorClass={TIER_COLOR.semantic}
+          />
+          <TierTile
+            labelKey="score.verified"
+            weight="10%"
+            value={v}
+            colorClass={TIER_COLOR.verified}
+          />
         </div>
       )}
     </div>
@@ -84,32 +103,33 @@ export function ScoreBreakdown({
 }
 
 function TierTile({
-  label,
+  labelKey,
   weight,
   value,
   colorClass,
 }: {
-  label: string;
+  labelKey: TranslationKey;
   weight: string;
   value: number;
   colorClass: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-lg border border-border bg-surface-2/40 px-3 py-2.5">
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className={cn("h-2 w-2 rounded-full", colorClass)} />
         <span className="text-[11px] uppercase tracking-[0.08em] font-semibold text-fg-subtle">
-          {label}
+          {t(labelKey)}
         </span>
       </div>
       <div className="flex items-baseline gap-1">
         <span className="text-[18px] font-bold tracking-tight text-fg leading-none">
           {value}
         </span>
-        <span className="text-[11px] text-fg-subtle">/ 100</span>
+        <span className="text-[11px] text-fg-subtle">{t("score.outOfShort")}</span>
       </div>
       <div className="text-[11px] text-fg-subtle font-mono mt-0.5">
-        weight {weight}
+        {t("score.weight").replace("{percentage}", weight)}
       </div>
     </div>
   );

@@ -1,11 +1,15 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/motion/Reveal";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { HERO_IMAGE } from "./landing-config";
 
 export function Hero() {
+  const { t } = useLanguage();
   return (
     <section className="relative">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-6 pt-20 sm:pt-28 lg:pt-32 pb-20 sm:pb-28 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
@@ -16,30 +20,27 @@ export function Hero() {
                 className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-glow"
                 aria-hidden
               />
-              Verifiable Credentials Platform
+              {t("landing.hero.eyebrow")}
             </span>
           </Reveal>
 
           <Reveal delay={80}>
             <h1 className="text-[52px] sm:text-[72px] lg:text-[88px] font-bold tracking-[-0.038em] leading-[1.0] text-fg mb-8">
-              Hire on what&apos;s been{" "}
+              {t("landing.hero.titlePartA")}{" "}
               <span className="relative inline-block text-accent">
-                verified
+                {t("landing.hero.titleHighlight")}
                 <span
                   aria-hidden
                   className="absolute inset-x-0 -bottom-1 h-[12px] bg-gradient-to-r from-accent/0 via-accent/30 to-accent/0 blur-md"
                 />
               </span>
-              ,
-              <br className="hidden sm:inline" /> not just claimed.
+              {t("landing.hero.titlePartB")}
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
             <p className="text-[20px] sm:text-[22px] text-fg-muted leading-[1.55] max-w-[56ch] mb-10">
-              TrustLink anchors credentials on-chain so recruiters see the
-              truth, candidates own their record, and institutions issue with
-              confidence.
+              {t("landing.hero.description")}
             </p>
           </Reveal>
 
@@ -47,12 +48,12 @@ export function Hero() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Link href="/register">
                 <Button size="lg" rightIcon={<ArrowRight size={16} />}>
-                  Get started — it&apos;s free
+                  {t("landing.hero.ctaPrimary")}
                 </Button>
               </Link>
               <Link href="/how-it-works">
                 <Button size="lg" variant="secondary">
-                  See how it works
+                  {t("landing.hero.ctaSecondary")}
                 </Button>
               </Link>
             </div>
@@ -61,7 +62,6 @@ export function Hero() {
 
         <Reveal delay={120} from="right" className="lg:col-span-6">
           <div className="relative">
-            {/* Soft accent halo behind image */}
             <div
               aria-hidden
               className="absolute -inset-6 sm:-inset-10 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_60%_40%,rgba(37,201,208,0.18),transparent_70%)]"
@@ -70,7 +70,7 @@ export function Hero() {
             <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border bg-surface-2 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.20),0_0_0_1px_rgba(15,23,42,0.04)] group">
               <Image
                 src={HERO_IMAGE.src}
-                alt={HERO_IMAGE.alt}
+                alt={t(HERO_IMAGE.altKey)}
                 fill
                 priority
                 sizes="(min-width: 1024px) 50vw, 100vw"
@@ -78,17 +78,16 @@ export function Hero() {
               />
             </div>
 
-            {/* Floating "verified" pill */}
             <div className="hidden sm:flex absolute -bottom-5 -left-5 items-center gap-3 rounded-2xl bg-canvas border border-border px-5 py-4 shadow-[0_16px_32px_-12px_rgba(15,23,42,0.20),0_0_0_1px_rgba(37,201,208,0.06)] animate-float">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
                 <ShieldCheckIcon />
               </span>
               <div className="leading-tight">
                 <div className="text-[15px] font-semibold text-fg">
-                  MSc Computer Science
+                  {t("landing.hero.demoTitle")}
                 </div>
                 <div className="text-[12.5px] text-fg-subtle font-mono">
-                  ✓ Verified · 0x4a8f…b21c
+                  {t("landing.hero.demoVerified")}
                 </div>
               </div>
             </div>

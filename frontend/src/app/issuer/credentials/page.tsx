@@ -15,9 +15,11 @@ import {
   fetchCredentialTypes,
   fetchMyInstitution,
 } from "@/lib/issuer-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Credential, CredentialType, Institution } from "@/types/issuer";
 
 export default function IssuerCredentialsPage() {
+  const { t } = useLanguage();
   const [inst, setInst] = useState<Institution | null>(null);
   const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [items, setItems] = useState<Credential[] | null>(null);
@@ -40,15 +42,15 @@ export default function IssuerCredentialsPage() {
         setError(
           e instanceof ApiError
             ? e.status === 404
-              ? "Register your institution first to start issuing credentials."
+              ? t("issuer.credentials.registerFirst")
               : e.message
-            : "Failed to load",
+            : t("issuer.credentials.failedLoad"),
         );
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!inst) return;
@@ -63,7 +65,9 @@ export default function IssuerCredentialsPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load credentials");
+        setError(
+          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
+        );
       });
     return () => {
       cancelled = true;
@@ -102,8 +106,8 @@ export default function IssuerCredentialsPage() {
   return (
     <>
       <PageHeader
-        title="My credentials"
-        description="Every credential your institution has issued. Revoke any time — the on-chain record is updated automatically."
+        title={t("issuer.credentials.title")}
+        description={t("issuer.credentials.description")}
       />
 
       {error && (
@@ -120,7 +124,7 @@ export default function IssuerCredentialsPage() {
           />
           <Input
             type="search"
-            placeholder="Search by title or credential number…"
+            placeholder={t("issuer.credentials.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-11"
@@ -131,36 +135,36 @@ export default function IssuerCredentialsPage() {
           onChange={(e) => setStatus(e.target.value)}
           className="h-11 sm:w-[200px]"
         >
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="issued">Issued</option>
-          <option value="revoked">Revoked</option>
-          <option value="reissued">Reissued</option>
+          <option value="all">{t("status.cred.all")}</option>
+          <option value="pending">{t("status.cred.pending")}</option>
+          <option value="issued">{t("status.cred.issued")}</option>
+          <option value="revoked">{t("status.cred.revoked")}</option>
+          <option value="reissued">{t("status.cred.reissued")}</option>
         </Select>
       </div>
 
       <Table>
         <THead>
           <TR>
-            <TH>Credential</TH>
-            <TH>Type</TH>
-            <TH>Status</TH>
-            <TH>Tx hash</TH>
-            <TH>Issued</TH>
-            <TH className="text-right">Actions</TH>
+            <TH>{t("issuer.credentials.colCredential")}</TH>
+            <TH>{t("common.type")}</TH>
+            <TH>{t("common.status")}</TH>
+            <TH>{t("issuer.credentials.colTxHash")}</TH>
+            <TH>{t("issuer.credentials.colIssued")}</TH>
+            <TH className="text-right">{t("common.actions")}</TH>
           </TR>
         </THead>
         <TBody>
           {!filtered ? (
             <TR>
               <TD colSpan={6} className="text-center text-fg-subtle py-10">
-                Loading credentials…
+                {t("issuer.credentials.loading")}
               </TD>
             </TR>
           ) : filtered.length === 0 ? (
             <TR>
               <TD colSpan={6} className="text-center text-fg-subtle py-10">
-                No credentials match this view.
+                {t("issuer.credentials.empty")}
               </TD>
             </TR>
           ) : (
@@ -212,7 +216,7 @@ export default function IssuerCredentialsPage() {
                       leftIcon={<Ban size={13} />}
                       onClick={() => setRevokeTarget(c)}
                     >
-                      Revoke
+                      {t("issuer.credentials.revoke")}
                     </Button>
                   ) : (
                     <span className="text-fg-faint text-[12.5px]">—</span>

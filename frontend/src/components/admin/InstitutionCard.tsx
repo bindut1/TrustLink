@@ -6,6 +6,8 @@ import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { approveInstitution, rejectInstitution } from "@/lib/admin-api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AdminInstitution, ApprovalStatus } from "@/types/admin";
 
 const STATUS_VARIANT: Record<ApprovalStatus, BadgeVariant> = {
@@ -14,10 +16,10 @@ const STATUS_VARIANT: Record<ApprovalStatus, BadgeVariant> = {
   rejected: "danger",
 };
 
-const STATUS_LABEL: Record<ApprovalStatus, string> = {
-  pending: "Pending review",
-  approved: "Approved",
-  rejected: "Rejected",
+const STATUS_KEY: Record<ApprovalStatus, TranslationKey> = {
+  pending: "status.approval.pending",
+  approved: "status.approval.approved",
+  rejected: "status.approval.rejected",
 };
 
 type InstitutionCardProps = {
@@ -26,6 +28,7 @@ type InstitutionCardProps = {
 };
 
 export function InstitutionCard({ institution, onChange }: InstitutionCardProps) {
+  const { t } = useLanguage();
   const [approving, setApproving] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -74,7 +77,7 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
               {institution.name}
             </h3>
             <Badge variant={STATUS_VARIANT[institution.approvalStatus]}>
-              {STATUS_LABEL[institution.approvalStatus]}
+              {t(STATUS_KEY[institution.approvalStatus])}
             </Badge>
           </div>
           <div className="text-[13px] text-fg-muted leading-relaxed">
@@ -87,7 +90,8 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
             )}
           </div>
           <div className="mt-1 text-[12.5px] text-fg-subtle">
-            Contact: {institution.contactName} · {institution.contactEmail}
+            {t("instCard.contact")} {institution.contactName} ·{" "}
+            {institution.contactEmail}
             {institution.website && (
               <>
                 {" "}·{" "}
@@ -108,7 +112,7 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
             institution.blockchainAddress && (
               <div className="mt-3 inline-flex items-center gap-2 text-[12px] font-mono text-fg-subtle">
                 <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
-                On-chain issuer
+                {t("instCard.onChainIssuer")}
                 <code className="text-fg-muted">
                   {shortAddress(institution.blockchainAddress)}
                 </code>
@@ -118,7 +122,9 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
           {institution.approvalStatus === "rejected" &&
             institution.rejectionReason && (
               <div className="mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-[12.5px] text-danger leading-relaxed">
-                <strong className="font-semibold">Rejection reason:</strong>{" "}
+                <strong className="font-semibold">
+                  {t("instCard.rejectionReason")}
+                </strong>{" "}
                 {institution.rejectionReason}
               </div>
             )}
@@ -131,10 +137,10 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
               size="md"
               onClick={() => setRejectOpen(true)}
             >
-              Reject
+              {t("instCard.reject")}
             </Button>
             <Button size="md" onClick={handleApprove} loading={approving}>
-              Approve
+              {t("instCard.approve")}
             </Button>
           </div>
         )}
@@ -143,12 +149,12 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
       <Modal
         open={rejectOpen}
         onClose={() => setRejectOpen(false)}
-        title={`Reject ${institution.name}?`}
-        description="Provide a reason — the contact will see this in their dashboard."
+        title={t("instCard.rejectTitle").replace("{name}", institution.name)}
+        description={t("instCard.rejectDescription")}
         footer={
           <>
             <Button variant="secondary" onClick={() => setRejectOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="primary"
@@ -156,7 +162,7 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
               loading={rejecting}
               disabled={!reason.trim()}
             >
-              Reject institution
+              {t("instCard.rejectButton")}
             </Button>
           </>
         }
@@ -165,7 +171,7 @@ export function InstitutionCard({ institution, onChange }: InstitutionCardProps)
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={4}
-          placeholder="e.g. Tax registration certificate is missing — please resubmit."
+          placeholder={t("instCard.rejectPlaceholder")}
           className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[14px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
         />
       </Modal>

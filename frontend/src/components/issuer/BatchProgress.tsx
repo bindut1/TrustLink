@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { BatchStatusBadge } from "@/components/issuer/StatusBadge";
 import { fetchBatch } from "@/lib/issuer-api";
 import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { BatchImport } from "@/types/issuer";
 
 const TERMINAL = new Set(["completed", "failed", "partially_completed"]);
@@ -19,6 +21,7 @@ type BatchProgressProps = {
  * Renders a progress bar + counts + (when there are errors) the error report.
  */
 export function BatchProgress({ batchId, onUpdate }: BatchProgressProps) {
+  const { t } = useLanguage();
   const [batch, setBatch] = useState<BatchImport | null>(null);
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export function BatchProgress({ batchId, onUpdate }: BatchProgressProps) {
   if (!batch) {
     return (
       <div className="rounded-2xl border border-border bg-canvas p-6 text-fg-subtle text-[14px]">
-        Loading batch progress…
+        {t("batchProgress.loading")}
       </div>
     );
   }
@@ -75,7 +78,9 @@ export function BatchProgress({ batchId, onUpdate }: BatchProgressProps) {
 
       <div className="flex items-baseline justify-between gap-4 mb-2 text-[12.5px]">
         <span className="text-fg-subtle">
-          {processed.toLocaleString()} / {total.toLocaleString()} rows
+          {t("batchProgress.rows")
+            .replace("{processed}", processed.toLocaleString())
+            .replace("{total}", total.toLocaleString())}
         </span>
         <span className="font-semibold text-fg">{pct}%</span>
       </div>
@@ -94,28 +99,36 @@ export function BatchProgress({ batchId, onUpdate }: BatchProgressProps) {
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-        <Tile label="Total" value={batch.totalRows} />
-        <Tile label="Success" value={batch.successCount} tone="success" />
-        <Tile label="Errors" value={batch.errorCount} tone={batch.errorCount > 0 ? "danger" : "neutral"} />
+        <Tile labelKey="batchProgress.tileTotal" value={batch.totalRows} />
+        <Tile
+          labelKey="batchProgress.tileSuccess"
+          value={batch.successCount}
+          tone="success"
+        />
+        <Tile
+          labelKey="batchProgress.tileErrors"
+          value={batch.errorCount}
+          tone={batch.errorCount > 0 ? "danger" : "neutral"}
+        />
       </div>
 
       {batch.errorReport && batch.errorReport.length > 0 && (
         <div className="mt-6">
           <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-3">
-            Error report ({batch.errorReport.length})
+            {t("batchProgress.errorReport")} ({batch.errorReport.length})
           </div>
           <div className="rounded-lg border border-border max-h-[300px] overflow-y-auto">
             <table className="w-full text-[13px]">
               <thead className="bg-surface-2/60 sticky top-0">
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2 font-semibold text-fg-subtle text-[11.5px] uppercase tracking-wide w-16">
-                    Row
+                    {t("batchProgress.colRow")}
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-fg-subtle text-[11.5px] uppercase tracking-wide w-32">
-                    Field
+                    {t("batchProgress.colField")}
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-fg-subtle text-[11.5px] uppercase tracking-wide">
-                    Error
+                    {t("batchProgress.colError")}
                   </th>
                 </tr>
               </thead>
@@ -144,14 +157,15 @@ export function BatchProgress({ batchId, onUpdate }: BatchProgressProps) {
 }
 
 function Tile({
-  label,
+  labelKey,
   value,
   tone = "neutral",
 }: {
-  label: string;
+  labelKey: TranslationKey;
   value: number;
   tone?: "neutral" | "success" | "danger";
 }) {
+  const { t } = useLanguage();
   const toneClass =
     tone === "success"
       ? "text-success"
@@ -164,7 +178,7 @@ function Tile({
         {value.toLocaleString()}
       </div>
       <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-fg-subtle mt-1">
-        {label}
+        {t(labelKey)}
       </div>
     </div>
   );

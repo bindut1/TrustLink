@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import { Select } from "@/components/ui/Input";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { updateApplicationStatus } from "@/lib/recruiter-api";
 import type { ApplicationStatus } from "@/types/candidate";
 
-const STATUSES: { value: ApplicationStatus; label: string }[] = [
-  { value: "applied", label: "Applied" },
-  { value: "reviewing", label: "Reviewing" },
-  { value: "shortlisted", label: "Shortlisted" },
-  { value: "interview", label: "Interview" },
-  { value: "offered", label: "Offered" },
-  { value: "rejected", label: "Rejected" },
-  { value: "withdrawn", label: "Withdrawn" },
+const STATUSES: { value: ApplicationStatus; labelKey: TranslationKey }[] = [
+  { value: "applied", labelKey: "status.app.applied" },
+  { value: "reviewing", labelKey: "status.app.reviewing" },
+  { value: "shortlisted", labelKey: "status.app.shortlisted" },
+  { value: "interview", labelKey: "status.app.interview" },
+  { value: "offered", labelKey: "status.app.offered" },
+  { value: "rejected", labelKey: "status.app.rejected" },
+  { value: "withdrawn", labelKey: "status.app.withdrawn" },
 ];
 
 type ApplicationStatusSelectProps = {
@@ -26,6 +28,7 @@ export function ApplicationStatusSelect({
   status,
   onChange,
 }: ApplicationStatusSelectProps) {
+  const { t } = useLanguage();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export function ApplicationStatusSelect({
       await updateApplicationStatus(applicationId, next);
       onChange(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Update failed");
+      setError(e instanceof Error ? e.message : t("appStatus.updateFailed"));
     } finally {
       setSaving(false);
     }
@@ -52,12 +55,14 @@ export function ApplicationStatusSelect({
       >
         {STATUSES.map((s) => (
           <option key={s.value} value={s.value}>
-            {s.label}
+            {t(s.labelKey)}
           </option>
         ))}
       </Select>
       {saving && (
-        <span className="text-[11px] text-fg-subtle">Saving…</span>
+        <span className="text-[11px] text-fg-subtle">
+          {t("appStatus.saving")}
+        </span>
       )}
       {error && <span className="text-[11px] text-danger">{error}</span>}
     </div>

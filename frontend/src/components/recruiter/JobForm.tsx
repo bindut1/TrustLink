@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input, Select } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { CreateJobPayload } from "@/types/recruiter-app";
 import { SkillChipsInput } from "./SkillChipsInput";
 
@@ -15,22 +17,23 @@ type JobFormProps = {
   onSubmit: (payload: CreateJobPayload) => Promise<unknown>;
 };
 
-const JOB_TYPES = [
-  { value: "full_time", label: "Full time" },
-  { value: "part_time", label: "Part time" },
-  { value: "contract", label: "Contract" },
-  { value: "internship", label: "Internship" },
+const JOB_TYPES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "full_time", labelKey: "jobType.full_time" },
+  { value: "part_time", labelKey: "jobType.part_time" },
+  { value: "contract", labelKey: "jobType.contract" },
+  { value: "internship", labelKey: "jobType.internship" },
 ];
 
-const EXPERIENCE = [
-  { value: "", label: "Any level" },
-  { value: "entry", label: "Entry" },
-  { value: "mid", label: "Mid" },
-  { value: "senior", label: "Senior" },
-  { value: "lead", label: "Lead" },
+const EXPERIENCE: { value: string; labelKey: TranslationKey }[] = [
+  { value: "", labelKey: "expLevel.any" },
+  { value: "entry", labelKey: "expLevel.entry" },
+  { value: "mid", labelKey: "expLevel.mid" },
+  { value: "senior", labelKey: "expLevel.senior" },
+  { value: "lead", labelKey: "expLevel.lead" },
 ];
 
 export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
+  const { t } = useLanguage();
   const [form, setForm] = useState<CreateJobPayload>({
     title: initial?.title ?? "",
     description: initial?.description ?? "",
@@ -91,7 +94,7 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
         setError(e.message);
         if (e.fields) setFieldErrors(e.fields);
       } else {
-        setError(e instanceof Error ? e.message : "Save failed");
+        setError(e instanceof Error ? e.message : t("jobForm.failedSave"));
       }
     } finally {
       setSubmitting(false);
@@ -108,10 +111,10 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
     >
       {error && <Alert variant="error">{error}</Alert>}
 
-      <Card title="Basics">
+      <Card title={t("jobForm.basics")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
-            label="Title"
+            label={t("jobForm.title")}
             required
             error={fieldErrors.title}
             className="sm:col-span-2"
@@ -120,45 +123,45 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
               value={form.title}
               onChange={(e) => update("title", e.target.value)}
               required
-              placeholder="e.g. Senior Smart Contract Engineer"
+              placeholder={t("jobForm.titlePlaceholder")}
             />
           </FormField>
-          <FormField label="Job type">
+          <FormField label={t("jobForm.jobType")}>
             <Select
               value={form.jobType ?? "full_time"}
               onChange={(e) => update("jobType", e.target.value)}
             >
-              {JOB_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {JOB_TYPES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
                 </option>
               ))}
             </Select>
           </FormField>
-          <FormField label="Experience level">
+          <FormField label={t("jobForm.experienceLevel")}>
             <Select
               value={form.experienceLevel ?? ""}
               onChange={(e) => update("experienceLevel", e.target.value)}
             >
-              {EXPERIENCE.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {EXPERIENCE.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
                 </option>
               ))}
             </Select>
           </FormField>
-          <FormField label="Industry">
+          <FormField label={t("jobForm.industry")}>
             <Input
               value={form.industry ?? ""}
               onChange={(e) => update("industry", e.target.value)}
-              placeholder="e.g. Fintech"
+              placeholder={t("jobForm.industryPlaceholder")}
             />
           </FormField>
-          <FormField label="City">
+          <FormField label={t("jobForm.city")}>
             <Input
               value={form.city ?? ""}
               onChange={(e) => update("city", e.target.value)}
-              placeholder="e.g. Hanoi"
+              placeholder={t("jobForm.cityPlaceholder")}
             />
           </FormField>
         </div>
@@ -170,14 +173,14 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
             className="h-4 w-4 rounded border-border-strong text-accent focus:ring-accent/30"
           />
           <span className="text-[14px] text-fg font-medium">
-            This role is remote-friendly
+            {t("jobForm.remoteCheck")}
           </span>
         </label>
       </Card>
 
-      <Card title="Compensation">
+      <Card title={t("jobForm.compensation")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Salary min" hint="Thousand VND / month">
+          <FormField label={t("jobForm.salaryMin")} hint={t("jobForm.salaryUnit")}>
             <Input
               type="number"
               min={0}
@@ -190,7 +193,7 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
               }
             />
           </FormField>
-          <FormField label="Salary max" hint="Thousand VND / month">
+          <FormField label={t("jobForm.salaryMax")} hint={t("jobForm.salaryUnit")}>
             <Input
               type="number"
               min={0}
@@ -212,24 +215,28 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
             className="h-4 w-4 rounded border-border-strong text-accent focus:ring-accent/30"
           />
           <span className="text-[14px] text-fg font-medium">
-            Show salary range publicly
+            {t("jobForm.salaryVisible")}
           </span>
         </label>
       </Card>
 
-      <Card title="Description">
-        <FormField label="Description" required error={fieldErrors.description}>
+      <Card title={t("jobForm.description")}>
+        <FormField
+          label={t("jobForm.descriptionLabel")}
+          required
+          error={fieldErrors.description}
+        >
           <textarea
             rows={6}
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
             required
-            placeholder="Describe the role, the team and what success looks like."
+            placeholder={t("jobForm.descriptionPlaceholder")}
             className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
           />
         </FormField>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          <FormField label="Requirements">
+          <FormField label={t("jobForm.requirements")}>
             <textarea
               rows={4}
               value={form.requirements ?? ""}
@@ -237,7 +244,7 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
               className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[14.5px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
             />
           </FormField>
-          <FormField label="Benefits">
+          <FormField label={t("jobForm.benefits")}>
             <textarea
               rows={4}
               value={form.benefits ?? ""}
@@ -248,26 +255,26 @@ export function JobForm({ initial, submitLabel, onSubmit }: JobFormProps) {
         </div>
       </Card>
 
-      <Card title="Skills">
+      <Card title={t("jobForm.skills")}>
         <FormField
-          label="Required skills"
-          hint="Used by AI matcher (keyword tier — 40% of total score)"
+          label={t("jobForm.requiredSkills")}
+          hint={t("jobForm.requiredSkillsHint")}
         >
           <SkillChipsInput
             value={form.requiredSkills ?? []}
             onChange={(v) => update("requiredSkills", v)}
-            placeholder="e.g. Solidity"
+            placeholder={t("jobForm.requiredSkillsPlaceholder")}
           />
         </FormField>
         <div className="mt-5">
           <FormField
-            label="Preferred skills"
-            hint="Nice-to-haves — they don't penalize candidates who lack them"
+            label={t("jobForm.preferredSkills")}
+            hint={t("jobForm.preferredSkillsHint")}
           >
             <SkillChipsInput
               value={form.preferredSkills ?? []}
               onChange={(v) => update("preferredSkills", v)}
-              placeholder="e.g. Foundry"
+              placeholder={t("jobForm.preferredSkillsPlaceholder")}
             />
           </FormField>
         </div>

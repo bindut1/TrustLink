@@ -2,6 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { apiRequest, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type VerificationOutcome = {
   result: string;
@@ -35,6 +37,7 @@ type PublicVerifyResponse = {
 };
 
 function StatusBadge({ outcome }: { outcome: VerificationOutcome }) {
+  const { t } = useLanguage();
   const allGood =
     outcome.on_chain_verified &&
     outcome.vc_signature_valid &&
@@ -45,11 +48,11 @@ function StatusBadge({ outcome }: { outcome: VerificationOutcome }) {
     : outcome.result === "revoked"
       ? "bg-orange-100 text-orange-800 border-orange-300"
       : "bg-red-100 text-red-800 border-red-300";
-  const label = allGood
-    ? "VERIFIED"
+  const labelKey: TranslationKey = allGood
+    ? "publicVerify.statusVerified"
     : outcome.result === "revoked"
-      ? "REVOKED"
-      : "INVALID";
+      ? "publicVerify.statusRevoked"
+      : "publicVerify.statusInvalid";
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold ${color}`}
@@ -57,17 +60,18 @@ function StatusBadge({ outcome }: { outcome: VerificationOutcome }) {
       <span className="text-lg">
         {allGood ? "✓" : outcome.result === "revoked" ? "⊘" : "✗"}
       </span>
-      {label}
+      {t(labelKey)}
     </span>
   );
 }
 
 function CheckRow({ label, ok }: { label: string; ok: boolean }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
       <span className="text-gray-700">{label}</span>
       <span className={ok ? "text-green-600" : "text-red-600"}>
-        {ok ? "✓ Passed" : "✗ Failed"}
+        {ok ? t("publicVerify.passed") : t("publicVerify.failedCheck")}
       </span>
     </div>
   );
@@ -78,6 +82,7 @@ export default function PublicVerifyPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useLanguage();
   const { id } = use(params);
   const [data, setData] = useState<PublicVerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +98,9 @@ export default function PublicVerifyPage({
       .catch((err) => {
         if (cancelled) return;
         setError(
-          err instanceof ApiError ? err.message : "Unable to verify credential",
+          err instanceof ApiError
+            ? err.message
+            : t("publicVerify.unableToVerify"),
         );
       })
       .finally(() => {
@@ -102,12 +109,12 @@ export default function PublicVerifyPage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, t]);
 
   if (loading) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-16 text-center text-gray-500">
-        Verifying credential on blockchain...
+        {t("publicVerify.verifying")}
       </div>
     );
   }
@@ -117,10 +124,10 @@ export default function PublicVerifyPage({
       <div className="container mx-auto max-w-3xl px-4 py-16">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
           <h1 className="text-2xl font-bold text-red-800">
-            Credential not found
+            {t("publicVerify.notFoundTitle")}
           </h1>
           <p className="mt-2 text-sm text-red-700">
-            {error ?? "This credential does not exist or has been deleted."}
+            {error ?? t("publicVerify.notFoundDesc")}
           </p>
         </div>
       </div>
@@ -134,17 +141,17 @@ export default function PublicVerifyPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-wide text-gray-500">
-              {credential.credentialType?.name ?? "Credential"}
+              {credential.credentialType?.name ?? "—"}
             </p>
             <h1 className="mt-1 text-2xl font-bold text-gray-900">
               {credential.title}
             </h1>
             <p className="mt-1 text-sm text-gray-600">
-              Issued to{" "}
+              {t("publicVerify.issuedTo")}{" "}
               <span className="font-medium">
                 {credential.candidate?.fullName ?? "—"}
               </span>{" "}
-              by{" "}
+              {t("publicVerify.by")}{" "}
               <span className="font-medium">
                 {credential.institution?.name ?? "—"}
               </span>
@@ -154,27 +161,39 @@ export default function PublicVerifyPage({
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Credential Number" value={credential.credentialNumber} />
-          <Field label="Issued Date" value={credential.issuedDate} />
-          <Field label="Expiry Date" value={credential.expiryDate ?? "—"} />
-          <Field label="Status" value={credential.status} />
+          <Field
+            label={t("publicVerify.fldCredNumber")}
+            value={credential.credentialNumber}
+          />
+          <Field
+            label={t("publicVerify.fldIssuedDate")}
+            value={credential.issuedDate}
+          />
+          <Field
+            label={t("publicVerify.fldExpiryDate")}
+            value={credential.expiryDate ?? "—"}
+          />
+          <Field
+            label={t("publicVerify.fldStatus")}
+            value={credential.status}
+          />
         </div>
 
         <div className="mt-8 border-t border-gray-200 pt-6">
           <h2 className="text-lg font-semibold text-gray-900">
-            Verification details
+            {t("publicVerify.verificationDetails")}
           </h2>
           <div className="mt-3">
             <CheckRow
-              label="Hash exists on blockchain"
+              label={t("publicVerify.checkOnChain")}
               ok={verification.on_chain_verified}
             />
             <CheckRow
-              label="W3C VC signature valid"
+              label={t("publicVerify.checkSignature")}
               ok={verification.vc_signature_valid}
             />
             <CheckRow
-              label="Issuer is authorized"
+              label={t("publicVerify.checkIssuer")}
               ok={verification.issuer_authorized}
             />
           </div>
@@ -183,7 +202,7 @@ export default function PublicVerifyPage({
         {credential.blockchainTxHash && (
           <div className="mt-6 border-t border-gray-200 pt-6">
             <h2 className="text-sm font-semibold text-gray-700">
-              Blockchain proof
+              {t("publicVerify.blockchainProof")}
             </h2>
             <p className="mt-2 break-all font-mono text-xs text-gray-600">
               Tx:{" "}
@@ -198,14 +217,14 @@ export default function PublicVerifyPage({
             </p>
             {credential.blockchainBlockNumber && (
               <p className="mt-1 font-mono text-xs text-gray-600">
-                Block: {credential.blockchainBlockNumber}
+                {t("publicVerify.block")}: {credential.blockchainBlockNumber}
               </p>
             )}
           </div>
         )}
 
         <p className="mt-8 text-center text-xs text-gray-400">
-          Verified by TrustLink • Powered by Polygon blockchain
+          {t("publicVerify.footer")}
         </p>
       </div>
     </div>

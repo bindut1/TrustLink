@@ -5,6 +5,7 @@ import {
   Building2,
   ClipboardList,
   FileText,
+  KeyRound,
   LayoutDashboard,
   Link2,
   ScrollText,
@@ -15,39 +16,76 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { UserRole } from "@/types/auth";
 
-export type NavItem = {
-  label: string;
+/**
+ * A leaf nav item with a direct route.
+ */
+export type NavLeaf = {
+  labelKey: TranslationKey;
   href: string;
   icon: LucideIcon;
 };
 
+/**
+ * A collapsible group of nav items. When present in the sidebar, clicking the
+ * parent toggles the expansion; it does not navigate. `children` items are
+ * rendered slightly indented below.
+ */
+export type NavGroup = {
+  labelKey: TranslationKey;
+  icon: LucideIcon;
+  children: NavLeaf[];
+};
+
+export type NavItem = NavLeaf | NavGroup;
+
+export function isNavGroup(item: NavItem): item is NavGroup {
+  return "children" in item;
+}
+
 export type NavSection = {
-  /** Optional eyebrow header above a group of items. */
-  label?: string;
+  labelKey?: TranslationKey;
   items: NavItem[];
 };
+
+// Settings section — bundles Profile + Change password under a static section
+// header (rendered like "Văn bằng"), not a collapsible dropdown. Language
+// preference lives in the topbar toggle.
+function settingsSection(role: UserRole, profileIcon: LucideIcon): NavSection {
+  return {
+    labelKey: "settings.title",
+    items: [
+      { labelKey: "nav.profile", href: `/${role}/profile`, icon: profileIcon },
+      {
+        labelKey: "settings.password",
+        href: `/${role}/settings/password`,
+        icon: KeyRound,
+      },
+    ],
+  };
+}
 
 const ADMIN_NAV: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      { labelKey: "nav.dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Manage",
+    labelKey: "navSection.manage",
     items: [
-      { label: "Users", href: "/admin/users", icon: Users },
-      { label: "Institutions", href: "/admin/institutions", icon: Building2 },
-      { label: "Credential types", href: "/admin/credential-types", icon: FileText },
+      { labelKey: "nav.users", href: "/admin/users", icon: Users },
+      { labelKey: "nav.institutions", href: "/admin/institutions", icon: Building2 },
+      { labelKey: "nav.credentialTypes", href: "/admin/credential-types", icon: FileText },
     ],
   },
   {
-    label: "Monitor",
+    labelKey: "navSection.monitor",
     items: [
-      { label: "Blockchain", href: "/admin/blockchain", icon: Link2 },
-      { label: "Audit logs", href: "/admin/audit-logs", icon: ScrollText },
+      { labelKey: "nav.blockchain", href: "/admin/blockchain", icon: Link2 },
+      { labelKey: "nav.auditLogs", href: "/admin/audit-logs", icon: ScrollText },
     ],
   },
 ];
@@ -55,62 +93,56 @@ const ADMIN_NAV: NavSection[] = [
 const ISSUER_NAV: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", href: "/issuer/dashboard", icon: LayoutDashboard },
+      { labelKey: "nav.dashboard", href: "/issuer/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Credentials",
+    labelKey: "navSection.credentials",
     items: [
-      { label: "All credentials", href: "/issuer/credentials", icon: Award },
-      { label: "Issue new", href: "/issuer/issue", icon: ShieldCheck },
-      { label: "Batch import", href: "/issuer/batch", icon: ClipboardList },
+      { labelKey: "nav.allCredentials", href: "/issuer/credentials", icon: Award },
+      { labelKey: "nav.issue", href: "/issuer/issue", icon: ShieldCheck },
+      { labelKey: "nav.batch", href: "/issuer/batch", icon: ClipboardList },
     ],
   },
-  {
-    items: [{ label: "Institution profile", href: "/issuer/profile", icon: Building2 }],
-  },
+  settingsSection("issuer", Building2),
 ];
 
 const CANDIDATE_NAV: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", href: "/candidate/dashboard", icon: LayoutDashboard },
+      { labelKey: "nav.dashboard", href: "/candidate/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "My career",
+    labelKey: "navSection.myCareer",
     items: [
-      { label: "Credentials", href: "/candidate/credentials", icon: Wallet },
-      { label: "Applications", href: "/candidate/applications", icon: ClipboardList },
+      { labelKey: "nav.credentials", href: "/candidate/credentials", icon: Wallet },
+      { labelKey: "nav.applications", href: "/candidate/applications", icon: ClipboardList },
     ],
   },
   {
-    label: "Find work",
+    labelKey: "navSection.findWork",
     items: [
-      { label: "Recommended", href: "/candidate/recommendations", icon: Sparkles },
-      { label: "Find jobs", href: "/candidate/jobs", icon: Search },
+      { labelKey: "nav.recommendations", href: "/candidate/recommendations", icon: Sparkles },
+      { labelKey: "nav.findJobs", href: "/candidate/jobs", icon: Search },
     ],
   },
-  {
-    items: [{ label: "Profile", href: "/candidate/profile", icon: UserCircle }],
-  },
+  settingsSection("candidate", UserCircle),
 ];
 
 const RECRUITER_NAV: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", href: "/recruiter/dashboard", icon: LayoutDashboard },
+      { labelKey: "nav.dashboard", href: "/recruiter/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Hiring",
+    labelKey: "navSection.hiring",
     items: [
-      { label: "Jobs", href: "/recruiter/jobs", icon: Briefcase },
+      { labelKey: "nav.myJobs", href: "/recruiter/jobs", icon: Briefcase },
     ],
   },
-  {
-    items: [{ label: "Company profile", href: "/recruiter/profile", icon: Building2 }],
-  },
+  settingsSection("recruiter", Building2),
 ];
 
 export const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
@@ -120,9 +152,9 @@ export const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   recruiter: RECRUITER_NAV,
 };
 
-export const ROLE_LABEL: Record<UserRole, string> = {
-  admin: "Admin Console",
-  issuer: "Issuer Portal",
-  candidate: "Candidate Workspace",
-  recruiter: "Recruiter Hub",
+export const WORKSPACE_KEY: Record<UserRole, TranslationKey> = {
+  admin: "workspace.admin",
+  issuer: "workspace.issuer",
+  candidate: "workspace.candidate",
+  recruiter: "workspace.recruiter",
 };

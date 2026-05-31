@@ -9,20 +9,22 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { fetchJobs, fetchMyApplications } from "@/lib/candidate-api";
-import { cn } from "@/lib/cn";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { JobItem, PaginatedJobs } from "@/types/candidate";
 
-const JOB_TYPES = [
-  { value: "", label: "Any type" },
-  { value: "full_time", label: "Full time" },
-  { value: "part_time", label: "Part time" },
-  { value: "contract", label: "Contract" },
-  { value: "internship", label: "Internship" },
+const JOB_TYPES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "", labelKey: "candidate.jobs.anyType" },
+  { value: "full_time", labelKey: "jobType.full_time" },
+  { value: "part_time", labelKey: "jobType.part_time" },
+  { value: "contract", labelKey: "jobType.contract" },
+  { value: "internship", labelKey: "jobType.internship" },
 ];
 
 const PAGE_SIZE = 10;
 
 export default function CandidateJobsPage() {
+  const { t } = useLanguage();
   // Filter state (live as user types/changes)
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
@@ -62,7 +64,9 @@ export default function CandidateJobsPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load jobs");
+        setError(
+          e instanceof Error ? e.message : t("candidate.jobs.failedJobs"),
+        );
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -87,8 +91,8 @@ export default function CandidateJobsPage() {
   return (
     <>
       <PageHeader
-        title="Find jobs"
-        description="Filter open roles by city, type, salary and remote-friendliness. Click apply to submit with your verified credentials."
+        title={t("candidate.jobs.title")}
+        description={t("candidate.jobs.description")}
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
@@ -99,14 +103,14 @@ export default function CandidateJobsPage() {
           />
           <Input
             type="search"
-            placeholder="Search by title…"
+            placeholder={t("candidate.jobs.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-11"
           />
         </div>
         <Input
-          placeholder="City"
+          placeholder={t("candidate.jobs.cityPlaceholder")}
           value={city}
           onChange={(e) => setCity(e.target.value)}
           className="h-11 lg:col-span-2"
@@ -116,16 +120,16 @@ export default function CandidateJobsPage() {
           onChange={(e) => setJobType(e.target.value)}
           className="h-11 lg:col-span-2"
         >
-          {JOB_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
+          {JOB_TYPES.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.labelKey)}
             </option>
           ))}
         </Select>
         <Input
           type="number"
           min={0}
-          placeholder="Min salary (k VND)"
+          placeholder={t("candidate.jobs.minSalaryPlaceholder")}
           value={salaryMin}
           onChange={(e) => setSalaryMin(e.target.value)}
           className="h-11 lg:col-span-2"
@@ -135,14 +139,19 @@ export default function CandidateJobsPage() {
           onChange={(e) => setIsRemote(e.target.value as "" | "true" | "false")}
           className="h-11 lg:col-span-2"
         >
-          <option value="">Any location</option>
-          <option value="true">Remote only</option>
-          <option value="false">On-site only</option>
+          <option value="">{t("candidate.jobs.anyLocation")}</option>
+          <option value="true">{t("candidate.jobs.remoteOnly")}</option>
+          <option value="false">{t("candidate.jobs.onsiteOnly")}</option>
         </Select>
       </div>
 
       <div className="text-[12.5px] text-fg-subtle mb-3">
-        {data ? `${data.total.toLocaleString()} jobs match your filters` : ""}
+        {data
+          ? t("candidate.jobs.matchCount").replace(
+              "{n}",
+              data.total.toLocaleString(),
+            )
+          : ""}
       </div>
 
       {error && (
@@ -153,7 +162,7 @@ export default function CandidateJobsPage() {
 
       {loading ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          Loading jobs…
+          {t("candidate.jobs.loading")}
         </div>
       ) : data && data.items.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -171,7 +180,7 @@ export default function CandidateJobsPage() {
                 meta={
                   alreadyApplied ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[12px] font-medium text-success">
-                      Applied
+                      {t("jobCard.applied")}
                     </span>
                   ) : null
                 }
@@ -181,14 +190,16 @@ export default function CandidateJobsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center text-fg-subtle">
-          No jobs match these filters. Try widening your search.
+          {t("candidate.jobs.empty")}
         </div>
       )}
 
       {data && totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <span className="text-[13px] text-fg-subtle">
-            Page <strong className="text-fg">{data.page}</strong> of {totalPages}
+            {t("candidate.jobs.pageOf")
+              .replace("{current}", String(data.page))
+              .replace("{total}", String(totalPages))}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -198,7 +209,7 @@ export default function CandidateJobsPage() {
               disabled={data.page <= 1}
               leftIcon={<ChevronLeft size={14} />}
             >
-              Previous
+              {t("candidate.jobs.previous")}
             </Button>
             <Button
               variant="secondary"
@@ -207,7 +218,7 @@ export default function CandidateJobsPage() {
               disabled={data.page >= totalPages}
               rightIcon={<ChevronRight size={14} />}
             >
-              Next
+              {t("candidate.jobs.next")}
             </Button>
           </div>
         </div>

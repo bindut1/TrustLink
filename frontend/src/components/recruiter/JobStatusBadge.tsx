@@ -1,4 +1,8 @@
+"use client";
+
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { JobStatus } from "@/types/recruiter-app";
 
 const VARIANT: Record<JobStatus, BadgeVariant> = {
@@ -8,13 +12,14 @@ const VARIANT: Record<JobStatus, BadgeVariant> = {
   expired: "danger",
 };
 
-const LABEL: Record<JobStatus, string> = {
-  draft: "Draft",
-  open: "Open",
-  closed: "Closed",
-  expired: "Expired",
+const KEY: Record<JobStatus, TranslationKey> = {
+  draft: "status.job.draft",
+  open: "status.job.open",
+  closed: "status.job.closed",
+  expired: "status.job.expired",
 };
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {
-  return <Badge variant={VARIANT[status]}>{LABEL[status]}</Badge>;
+  const { t } = useLanguage();
+  return <Badge variant={VARIANT[status]}>{t(KEY[status])}</Badge>;
 }
