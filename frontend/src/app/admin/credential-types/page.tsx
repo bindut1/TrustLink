@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import {
   createCredentialType,
-  fetchCredentialTypes,
+  fetchAllCredentialTypes,
   updateCredentialType,
 } from "@/lib/admin-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -71,7 +71,7 @@ export default function AdminCredentialTypesPage() {
 
   async function refresh() {
     setItems(null);
-    const list = await fetchCredentialTypes();
+    const list = await fetchAllCredentialTypes();
     setItems(list);
   }
 

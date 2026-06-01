@@ -35,6 +35,16 @@ export class CredentialTypesController {
     return this.service.findAllActive();
   }
 
+  @Get('all')
+  @RequireActions('credential.manage_types')
+  @ApiOperation({
+    summary: 'List all credential types incl. inactive (admin only)',
+  })
+  @ApiOkResponse({ description: 'All credential types' })
+  async findAll() {
+    return this.service.findAll();
+  }
+
   @Post()
   @RequireActions('credential.manage_types')
   @ApiOperation({ summary: 'Create credential type (admin only)' })

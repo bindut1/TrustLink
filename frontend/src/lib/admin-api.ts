@@ -141,6 +141,11 @@ export function fetchCredentialTypes(): Promise<CredentialType[]> {
   return apiRequest("/credential-types", authOpts());
 }
 
+// Admin management list — includes inactive types so they can be re-enabled.
+export function fetchAllCredentialTypes(): Promise<CredentialType[]> {
+  return apiRequest("/credential-types/all", authOpts());
+}
+
 export function createCredentialType(payload: {
   category: string;
   name: string;
