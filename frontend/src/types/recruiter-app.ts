@@ -59,7 +59,12 @@ export type CreateJobPayload = {
 };
 
 export type RankedCandidate = ScoreBreakdown & {
-  candidate: { id: string; fullName: string; email: string };
+  candidate: {
+    id: string;
+    fullName: string;
+    email: string;
+    avatarUrl?: string | null;
+  };
 };
 
 export type ApplicationWithCandidate = ApplicationItem & {
@@ -67,5 +72,6 @@ export type ApplicationWithCandidate = ApplicationItem & {
     id: string;
     fullName: string;
     email: string;
+    avatarUrl?: string | null;
   };
 };

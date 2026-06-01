@@ -28,6 +28,7 @@ export type AdminUser = {
   role: UserRole;
   status: AccountStatus;
   emailVerified: boolean;
+  avatarUrl?: string | null;
   lastLoginAt?: string | null;
   createdAt: string;
 };

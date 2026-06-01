@@ -3,6 +3,7 @@
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Avatar } from "@/components/ui/Avatar";
 import { clearSession } from "@/lib/auth-storage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AuthUser } from "@/types/auth";
@@ -21,7 +22,6 @@ export function UserMenu({ user }: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const initials = getInitials(user.fullName);
   const roleKey = `role.${user.role}` as const;
 
   useEffect(() => {
@@ -59,12 +59,7 @@ export function UserMenu({ user }: Props) {
         aria-expanded={open}
         className="flex items-center gap-2.5 rounded-md hover:bg-surface-2 transition-colors px-1.5 py-1 -ml-1.5"
       >
-        <span
-          aria-hidden
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-accent text-[12.5px] font-semibold"
-        >
-          {initials}
-        </span>
+        <Avatar name={user.fullName} src={user.avatarUrl} size={36} />
         <div className="hidden lg:flex flex-col leading-tight items-start">
           <span className="text-[13px] font-semibold text-fg">
             {user.fullName}
@@ -108,14 +103,4 @@ export function UserMenu({ user }: Props) {
       )}
     </div>
   );
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }

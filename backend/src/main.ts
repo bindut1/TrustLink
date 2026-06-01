@@ -1,5 +1,5 @@
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -18,6 +18,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Serializes responses with class-transformer so entity `@Exclude()` fields
+  // (e.g. User.passwordHash) never leak in HTTP responses. Plain objects pass
+  // through untouched, so manually-shaped responses are unaffected.
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('TrustLink API')

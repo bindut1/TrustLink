@@ -1,19 +1,27 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Patch,
+  Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import { User } from '../../database/entities/user.entity';
 import { UserRole } from '../../database/enums';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -22,6 +30,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -44,6 +54,41 @@ export class UsersController {
   @ApiOkResponse({ description: 'Updated user profile' })
   async updateMe(@CurrentUser() user: User, @Body() dto: UpdateUserDto) {
     const updated = await this.usersService.updateMe(user.id, dto);
+    const { passwordHash: _ph, ...rest } = updated;
+    return rest;
+  }
+
+  @Post('me/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_AVATAR_BYTES },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload/replace the current user avatar' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse({ description: 'Updated user profile with new avatarUrl' })
+  async uploadAvatar(
+    @CurrentUser() user: User,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const updated = await this.usersService.updateAvatar(user.id, file);
+    const { passwordHash: _ph, ...rest } = updated;
+    return rest;
+  }
+
+  @Delete('me/avatar')
+  @ApiOperation({ summary: 'Remove the current user avatar' })
+  @ApiOkResponse({ description: 'Updated user profile with avatarUrl cleared' })
+  async removeAvatar(@CurrentUser() user: User) {
+    const updated = await this.usersService.removeAvatar(user.id);
     const { passwordHash: _ph, ...rest } = updated;
     return rest;
   }

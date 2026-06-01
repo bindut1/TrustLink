@@ -15,7 +15,12 @@ export interface ScoreBreakdown {
 }
 
 export interface RankedCandidate extends ScoreBreakdown {
-  candidate: { id: string; fullName: string; email: string };
+  candidate: {
+    id: string;
+    fullName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
 }
 
 export interface RankedJob extends ScoreBreakdown {
@@ -112,7 +117,12 @@ export class MatchingService {
         const u = userMap.get(s.candidateId)!;
         return {
           ...s,
-          candidate: { id: u.id, fullName: u.fullName, email: u.email },
+          candidate: {
+            id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+            avatarUrl: u.avatarUrl,
+          },
         };
       })
       .sort((a, b) => b.totalScore - a.totalScore)

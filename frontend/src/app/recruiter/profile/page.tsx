@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -125,6 +126,8 @@ export default function RecruiterProfilePage() {
       >
         {error && <Alert variant="error">{error}</Alert>}
         {saved && <Alert variant="success">{t("recruiter.profile.saved")}</Alert>}
+
+        <AvatarUploader />
 
         <Card title={t("recruiter.profile.sectionCompany")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

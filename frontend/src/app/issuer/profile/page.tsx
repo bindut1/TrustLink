@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { ApprovalStatusBadge } from "@/components/issuer/StatusBadge";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -182,6 +183,8 @@ export default function IssuerProfilePage() {
             </code>
           </Alert>
         )}
+
+        <AvatarUploader />
 
         <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
           <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">

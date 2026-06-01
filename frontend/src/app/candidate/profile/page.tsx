@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -143,6 +144,8 @@ export default function CandidateProfilePage() {
       >
         {error && <Alert variant="error">{error}</Alert>}
         {saved && <Alert variant="success">{t("candidate.profile.saved")}</Alert>}
+
+        <AvatarUploader />
 
         {/* About */}
         <Card title={t("candidate.profile.sectionAbout")}>

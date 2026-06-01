@@ -4,6 +4,7 @@ import { Search, ShieldOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { UserActionsModal } from "@/components/admin/UserActionsModal";
+import { Avatar } from "@/components/ui/Avatar";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -144,9 +145,7 @@ export default function AdminUsersPage() {
               <TR key={u.id}>
                 <TD>
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-accent text-[12px] font-semibold">
-                      {initials(u.fullName)}
-                    </span>
+                    <Avatar name={u.fullName} src={u.avatarUrl} size={36} />
                     <div className="min-w-0">
                       <div className="text-[14px] font-semibold text-fg truncate">
                         {u.fullName}
@@ -203,14 +202,4 @@ export default function AdminUsersPage() {
       )}
     </>
   );
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }

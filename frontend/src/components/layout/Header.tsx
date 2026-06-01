@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LanguageToggle } from "@/components/app-shell/LanguageToggle";
 import { Logo } from "@/components/auth/Logo";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { clearSession } from "@/lib/auth-storage";
@@ -137,7 +138,6 @@ function GuestActions() {
 function UserMenu({ user }: { user: AuthUser }) {
   const { t } = useLanguage();
   const router = useRouter();
-  const initials = getInitials(user.fullName);
   const roleKey = `role.${user.role}` as const;
 
   function handleSignOut() {
@@ -147,12 +147,7 @@ function UserMenu({ user }: { user: AuthUser }) {
 
   return (
     <div className="flex items-center gap-2.5 pl-2 border-l border-border">
-      <span
-        aria-hidden
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent text-[12.5px] font-semibold"
-      >
-        {initials}
-      </span>
+      <Avatar name={user.fullName} src={user.avatarUrl} size={32} />
       <div className="hidden lg:flex flex-col leading-tight">
         <span className="text-[13px] font-semibold text-fg">{user.fullName}</span>
         <span className="text-[11.5px] text-fg-subtle">{t(roleKey)}</span>
@@ -176,9 +171,7 @@ function MobileUserActions({ user }: { user: AuthUser }) {
   return (
     <>
       <div className="flex items-center gap-3 px-3 py-2">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-accent text-[13px] font-semibold">
-          {getInitials(user.fullName)}
-        </span>
+        <Avatar name={user.fullName} src={user.avatarUrl} size={36} />
         <div className="flex flex-col leading-tight">
           <span className="text-[14px] font-semibold text-fg">{user.fullName}</span>
           <span className="text-[12px] text-fg-subtle">{t(roleKey)}</span>
@@ -198,14 +191,4 @@ function MobileUserActions({ user }: { user: AuthUser }) {
       </Button>
     </>
   );
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }

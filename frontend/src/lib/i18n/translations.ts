@@ -1062,6 +1062,16 @@ export const TRANSLATIONS = {
     "notFound.helpfulLinks.login": "Đăng nhập tài khoản",
     "notFound.helpfulLinks.register": "Tạo tài khoản mới",
     "notFound.helpfulLinks.product": "Khám phá sản phẩm",
+
+    // ───────────── Avatar (ảnh đại diện) ─────────────
+    "avatar.section": "Ảnh đại diện",
+    "avatar.change": "Đổi ảnh",
+    "avatar.remove": "Xoá ảnh",
+    "avatar.uploading": "Đang tải lên…",
+    "avatar.hint": "JPG, PNG, WebP hoặc GIF. Tối đa 5MB.",
+    "avatar.errorType": "Định dạng ảnh không hỗ trợ. Dùng JPEG, PNG, WebP hoặc GIF.",
+    "avatar.errorSize": "Ảnh quá lớn. Kích thước tối đa 5MB.",
+    "avatar.errorUpload": "Tải ảnh lên thất bại. Vui lòng thử lại.",
   },
   en: {
     // ───────────── Common ─────────────
@@ -2108,5 +2118,15 @@ export const TRANSLATIONS = {
     "notFound.helpfulLinks.login": "Sign in to your account",
     "notFound.helpfulLinks.register": "Create a new account",
     "notFound.helpfulLinks.product": "Explore the product",
+
+    // Avatar
+    "avatar.section": "Profile photo",
+    "avatar.change": "Change photo",
+    "avatar.remove": "Remove",
+    "avatar.uploading": "Uploading…",
+    "avatar.hint": "JPG, PNG, WebP or GIF. Max 5MB.",
+    "avatar.errorType": "Unsupported image type. Use JPEG, PNG, WebP or GIF.",
+    "avatar.errorSize": "Image is too large. Maximum size is 5MB.",
+    "avatar.errorUpload": "Upload failed. Please try again.",
   },
 } as const;

@@ -11,6 +11,7 @@ import { ApplicationStatusSelect } from "@/components/recruiter/ApplicationStatu
 import { CandidateVerifyModal } from "@/components/recruiter/CandidateVerifyModal";
 import { JobStatusBadge } from "@/components/recruiter/JobStatusBadge";
 import { Alert } from "@/components/ui/Alert";
+import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -295,6 +296,11 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                 <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent text-[12px] font-mono font-semibold border border-accent/25">
                   #{i + 1}
                 </span>
+                <Avatar
+                  name={r.candidate.fullName}
+                  src={r.candidate.avatarUrl}
+                  size={40}
+                />
                 <div className="min-w-0">
                   <div className="text-[16px] font-semibold text-fg leading-tight">
                     {r.candidate.fullName}
@@ -404,27 +410,38 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
             className="rounded-2xl border border-border bg-canvas p-5 sm:p-6"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <ApplicationStatusBadge status={app.status} />
-                  <span className="text-[12px] text-fg-subtle font-mono">
-                    {new Date(app.createdAt).toLocaleString()}
-                  </span>
-                </div>
-                <h3 className="text-[16px] font-semibold text-fg leading-snug">
-                  {app.candidate?.fullName ??
-                    t("recruiter.jobDetail.anonymousCandidate")}
-                </h3>
-                {app.candidate?.email && (
-                  <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5">
-                    {app.candidate.email}
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <Avatar
+                  name={
+                    app.candidate?.fullName ??
+                    t("recruiter.jobDetail.anonymousCandidate")
+                  }
+                  src={app.candidate?.avatarUrl}
+                  size={40}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <ApplicationStatusBadge status={app.status} />
+                    <span className="text-[12px] text-fg-subtle font-mono">
+                      {new Date(app.createdAt).toLocaleString()}
+                    </span>
                   </div>
-                )}
-                {app.coverLetter && (
-                  <p className="mt-3 text-[13.5px] text-fg-muted leading-relaxed border-l-2 border-border pl-3">
-                    {app.coverLetter}
-                  </p>
-                )}
+                  <h3 className="text-[16px] font-semibold text-fg leading-snug">
+                    {app.candidate?.fullName ??
+                      t("recruiter.jobDetail.anonymousCandidate")}
+                  </h3>
+                  {app.candidate?.email && (
+                    <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5">
+                      {app.candidate.email}
+                    </div>
+                  )}
+                  {app.coverLetter && (
+                    <p className="mt-3 text-[13.5px] text-fg-muted leading-relaxed border-l-2 border-border pl-3">
+                      {app.coverLetter}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="shrink-0 flex flex-col items-stretch gap-3 min-w-[240px]">
                 {app.matchScore != null && (
