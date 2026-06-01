@@ -13,7 +13,12 @@ import {
 import { JobStatus } from '../../../database/enums';
 
 export class ListJobsQueryDto {
-  @ApiPropertyOptional({ description: 'Fuzzy search on job title (pg_trgm)' })
+  @ApiPropertyOptional({ description: 'Filter by recruiter user id' })
+  @IsOptional()
+  @IsString()
+  recruiterId?: string;
+
+  @ApiPropertyOptional({ description: 'Search on job title / description (ILIKE)' })
   @IsOptional()
   @IsString()
   @MaxLength(255)

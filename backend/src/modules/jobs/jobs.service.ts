@@ -80,11 +80,24 @@ export class JobsService {
   async findAll(query: ListJobsQueryDto): Promise<PaginatedJobs> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const status = query.status ?? JobStatus.OPEN;
 
-    const qb = this.repo
-      .createQueryBuilder('job')
-      .where('job.status = :status', { status });
+    // When filtering by a specific recruiter, show all their statuses unless
+    // explicitly requested. Public listing defaults to OPEN only.
+    const status = query.status ?? (query.recruiterId ? undefined : JobStatus.OPEN);
+
+    const qb = this.repo.createQueryBuilder('job');
+
+    if (status) {
+      qb.where('job.status = :status', { status });
+    } else {
+      qb.where('1=1');
+    }
+
+    if (query.recruiterId) {
+      qb.andWhere('job.recruiter_id = :recruiterId', {
+        recruiterId: query.recruiterId,
+      });
+    }
 
     if (query.city) {
       qb.andWhere('job.city = :city', { city: query.city });
@@ -109,13 +122,12 @@ export class JobsService {
       );
     }
     if (query.search) {
-      // pg_trgm similarity operator (%) uses the GIN trigram index on title.
-      qb.andWhere('job.title % :search', { search: query.search });
-      qb.orderBy('similarity(job.title, :search)', 'DESC');
-      qb.addOrderBy('job.created_at', 'DESC');
-    } else {
-      qb.orderBy('job.created_at', 'DESC');
+      qb.andWhere(
+        '(job.title ILIKE :search OR job.description ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
     }
+    qb.orderBy('job.created_at', 'DESC');
 
     qb.skip((page - 1) * limit).take(limit);
 

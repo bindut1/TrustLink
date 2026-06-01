@@ -45,6 +45,7 @@ export function fetchJobs(params?: {
   search?: string;
   city?: string;
   status?: JobStatus | "all";
+  recruiterId?: string;
   page?: number;
   limit?: number;
 }): Promise<PaginatedJobs> {

@@ -1,8 +1,8 @@
 "use client";
 
-import { Briefcase, MapPin, Plus } from "lucide-react";
+import { Briefcase, MapPin, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { JobStatusBadge } from "@/components/recruiter/JobStatusBadge";
 import { Alert } from "@/components/ui/Alert";
@@ -12,44 +12,47 @@ import { useCurrentUser } from "@/lib/use-current-user";
 import { fetchJobs } from "@/lib/recruiter-api";
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { JobItem, PaginatedJobs } from "@/types/candidate";
+import type { JobItem } from "@/types/candidate";
 import type { JobStatus } from "@/types/recruiter-app";
 
 export default function RecruiterJobsPage() {
   const { t } = useLanguage();
   const { user } = useCurrentUser();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<JobStatus | "all">("all");
-  const [data, setData] = useState<PaginatedJobs | null>(null);
+  const [items, setItems] = useState<JobItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input — fire API after 300ms of inactivity
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
+  }
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
-    setData(null);
+    setItems(null);
     fetchJobs({
-      search: search.trim() || undefined,
+      search: debouncedSearch.trim() || undefined,
       status,
-      limit: 50,
+      recruiterId: user.id,
+      limit: 100,
     })
       .then((r) => {
-        if (!cancelled) setData(r);
+        if (!cancelled) setItems(r.items);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(
-          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
-        );
+        setError(e instanceof Error ? e.message : t("common.loading"));
       });
     return () => {
       cancelled = true;
     };
-  }, [search, status, t]);
-
-  // Backend `/jobs` returns ALL recruiters' jobs — filter to mine.
-  const myJobs = useMemo<JobItem[] | null>(() => {
-    if (!data || !user) return null;
-    return data.items.filter((j) => j.recruiterId === user.id);
-  }, [data, user]);
+  }, [debouncedSearch, status, user, t]);
 
   return (
     <>
@@ -66,12 +69,19 @@ export default function RecruiterJobsPage() {
       />
 
       <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <Input
-          placeholder={t("recruiter.jobs.searchPlaceholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 flex-1"
-        />
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none"
+          />
+          <Input
+            type="search"
+            placeholder={t("recruiter.jobs.searchPlaceholder")}
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="h-11 pl-10"
+          />
+        </div>
         <Select
           value={status}
           onChange={(e) => setStatus(e.target.value as JobStatus | "all")}
@@ -91,11 +101,11 @@ export default function RecruiterJobsPage() {
         </Alert>
       )}
 
-      {!myJobs ? (
+      {!items ? (
         <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
           {t("common.loading")}
         </div>
-      ) : myJobs.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
           <Briefcase size={32} className="mx-auto text-fg-subtle mb-4" />
           <h3 className="text-[16px] font-semibold text-fg mb-1.5">
@@ -112,7 +122,7 @@ export default function RecruiterJobsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {myJobs.map((job) => (
+          {items.map((job) => (
             <Link
               key={job.id}
               href={`/recruiter/jobs/${job.id}`}
