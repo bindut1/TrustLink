@@ -800,13 +800,14 @@ export const TRANSLATIONS = {
     "recruiter.profile.save": "Lưu hồ sơ",
 
     // ───────────── Issuer — Recipient lookup (Candidate Lookup) ─────────────
-    "candLookup.label": "Email ứng viên",
-    "candLookup.placeholder": "ungvien@example.com",
+    "candLookup.label": "Tìm ứng viên",
+    "candLookup.placeholder": "Nhập tên hoặc email ứng viên…",
     "candLookup.find": "Tìm",
-    "candLookup.hint": "Nhập email của ứng viên rồi nhấn Tìm.",
-    "candLookup.notFound": "Không tìm thấy ứng viên với email này.",
+    "candLookup.hint": "Gõ ít nhất 2 ký tự để tìm theo tên hoặc email.",
+    "candLookup.notFound": "Không tìm thấy ứng viên phù hợp.",
     "candLookup.failed": "Tìm kiếm thất bại.",
     "candLookup.remove": "Xoá",
+    "candLookup.change": "Đổi ứng viên",
 
     // ───────────── Issuer — profile (Institution profile) ─────────────
     "issuer.profile.title": "Hồ sơ tổ chức",
@@ -1858,13 +1859,14 @@ export const TRANSLATIONS = {
     "recruiter.profile.save": "Save profile",
 
     // Issuer — Candidate Lookup
-    "candLookup.label": "Candidate email",
-    "candLookup.placeholder": "candidate@example.com",
+    "candLookup.label": "Find candidate",
+    "candLookup.placeholder": "Type name or email…",
     "candLookup.find": "Find",
-    "candLookup.hint": "Enter the candidate's email and click Find.",
-    "candLookup.notFound": "No candidate found with that email.",
-    "candLookup.failed": "Lookup failed.",
+    "candLookup.hint": "Type at least 2 characters to search by name or email.",
+    "candLookup.notFound": "No matching candidate found.",
+    "candLookup.failed": "Search failed.",
     "candLookup.remove": "Remove",
+    "candLookup.change": "Change candidate",
 
     // Issuer — profile
     "issuer.profile.title": "Institution profile",

@@ -48,6 +48,15 @@ export function lookupCandidate(email: string): Promise<CandidateLookupResult> {
   );
 }
 
+export function searchCandidates(
+  q: string,
+): Promise<CandidateLookupResult[]> {
+  return apiRequest(
+    `/users/candidates/search?q=${encodeURIComponent(q)}`,
+    authOpts(),
+  );
+}
+
 export async function issueCredential(
   payload: IssueCredentialPayload,
 ): Promise<Credential> {

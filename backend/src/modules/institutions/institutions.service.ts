@@ -101,13 +101,33 @@ export class InstitutionsService {
     const saved = await this.repo.save(institution);
 
     if (dto.approvalStatus === ApprovalStatus.APPROVED) {
+      // Auto-assign an on-chain issuer identity so issuers never have to manage
+      // an Ethereum wallet. In the MVP the platform's deployer wallet signs
+      // every credential, so it is also the authorized issuer — aligning the
+      // institution address with it lets VC signature recovery and the on-chain
+      // isIssuer check both pass during verification.
+      if (!saved.blockchainAddress) {
+        const signerAddress = this.blockchain.getSignerAddress();
+        if (signerAddress) {
+          saved.blockchainAddress = signerAddress;
+          await this.repo.save(saved);
+        }
+      }
+
       if (saved.blockchainAddress) {
         try {
-          await this.blockchain.addIssuerOnChain({
-            institutionId: saved.id,
-            address: saved.blockchainAddress,
-            initiatedBy: adminId,
-          });
+          // The platform signer only needs to be registered once; skip the
+          // redundant (and gas-costing) addIssuer tx if it already is.
+          const alreadyAuthorized = await this.blockchain.isIssuerAuthorized(
+            saved.blockchainAddress,
+          );
+          if (!alreadyAuthorized) {
+            await this.blockchain.addIssuerOnChain({
+              institutionId: saved.id,
+              address: saved.blockchainAddress,
+              initiatedBy: adminId,
+            });
+          }
         } catch (err) {
           this.logger.error(
             `addIssuer on-chain failed for institution ${saved.id}: ${(err as Error).message}`,
@@ -115,7 +135,7 @@ export class InstitutionsService {
         }
       } else {
         this.logger.warn(
-          `Institution ${saved.id} approved without a blockchain_address; skipping addIssuer.`,
+          `Institution ${saved.id} approved but blockchain signer is not configured; skipping addIssuer.`,
         );
       }
 

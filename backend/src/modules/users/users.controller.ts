@@ -108,4 +108,16 @@ export class UsersController {
     }
     return { id: user.id, email: user.email, fullName: user.fullName };
   }
+
+  @Get('candidates/search')
+  @RequireActions('credential.issue')
+  @ApiOperation({
+    summary: 'Search candidates by name or email (typeahead for issue UI)',
+  })
+  @ApiQuery({ name: 'q', required: true })
+  @ApiOkResponse({ description: 'Up to 10 matching candidates' })
+  async searchCandidates(@Query('q') q: string) {
+    if (!q || q.trim().length < 2) return [];
+    return this.usersService.searchCandidates(q);
+  }
 }

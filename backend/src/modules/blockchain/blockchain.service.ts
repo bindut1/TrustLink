@@ -97,6 +97,16 @@ export class BlockchainService implements OnModuleInit {
   // ---------------------------------------------------------------------------
 
   /**
+   * The platform's on-chain signer address (deployer wallet). In the MVP this
+   * single wallet signs and anchors every credential, so it doubles as every
+   * institution's authorized-issuer identity. Returns null if the wallet is
+   * not configured.
+   */
+  getSignerAddress(): string | null {
+    return this.wallet?.address ?? null;
+  }
+
+  /**
    * Compute deterministic bytes32 hash for a credential. The same fields must
    * produce the same hash on issuance and verification.
    */

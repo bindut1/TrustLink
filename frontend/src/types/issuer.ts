@@ -94,6 +94,7 @@ export type CandidateLookupResult = {
   id: string;
   email: string;
   fullName: string;
+  avatarUrl?: string | null;
 };
 
 export type IssueCredentialPayload = {

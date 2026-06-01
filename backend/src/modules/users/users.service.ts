@@ -4,8 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
+import { UserRole } from '../../database/enums';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -58,6 +59,27 @@ export class UsersService {
 
     await this.userRepo.update(userId, { avatarUrl: result.secure_url });
     return this.findById(userId);
+  }
+
+  async searchCandidates(
+    q: string,
+    limit = 10,
+  ): Promise<Pick<User, 'id' | 'email' | 'fullName' | 'avatarUrl'>[]> {
+    const term = `%${q.trim()}%`;
+    const users = await this.userRepo.find({
+      where: [
+        { role: UserRole.CANDIDATE, email: ILike(term) },
+        { role: UserRole.CANDIDATE, fullName: ILike(term) },
+      ],
+      order: { fullName: 'ASC' },
+      take: limit,
+    });
+    return users.map(({ id, email, fullName, avatarUrl }) => ({
+      id,
+      email,
+      fullName,
+      avatarUrl,
+    }));
   }
 
   async removeAvatar(userId: string): Promise<User> {
