@@ -36,9 +36,9 @@ import {
 
 export interface VerificationOutcome {
   result: VerificationResult;
-  on_chain_verified: boolean;
-  vc_signature_valid: boolean;
-  issuer_authorized: boolean;
+  onChainVerified: boolean;
+  vcSignatureValid: boolean;
+  issuerAuthorized: boolean;
   details: Record<string, unknown>;
   cached: boolean;
 }
@@ -304,9 +304,9 @@ export class CredentialsService {
     if (cached) {
       return {
         result: cached.result,
-        on_chain_verified: cached.onChainVerified,
-        vc_signature_valid: cached.vcSignatureValid,
-        issuer_authorized: cached.issuerAuthorized,
+        onChainVerified: cached.onChainVerified,
+        vcSignatureValid: cached.vcSignatureValid,
+        issuerAuthorized: cached.issuerAuthorized,
         details: cached.verificationDetails,
         cached: true,
       };
@@ -327,9 +327,9 @@ export class CredentialsService {
         credentialId: credential.id,
         credentialHash: credential.credentialHash,
         result: outcome.result,
-        onChainVerified: outcome.on_chain_verified,
-        vcSignatureValid: outcome.vc_signature_valid,
-        issuerAuthorized: outcome.issuer_authorized,
+        onChainVerified: outcome.onChainVerified,
+        vcSignatureValid: outcome.vcSignatureValid,
+        issuerAuthorized: outcome.issuerAuthorized,
         verificationDetails: outcome.details,
         verifiedBy: verifierUserId ?? null,
         verifiedAt: new Date(),
@@ -367,9 +367,9 @@ export class CredentialsService {
       details.onChainError = (err as Error).message;
       return {
         result: VerificationResult.ERROR,
-        on_chain_verified: false,
-        vc_signature_valid: false,
-        issuer_authorized: false,
+        onChainVerified: false,
+        vcSignatureValid: false,
+        issuerAuthorized: false,
         details,
       };
     }
@@ -410,9 +410,9 @@ export class CredentialsService {
 
     return {
       result,
-      on_chain_verified: onChainVerified,
-      vc_signature_valid: vcSignatureValid,
-      issuer_authorized: issuerAuthorized,
+      onChainVerified,
+      vcSignatureValid,
+      issuerAuthorized,
       details,
     };
   }
