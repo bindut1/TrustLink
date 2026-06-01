@@ -496,9 +496,13 @@ export const TRANSLATIONS = {
     "issuer.credentials.searchPlaceholder":
       "Tìm theo tiêu đề hoặc số văn bằng…",
     "issuer.credentials.colCredential": "Văn bằng",
+    "issuer.credentials.colCandidate": "Ứng viên",
     "issuer.credentials.colTxHash": "Tx hash",
     "issuer.credentials.colIssued": "Đã cấp",
     "issuer.credentials.revoke": "Thu hồi",
+    "issuer.credentials.showReason": "Xem lý do thu hồi",
+    "issuer.credentials.reasonModalTitle": "Lý do thu hồi",
+    "issuer.credentials.reasonLabel": "Văn bằng",
     "issuer.credentials.loading": "Đang tải văn bằng…",
     "issuer.credentials.empty": "Không có văn bằng nào trong mục này.",
     "issuer.credentials.registerFirst":
@@ -1595,9 +1599,13 @@ export const TRANSLATIONS = {
     "issuer.credentials.searchPlaceholder":
       "Search by title or credential number…",
     "issuer.credentials.colCredential": "Credential",
+    "issuer.credentials.colCandidate": "Candidate",
     "issuer.credentials.colTxHash": "Tx hash",
     "issuer.credentials.colIssued": "Issued",
     "issuer.credentials.revoke": "Revoke",
+    "issuer.credentials.showReason": "View revocation reason",
+    "issuer.credentials.reasonModalTitle": "Revocation reason",
+    "issuer.credentials.reasonLabel": "Credential",
     "issuer.credentials.loading": "Loading credentials…",
     "issuer.credentials.empty": "No credentials match this view.",
     "issuer.credentials.registerFirst":

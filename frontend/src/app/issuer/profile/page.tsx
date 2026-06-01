@@ -173,17 +173,6 @@ export default function IssuerProfilePage() {
           </Alert>
         )}
 
-        {inst.approvalStatus === "approved" && inst.blockchainAddress && (
-          <Alert variant="success">
-            <div className="font-semibold">
-              {t("issuer.profile.onChainAuthorized")}
-            </div>
-            <code className="text-[12px] font-mono break-all">
-              {inst.blockchainAddress}
-            </code>
-          </Alert>
-        )}
-
         <AvatarUploader />
 
         <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">

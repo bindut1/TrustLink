@@ -178,7 +178,7 @@ export class CredentialsService {
 
     return this.credRepo.find({
       where,
-      relations: ['institution', 'credentialType'],
+      relations: ['institution', 'credentialType', 'candidate'],
       order: { createdAt: 'DESC' },
     });
   }

@@ -1,41 +1,37 @@
 "use client";
 
-import { Ban, ExternalLink, Search } from "lucide-react";
+import { Ban, ExternalLink, FileX2, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { RevokeModal } from "@/components/issuer/RevokeModal";
 import { CredentialStatusBadge } from "@/components/issuer/StatusBadge";
 import { Alert } from "@/components/ui/Alert";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { ApiError } from "@/lib/api";
-import {
-  fetchCredentials,
-  fetchCredentialTypes,
-  fetchMyInstitution,
-} from "@/lib/issuer-api";
+import { fetchCredentials, fetchMyInstitution } from "@/lib/issuer-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { Credential, CredentialType, Institution } from "@/types/issuer";
+import type { Credential, Institution } from "@/types/issuer";
 
 export default function IssuerCredentialsPage() {
   const { t } = useLanguage();
   const [inst, setInst] = useState<Institution | null>(null);
-  const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [items, setItems] = useState<Credential[] | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [revokeTarget, setRevokeTarget] = useState<Credential | null>(null);
+  const [reasonModal, setReasonModal] = useState<{ title: string; reason: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve institution + types in parallel; everything else needs institutionId
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchMyInstitution(), fetchCredentialTypes()])
-      .then(([i, t]) => {
+    fetchMyInstitution()
+      .then((i) => {
         if (cancelled) return;
         setInst(i);
-        setTypes(t);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -73,12 +69,6 @@ export default function IssuerCredentialsPage() {
       cancelled = true;
     };
   }, [inst, status]);
-
-  const typeName = useMemo(() => {
-    const map = new Map<string, string>();
-    types?.forEach((t) => map.set(t.id, t.name));
-    return (id: string) => map.get(id) ?? "—";
-  }, [types]);
 
   const filtered = useMemo(() => {
     if (!items) return null;
@@ -147,6 +137,7 @@ export default function IssuerCredentialsPage() {
         <THead>
           <TR>
             <TH>{t("issuer.credentials.colCredential")}</TH>
+            <TH>{t("issuer.credentials.colCandidate")}</TH>
             <TH>{t("common.type")}</TH>
             <TH>{t("common.status")}</TH>
             <TH>{t("issuer.credentials.colTxHash")}</TH>
@@ -157,13 +148,13 @@ export default function IssuerCredentialsPage() {
         <TBody>
           {!filtered ? (
             <TR>
-              <TD colSpan={6} className="text-center text-fg-subtle py-10">
+              <TD colSpan={7} className="text-center text-fg-subtle py-10">
                 {t("issuer.credentials.loading")}
               </TD>
             </TR>
           ) : filtered.length === 0 ? (
             <TR>
-              <TD colSpan={6} className="text-center text-fg-subtle py-10">
+              <TD colSpan={7} className="text-center text-fg-subtle py-10">
                 {t("issuer.credentials.empty")}
               </TD>
             </TR>
@@ -178,16 +169,44 @@ export default function IssuerCredentialsPage() {
                     {c.credentialNumber}
                   </div>
                 </TD>
-                <TD className="text-fg-muted">{typeName(c.credentialTypeId)}</TD>
                 <TD>
-                  <CredentialStatusBadge status={c.status} />
-                  {c.status === "revoked" && c.revocationReason && (
-                    <div
-                      className="text-[11.5px] text-fg-subtle mt-1 line-clamp-1 max-w-[260px]"
-                      title={c.revocationReason}
-                    >
-                      {c.revocationReason}
+                  {c.candidate ? (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Avatar
+                        name={c.candidate.fullName}
+                        src={c.candidate.avatarUrl}
+                        size={30}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-medium text-fg truncate">
+                          {c.candidate.fullName}
+                        </div>
+                        <div className="text-[11.5px] text-fg-subtle font-mono truncate">
+                          {c.candidate.email}
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <span className="text-fg-faint">—</span>
+                  )}
+                </TD>
+                <TD className="text-fg-muted">
+                  {c.credentialType?.name ?? "—"}
+                </TD>
+                <TD>
+                  {c.status === "revoked" && c.revocationReason ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReasonModal({ title: c.title, reason: c.revocationReason! })
+                      }
+                      className="inline-flex w-fit hover:opacity-80 transition-opacity"
+                      title={t("issuer.credentials.showReason")}
+                    >
+                      <CredentialStatusBadge status={c.status} />
+                    </button>
+                  ) : (
+                    <CredentialStatusBadge status={c.status} />
                   )}
                 </TD>
                 <TD>
@@ -233,6 +252,40 @@ export default function IssuerCredentialsPage() {
         onClose={() => setRevokeTarget(null)}
         onRevoked={handleRevoked}
       />
+
+      <Modal
+        open={reasonModal !== null}
+        onClose={() => setReasonModal(null)}
+        title={t("issuer.credentials.reasonModalTitle")}
+        footer={
+          <Button variant="secondary" onClick={() => setReasonModal(null)}>
+            {t("common.close")}
+          </Button>
+        }
+      >
+        {reasonModal && (
+          <>
+            <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger/[0.04] p-4">
+              <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-danger/15 text-danger">
+                <FileX2 size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.10em] text-danger/80 mb-1">
+                  {t("issuer.credentials.reasonModalTitle")}
+                </div>
+                <div className="text-[15px] font-semibold text-fg leading-snug">
+                  {reasonModal.reason}
+                </div>
+              </div>
+            </div>
+
+            <dl className="mt-5 grid grid-cols-[120px_1fr] gap-y-3 text-[13.5px]">
+              <dt className="text-fg-subtle">{t("issuer.credentials.reasonLabel")}</dt>
+              <dd className="text-fg font-medium">{reasonModal.title}</dd>
+            </dl>
+          </>
+        )}
+      </Modal>
     </>
   );
 }
