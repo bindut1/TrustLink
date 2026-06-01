@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { User } from '../../database/entities/user.entity';
+import { UserRole } from '../../database/enums';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequireActions } from '../auth/decorators/require-actions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -69,9 +70,12 @@ export class AdminController {
 
   @Get('actions')
   @RequireActions('admin.users')
-  @ApiOperation({ summary: 'List all available action codes' })
-  async listActions() {
-    return this.admin.listActions();
+  @ApiOperation({
+    summary:
+      'List action codes. Pass ?role= to filter to only actions for that role.',
+  })
+  async listActions(@Query('role') role?: UserRole) {
+    return this.admin.listActions(role);
   }
 
   @Get('users/:id/restrictions')

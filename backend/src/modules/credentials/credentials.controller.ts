@@ -84,7 +84,7 @@ export class CredentialsController {
   }
 
   @Get(':id/vc')
-  @RequireActions('credential.view')
+  @RequireActions('credential.download')
   @ApiOperation({ summary: 'Download W3C Verifiable Credential (JWT + JSON)' })
   @ApiOkResponse({ description: 'VC payload' })
   async getVc(@Param('id') id: string) {

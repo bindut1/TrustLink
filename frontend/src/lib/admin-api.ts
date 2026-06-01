@@ -51,8 +51,9 @@ export async function updateUserStatus(
 
 // ───────────── Action overrides ─────────────
 
-export function fetchActions(): Promise<AdminAction[]> {
-  return apiRequest("/admin/actions", authOpts());
+export function fetchActions(role?: string): Promise<AdminAction[]> {
+  const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+  return apiRequest(`/admin/actions${qs}`, authOpts());
 }
 
 export function fetchUserOverrides(

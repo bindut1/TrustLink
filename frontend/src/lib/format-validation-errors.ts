@@ -279,6 +279,11 @@ const BACKEND_MESSAGE_MAP: Record<Language, Record<string, string>> = {
     "Recruiter profile not found": "Không tìm thấy hồ sơ nhà tuyển dụng",
 
     // ── Permissions / ownership ──
+    // NestJS raw HTTP exception messages
+    "Forbidden": "Bạn không có quyền thực hiện thao tác này",
+    "Unauthorized": "Bạn cần đăng nhập để tiếp tục",
+    "Internal server error": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+    "Internal Server Error": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
     "Not the owner of this institution":
       "Bạn không có quyền với tổ chức này",
     "Not the owner of this job":
@@ -314,6 +319,13 @@ export function localizeBackendMessage(
   const map = BACKEND_MESSAGE_MAP[lang];
   if (map[message]) return map[message];
 
+  // Permission guard: "Missing required action(s): credential.download, ..."
+  if (/^Missing required action/i.test(message)) {
+    return lang === "vi"
+      ? "Bạn không có quyền thực hiện thao tác này."
+      : "You don't have permission to perform this action.";
+  }
+
   // Common patterns with dynamic content
   const m1 = message.match(/^candidate not found for email (.+)$/i);
   if (m1) {
@@ -328,4 +340,46 @@ export function localizeBackendMessage(
   }
 
   return message;
+}
+
+/**
+ * Last-resort fallback when the backend returned no usable message — maps
+ * HTTP status to a human-readable string. Avoids surfacing raw status codes
+ * to end-users.
+ */
+const STATUS_MESSAGES: Record<Language, Record<number, string>> = {
+  vi: {
+    400: "Yêu cầu không hợp lệ. Vui lòng kiểm tra lại thông tin.",
+    401: "Bạn cần đăng nhập để tiếp tục.",
+    403: "Bạn không có quyền thực hiện thao tác này.",
+    404: "Không tìm thấy dữ liệu yêu cầu.",
+    409: "Dữ liệu đã tồn tại hoặc xung đột. Vui lòng kiểm tra lại.",
+    422: "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.",
+    429: "Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.",
+    500: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+    503: "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.",
+  },
+  en: {
+    400: "Invalid request. Please check your input.",
+    401: "You need to sign in to continue.",
+    403: "You don't have permission to perform this action.",
+    404: "The requested data was not found.",
+    409: "A conflict occurred. Please check your data.",
+    422: "Invalid data. Please review and try again.",
+    429: "Too many requests. Please wait a moment and try again.",
+    500: "A system error occurred. Please try again later.",
+    503: "Service temporarily unavailable. Please try again later.",
+  },
+};
+
+export function statusFallbackMessage(
+  status: number,
+  lang: Language = "vi",
+): string {
+  return (
+    STATUS_MESSAGES[lang][status] ??
+    (lang === "vi"
+      ? "Đã xảy ra lỗi. Vui lòng thử lại."
+      : "An error occurred. Please try again.")
+  );
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Action } from '../../database/entities/action.entity';
+import { RoleAction } from '../../database/entities/role-action.entity';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
@@ -31,6 +32,8 @@ export class AdminService {
     @InjectRepository(BlockchainTransaction)
     private readonly txRepo: Repository<BlockchainTransaction>,
     @InjectRepository(Action) private readonly actionRepo: Repository<Action>,
+    @InjectRepository(RoleAction)
+    private readonly roleActionRepo: Repository<RoleAction>,
     @InjectRepository(UserActionOverride)
     private readonly overrideRepo: Repository<UserActionOverride>,
     @InjectRepository(RefreshToken)
@@ -165,8 +168,23 @@ export class AdminService {
 
   // ───────────── Action overrides ─────────────
 
-  async listActions(): Promise<Action[]> {
-    return this.actionRepo.find({ order: { module: 'ASC', code: 'ASC' } });
+  async listActions(role?: UserRole): Promise<Action[]> {
+    if (!role) {
+      return this.actionRepo.find({ order: { module: 'ASC', code: 'ASC' } });
+    }
+    // Return only actions that belong to the given role so admin sees only
+    // the actions that are actually relevant to that user.
+    const roleActions = await this.roleActionRepo.find({
+      where: { role },
+      relations: ['action'],
+    });
+    return roleActions
+      .map((ra) => ra.action)
+      .sort((a, b) =>
+        a.module !== b.module
+          ? a.module.localeCompare(b.module)
+          : a.code.localeCompare(b.code),
+      );
   }
 
   async listOverrides(userId: string): Promise<UserActionOverride[]> {

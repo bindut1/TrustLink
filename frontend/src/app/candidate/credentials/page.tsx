@@ -75,7 +75,9 @@ export default function CandidateCredentialsPage() {
       );
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : t("candidate.credentials.downloadFailed"),
+        e instanceof ApiError && e.status === 403
+          ? t("candidate.credentials.downloadForbidden")
+          : t("candidate.credentials.downloadFailed"),
       );
     } finally {
       setDownloading(null);

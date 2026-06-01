@@ -33,7 +33,7 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([fetchActions(), fetchUserOverrides(user.id)])
+    Promise.all([fetchActions(user.role), fetchUserOverrides(user.id)])
       .then(([acts, ovs]) => {
         if (cancelled) return;
         setActions(acts);
@@ -120,14 +120,20 @@ export function UserActionsModal({ user, open, onClose }: UserActionsModalProps)
             return (
               <li key={a.id} className="py-3.5 flex items-start gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[14px] font-semibold text-fg">
-                      {a.name}
+                      {t(
+                        `action.${a.code}.name` as Parameters<typeof t>[0],
+                        // fallback to English name from backend if key missing
+                      ) || a.name}
                     </span>
-                    <code className="text-[11px] font-mono text-fg-subtle">
+                    <code className="text-[11px] font-mono text-fg-subtle bg-surface-2 px-1.5 py-0.5 rounded">
                       {a.code}
                     </code>
                   </div>
+                  <p className="text-[12.5px] text-fg-subtle mt-0.5">
+                    {t(`action.${a.code}.desc` as Parameters<typeof t>[0]) || ""}
+                  </p>
                   {blocked && (
                     <input
                       type="text"

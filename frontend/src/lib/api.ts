@@ -1,6 +1,7 @@
 import {
   formatValidationMessages,
   localizeBackendMessage,
+  statusFallbackMessage,
 } from "./format-validation-errors";
 import type { Language } from "./i18n/translations";
 
@@ -31,11 +32,6 @@ const NETWORK_ERROR: Record<Language, string> = {
   vi: "Không kết nối được tới máy chủ. Vui lòng thử lại.",
 };
 
-const REQUEST_FAILED: Record<Language, (status: number) => string> = {
-  en: (status) => `Request failed (${status})`,
-  vi: (status) => `Yêu cầu thất bại (${status})`,
-};
-
 /**
  * Read the current UI language straight from localStorage. `LanguageProvider`
  * is the writer; reading directly here avoids threading React context through
@@ -45,6 +41,37 @@ function currentLanguage(): Language {
   if (typeof window === "undefined") return "vi";
   const stored = window.localStorage.getItem("trustlink.lang");
   return stored === "en" || stored === "vi" ? stored : "vi";
+}
+
+/**
+ * Shared error parser for direct `fetch()` multipart calls (avatar, batch
+ * upload). Mirrors the same localization logic as `apiRequest` so these
+ * bypassed endpoints produce consistent, user-friendly messages.
+ */
+export function parseUploadError(
+  res: Response,
+  payload: { message?: unknown },
+): ApiError {
+  const lang = currentLanguage();
+  const raw = payload.message;
+  let message = statusFallbackMessage(res.status, lang);
+
+  if (Array.isArray(raw)) {
+    message = formatValidationMessages(raw as string[], lang).summary;
+  } else if (typeof raw === "string") {
+    const isGenericHttpDefault =
+      /^(Forbidden|Unauthorized|Internal Server Error)$/i.test(raw);
+    message = isGenericHttpDefault
+      ? statusFallbackMessage(res.status, lang)
+      : localizeBackendMessage(raw, lang);
+  }
+
+  return new ApiError(message, res.status);
+}
+
+export function networkError(): ApiError {
+  const lang = currentLanguage();
+  return new ApiError(NETWORK_ERROR[lang], 0);
 }
 
 export async function apiRequest<T>(
@@ -80,7 +107,7 @@ export async function apiRequest<T>(
   if (!res.ok) {
     const payload = (data ?? {}) as { message?: unknown; error?: unknown };
     const raw = payload.message ?? payload.error;
-    let message = REQUEST_FAILED[lang](res.status);
+    let message = statusFallbackMessage(res.status, lang);
     let fields: Record<string, string> | undefined;
 
     if (Array.isArray(raw)) {
@@ -88,7 +115,13 @@ export async function apiRequest<T>(
       message = formatted.summary;
       fields = formatted.fields;
     } else if (typeof raw === "string") {
-      message = localizeBackendMessage(raw, lang);
+      const localized = localizeBackendMessage(raw, lang);
+      // Only use the localized message if it differs from the raw string (i.e.
+      // was actually translated) OR if it's not a generic NestJS default like
+      // "Forbidden" / "Unauthorized" that we handle better via status code.
+      const isGenericHttpDefault =
+        /^(Forbidden|Unauthorized|Internal Server Error)$/i.test(raw);
+      message = isGenericHttpDefault ? statusFallbackMessage(res.status, lang) : localized;
     }
 
     throw new ApiError(message, res.status, fields);

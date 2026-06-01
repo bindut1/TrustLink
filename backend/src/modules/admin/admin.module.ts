@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Action } from '../../database/entities/action.entity';
+import { RoleAction } from '../../database/entities/role-action.entity';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
@@ -20,6 +21,7 @@ import { AdminService } from './admin.service';
       Credential,
       BlockchainTransaction,
       Action,
+      RoleAction,
       UserActionOverride,
       RefreshToken,
     ]),

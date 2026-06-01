@@ -3,7 +3,7 @@
  * with the current Bearer token.
  */
 
-import { API_BASE_URL, apiRequest } from "./api";
+import { API_BASE_URL, apiRequest, networkError, parseUploadError } from "./api";
 import { getAccessToken } from "./auth-storage";
 import type {
   BatchImport,
@@ -113,22 +113,19 @@ export async function uploadBatchExcel(
   form.append("file", file);
 
   const token = getAccessToken();
-  const res = await fetch(`${API_BASE_URL}/credentials/batch`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/credentials/batch`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  } catch {
+    throw networkError();
+  }
   if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as {
-      message?: unknown;
-    };
-    const raw = data.message;
-    const msg = Array.isArray(raw)
-      ? raw.join(", ")
-      : typeof raw === "string"
-        ? raw
-        : `Upload failed (${res.status})`;
-    throw new Error(msg);
+    const data = (await res.json().catch(() => ({}))) as { message?: unknown };
+    throw parseUploadError(res, data);
   }
   return (await res.json()) as BatchImport;
 }

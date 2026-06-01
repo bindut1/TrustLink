@@ -3,7 +3,7 @@
  * with the current Bearer token.
  */
 
-import { API_BASE_URL, apiRequest } from "./api";
+import { API_BASE_URL, ApiError, apiRequest } from "./api";
 import { getAccessToken } from "./auth-storage";
 import type {
   ApplicationItem,
@@ -57,7 +57,9 @@ export async function downloadVc(credentialId: string, filename: string) {
   const res = await fetch(`${API_BASE_URL}/credentials/${credentialId}/vc`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  if (!res.ok) {
+    throw new ApiError("", res.status);
+  }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

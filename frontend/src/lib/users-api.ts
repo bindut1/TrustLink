@@ -3,7 +3,7 @@
  * fetch directly — `apiRequest` is JSON-only.
  */
 
-import { API_BASE_URL, ApiError, apiRequest } from "./api";
+import { API_BASE_URL, ApiError, apiRequest, networkError, parseUploadError } from "./api";
 import { getAccessToken } from "./auth-storage";
 import type { AuthUser } from "@/types/auth";
 
@@ -22,22 +22,14 @@ export async function uploadAvatar(file: File): Promise<AuthUser> {
       body: form,
     });
   } catch {
-    throw new ApiError("Network error", 0);
+    throw networkError();
   }
 
   const data = (await res.json().catch(() => ({}))) as {
     message?: unknown;
   } & Partial<AuthUser>;
 
-  if (!res.ok) {
-    const raw = data.message;
-    const msg = Array.isArray(raw)
-      ? raw.join(", ")
-      : typeof raw === "string"
-        ? raw
-        : `Upload failed (${res.status})`;
-    throw new ApiError(msg, res.status);
-  }
+  if (!res.ok) throw parseUploadError(res, data);
   return data as AuthUser;
 }
 
