@@ -144,6 +144,10 @@ export class JobsService {
     return job;
   }
 
+  async incrementViewCount(id: string): Promise<void> {
+    await this.repo.increment({ id }, 'viewCount', 1);
+  }
+
   async update(
     id: string,
     recruiterId: string,

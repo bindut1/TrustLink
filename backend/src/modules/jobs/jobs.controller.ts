@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -42,6 +44,13 @@ export class JobsController {
   @ApiOkResponse({ description: 'Job detail' })
   async findById(@Param('id') id: string) {
     return this.service.findById(id);
+  }
+
+  @Post(':id/view')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Increment job view count (fire-and-forget)' })
+  async trackView(@Param('id') id: string) {
+    await this.service.incrementViewCount(id);
   }
 
   @Post()

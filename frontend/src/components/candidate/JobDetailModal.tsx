@@ -1,9 +1,11 @@
 "use client";
 
 import { ArrowRight, Briefcase, Calendar, MapPin } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { trackJobView } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { JobItem } from "@/types/candidate";
@@ -22,6 +24,14 @@ export function JobDetailModal({
   onApply,
 }: JobDetailModalProps) {
   const { t } = useLanguage();
+  const trackedRef = useRef<Set<string>>(new Set());
+
+  // Fire-and-forget: track view once per job per modal lifecycle
+  useEffect(() => {
+    if (!job?.id || trackedRef.current.has(job.id)) return;
+    trackedRef.current.add(job.id);
+    trackJobView(job.id).catch(() => {});
+  }, [job?.id]);
 
   if (!job) return null;
 

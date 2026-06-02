@@ -94,6 +94,10 @@ export function fetchJob(id: string): Promise<JobItem> {
   return apiRequest(`/jobs/${id}`, authOpts());
 }
 
+export function trackJobView(id: string): Promise<void> {
+  return apiRequest(`/jobs/${id}/view`, { method: "POST", ...authOpts() });
+}
+
 // ───────────── Matching ─────────────
 
 export function fetchRecommendedJobs(limit = 20): Promise<RankedJob[]> {
