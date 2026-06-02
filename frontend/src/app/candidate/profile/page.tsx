@@ -17,6 +17,24 @@ import type {
   UpdateCandidateProfilePayload,
 } from "@/types/candidate";
 
+function toEditableDraft(p: CandidateProfile): UpdateCandidateProfilePayload {
+  return {
+    dateOfBirth: p.dateOfBirth,
+    gender: p.gender,
+    bio: p.bio,
+    resumeUrl: p.resumeUrl,
+    linkedinUrl: p.linkedinUrl,
+    githubUrl: p.githubUrl,
+    portfolioUrl: p.portfolioUrl,
+    yearsOfExperience: p.yearsOfExperience ?? undefined,
+    desiredPosition: p.desiredPosition,
+    desiredSalaryMin: p.desiredSalaryMin ?? undefined,
+    desiredSalaryMax: p.desiredSalaryMax ?? undefined,
+    preferredLocations: p.preferredLocations ?? [],
+    isOpenToWork: p.isOpenToWork ?? false,
+  };
+}
+
 const URL_FIELDS: Array<{
   key: keyof UpdateCandidateProfilePayload;
   labelKey: TranslationKey;
@@ -44,7 +62,7 @@ export default function CandidateProfilePage() {
       .then((p) => {
         if (cancelled) return;
         setProfile(p);
-        setDraft(p);
+        setDraft(toEditableDraft(p));
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -88,7 +106,7 @@ export default function CandidateProfilePage() {
     try {
       const next = await updateMyProfile(draft);
       setProfile(next);
-      setDraft(next);
+      setDraft(toEditableDraft(next));
       setSaved(true);
     } catch (e) {
       setError(

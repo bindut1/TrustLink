@@ -20,7 +20,7 @@ export type CandidateProfile = {
 };
 
 export type UpdateCandidateProfilePayload = Partial<
-  Omit<CandidateProfile, "id" | "userId" | "createdAt" | "updatedAt">
+  Omit<CandidateProfile, "id" | "userId" | "createdAt" | "updatedAt" | "profileCompleteness">
 >;
 
 export type JobItem = {

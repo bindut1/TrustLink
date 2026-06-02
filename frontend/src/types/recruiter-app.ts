@@ -82,6 +82,7 @@ export type CandidateProfile = {
   gender?: string | null;
   desiredSalaryMin?: number | null;
   desiredSalaryMax?: number | null;
+  preferredLocations?: string[] | null;
 };
 
 export type ApplicationWithCandidate = ApplicationItem & {

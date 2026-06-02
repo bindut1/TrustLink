@@ -29,8 +29,12 @@ export interface RankedCandidate extends ScoreBreakdown {
       linkedinUrl: string | null;
       githubUrl: string | null;
       portfolioUrl: string | null;
+      resumeUrl: string | null;
+      dateOfBirth: Date | null;
+      gender: string | null;
       desiredSalaryMin: number | null;
       desiredSalaryMax: number | null;
+      preferredLocations: unknown;
     } | null;
   };
 }
@@ -148,8 +152,12 @@ export class MatchingService {
                   linkedinUrl: cp.linkedinUrl,
                   githubUrl: cp.githubUrl,
                   portfolioUrl: cp.portfolioUrl,
+                  resumeUrl: cp.resumeUrl,
+                  dateOfBirth: cp.dateOfBirth,
+                  gender: cp.gender,
                   desiredSalaryMin: cp.desiredSalaryMin,
                   desiredSalaryMax: cp.desiredSalaryMax,
+                  preferredLocations: cp.preferredLocations,
                 }
               : null,
           },
