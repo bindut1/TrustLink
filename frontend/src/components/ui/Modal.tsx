@@ -78,9 +78,9 @@ export function Modal({
                 </h2>
               )}
               {description && (
-                <p className="mt-1.5 text-[14px] text-fg-muted leading-relaxed">
+                <div className="mt-1.5 text-[14px] text-fg-muted leading-relaxed">
                   {description}
-                </p>
+                </div>
               )}
             </div>
             <button

@@ -4,16 +4,31 @@ import { ClipboardList, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { ApplicationStatusBadge } from "@/components/candidate/ApplicationStatusBadge";
+import { JobDetailModal } from "@/components/candidate/JobDetailModal";
 import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
 import { Alert } from "@/components/ui/Alert";
-import { fetchMyApplications } from "@/lib/candidate-api";
+import { fetchJob, fetchMyApplications } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { ApplicationItem } from "@/types/candidate";
+import type { ApplicationItem, JobItem } from "@/types/candidate";
 
 export default function CandidateApplicationsPage() {
   const { t } = useLanguage();
   const [items, setItems] = useState<ApplicationItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<JobItem | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  async function openDetail(jobId: string) {
+    setLoadingDetail(true);
+    try {
+      const job = await fetchJob(jobId);
+      setDetailTarget(job);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -79,19 +94,48 @@ export default function CandidateApplicationsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((app) => (
-            <ApplicationCard key={app.id} app={app} />
+            <ApplicationCard
+              key={app.id}
+              app={app}
+              onViewDetail={
+                app.job?.id && !loadingDetail
+                  ? () => openDetail(app.job!.id)
+                  : undefined
+              }
+            />
           ))}
         </div>
       )}
+      <JobDetailModal
+        job={detailTarget}
+        applied
+        onClose={() => setDetailTarget(null)}
+      />
     </>
   );
 }
 
-function ApplicationCard({ app }: { app: ApplicationItem }) {
+function ApplicationCard({
+  app,
+  onViewDetail,
+}: {
+  app: ApplicationItem;
+  onViewDetail?: () => void;
+}) {
   const { t } = useLanguage();
   const job = app.job;
   return (
-    <article className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <article
+      className={`rounded-2xl border border-border bg-canvas p-5 sm:p-6 transition-colors hover:border-border-strong${onViewDetail ? " cursor-pointer" : ""}`}
+      onClick={onViewDetail}
+      role={onViewDetail ? "button" : undefined}
+      tabIndex={onViewDetail ? 0 : undefined}
+      onKeyDown={
+        onViewDetail
+          ? (e) => { if (e.key === "Enter" || e.key === " ") onViewDetail(); }
+          : undefined
+      }
+    >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-2">

@@ -768,6 +768,16 @@ export const TRANSLATIONS = {
     "jobCard.salaryUpTo": "Tối đa {amount}",
     "jobCard.salaryUndisclosed": "Thoả thuận",
     "jobCard.applied": "Đã ứng tuyển",
+    "jobCard.viewDetail": "Xem chi tiết",
+    "jobModal.secDescription": "Mô tả công việc",
+    "jobModal.secRequirements": "Yêu cầu",
+    "jobModal.secBenefits": "Quyền lợi",
+    "jobModal.secRequiredSkills": "Kỹ năng bắt buộc",
+    "jobModal.secPreferredSkills": "Kỹ năng ưu tiên",
+    "jobModal.noSkills": "Chưa có.",
+    "jobModal.deadline": "Hạn ứng tuyển",
+    "jobModal.industry": "Ngành",
+    "jobModal.postedAt": "Đăng ngày",
 
     // ───────────── ApplyModal ─────────────
     "applyModal.title": "Ứng tuyển vị trí",
@@ -1884,6 +1894,16 @@ export const TRANSLATIONS = {
     "jobCard.salaryUpTo": "Up to {amount}",
     "jobCard.salaryUndisclosed": "Negotiable",
     "jobCard.applied": "Applied",
+    "jobCard.viewDetail": "View details",
+    "jobModal.secDescription": "Job description",
+    "jobModal.secRequirements": "Requirements",
+    "jobModal.secBenefits": "Benefits",
+    "jobModal.secRequiredSkills": "Required skills",
+    "jobModal.secPreferredSkills": "Preferred skills",
+    "jobModal.noSkills": "None listed.",
+    "jobModal.deadline": "Application deadline",
+    "jobModal.industry": "Industry",
+    "jobModal.postedAt": "Posted",
 
     // ApplyModal
     "applyModal.title": "Apply for this job",

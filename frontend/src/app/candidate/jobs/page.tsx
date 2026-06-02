@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { ApplyModal } from "@/components/candidate/ApplyModal";
 import { JobCard } from "@/components/candidate/JobCard";
+import { JobDetailModal } from "@/components/candidate/JobDetailModal";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -40,6 +41,7 @@ export default function CandidateJobsPage() {
 
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
+  const [detailTarget, setDetailTarget] = useState<JobItem | null>(null);
 
   // Reset to page 1 when any filter changes
   useEffect(() => {
@@ -172,6 +174,7 @@ export default function CandidateJobsPage() {
               <JobCard
                 key={j.id}
                 job={j}
+                onViewDetail={() => setDetailTarget(j)}
                 onApply={
                   alreadyApplied
                     ? undefined
@@ -223,6 +226,20 @@ export default function CandidateJobsPage() {
           </div>
         </div>
       )}
+
+      <JobDetailModal
+        job={detailTarget}
+        applied={detailTarget ? appliedJobIds.has(detailTarget.id) : false}
+        onClose={() => setDetailTarget(null)}
+        onApply={
+          detailTarget && !appliedJobIds.has(detailTarget.id)
+            ? () => {
+                setDetailTarget(null);
+                setApplyTarget(detailTarget);
+              }
+            : undefined
+        }
+      />
 
       <ApplyModal
         job={applyTarget}

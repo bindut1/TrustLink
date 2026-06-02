@@ -3,6 +3,7 @@
 import { ArrowRight, Briefcase, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { JobItem } from "@/types/candidate";
@@ -11,17 +12,33 @@ import type { ReactNode } from "react";
 type JobCardProps = {
   job: JobItem;
   onApply?: () => void;
+  onViewDetail?: () => void;
   /** Optional slot for a score panel etc. */
   meta?: ReactNode;
 };
 
-export function JobCard({ job, onApply, meta }: JobCardProps) {
+export function JobCard({ job, onApply, onViewDetail, meta }: JobCardProps) {
   const { t } = useLanguage();
   const jobTypeKey = job.jobType ? jobTypeKeyFor(job.jobType) : null;
   const expKey = job.experienceLevel ? expKeyFor(job.experienceLevel) : null;
 
   return (
-    <article className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 transition-colors hover:border-border-strong">
+    <article
+      className={cn(
+        "rounded-2xl border border-border bg-canvas p-5 sm:p-6 transition-colors hover:border-border-strong",
+        onViewDetail && "cursor-pointer",
+      )}
+      onClick={onViewDetail}
+      role={onViewDetail ? "button" : undefined}
+      tabIndex={onViewDetail ? 0 : undefined}
+      onKeyDown={
+        onViewDetail
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") onViewDetail();
+            }
+          : undefined
+      }
+    >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -68,7 +85,10 @@ export function JobCard({ job, onApply, meta }: JobCardProps) {
           )}
         </div>
 
-        <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-3">
+        <div
+          className="shrink-0 flex flex-col items-stretch sm:items-end gap-3"
+          onClick={(e) => e.stopPropagation()}
+        >
           {meta}
           {onApply && (
             <Button onClick={onApply} rightIcon={<ArrowRight size={14} />}>

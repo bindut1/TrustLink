@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/app-shell/PageHeader";
 import { ApplyModal } from "@/components/candidate/ApplyModal";
 import { JobCard } from "@/components/candidate/JobCard";
+import { JobDetailModal } from "@/components/candidate/JobDetailModal";
 import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
 import { Alert } from "@/components/ui/Alert";
 import {
@@ -19,7 +20,9 @@ export default function RecommendationsPage() {
   const { t } = useLanguage();
   const [items, setItems] = useState<RankedJob[] | null>(null);
   const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
+  const [detailTarget, setDetailTarget] = useState<JobItem | null>(null);
   const [loadingApply, setLoadingApply] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +47,18 @@ export default function RecommendationsPage() {
       cancelled = true;
     };
   }, []);
+
+  async function openDetail(jobId: string) {
+    setLoadingDetail(true);
+    try {
+      const job = await fetchJob(jobId);
+      setDetailTarget(job);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
 
   async function openApply(jobId: string) {
     setLoadingApply(true);
@@ -92,11 +107,26 @@ export default function RecommendationsPage() {
               rank={i + 1}
               ranked={r}
               alreadyApplied={appliedJobIds.has(r.jobId)}
+              onViewDetail={loadingDetail ? () => undefined : () => openDetail(r.jobId)}
               onApply={loadingApply ? () => undefined : () => openApply(r.jobId)}
             />
           ))}
         </div>
       )}
+
+      <JobDetailModal
+        job={detailTarget}
+        applied={detailTarget ? appliedJobIds.has(detailTarget.id) : false}
+        onClose={() => setDetailTarget(null)}
+        onApply={
+          detailTarget && !appliedJobIds.has(detailTarget.id)
+            ? () => {
+                setDetailTarget(null);
+                openApply(detailTarget.id);
+              }
+            : undefined
+        }
+      />
 
       <ApplyModal
         job={applyTarget}
@@ -115,11 +145,13 @@ function RankedJobCard({
   rank,
   ranked,
   alreadyApplied,
+  onViewDetail,
   onApply,
 }: {
   rank: number;
   ranked: RankedJob;
   alreadyApplied: boolean;
+  onViewDetail: () => void;
   onApply: () => void;
 }) {
   const { t } = useLanguage();
@@ -160,6 +192,7 @@ function RankedJobCard({
       <div className="pl-9">
         <JobCard
           job={job}
+          onViewDetail={onViewDetail}
           onApply={alreadyApplied ? undefined : onApply}
           meta={
             <div className="flex flex-col items-stretch gap-2.5 min-w-[260px]">
