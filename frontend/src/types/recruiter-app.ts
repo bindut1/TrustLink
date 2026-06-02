@@ -63,8 +63,25 @@ export type RankedCandidate = ScoreBreakdown & {
     id: string;
     fullName: string;
     email: string;
+    phone?: string | null;
     avatarUrl?: string | null;
+    candidateProfile?: CandidateProfile | null;
   };
+};
+
+export type CandidateProfile = {
+  bio?: string | null;
+  desiredPosition?: string | null;
+  yearsOfExperience?: number;
+  isOpenToWork?: boolean;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
+  resumeUrl?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  desiredSalaryMin?: number | null;
+  desiredSalaryMax?: number | null;
 };
 
 export type ApplicationWithCandidate = ApplicationItem & {
@@ -72,6 +89,8 @@ export type ApplicationWithCandidate = ApplicationItem & {
     id: string;
     fullName: string;
     email: string;
+    phone?: string | null;
     avatarUrl?: string | null;
+    candidateProfile?: CandidateProfile | null;
   };
 };

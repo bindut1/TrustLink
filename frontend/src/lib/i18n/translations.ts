@@ -805,8 +805,24 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.candidatesFailedLoad": "Không tải được danh sách ứng viên",
     "recruiter.jobDetail.appsFailedLoad": "Không tải được đơn ứng tuyển",
     "recruiter.jobDetail.appsEmpty": "Chưa có đơn ứng tuyển nào.",
-    "recruiter.jobDetail.verifyClick": "Xác minh 1-chạm",
+    "recruiter.jobDetail.verifyClick": "Xác thực văn bằng",
     "recruiter.jobDetail.anonymousCandidate": "Ứng viên ẩn danh",
+    "recruiter.jobDetail.viewProfile": "Xem hồ sơ",
+    "candInfo.title": "Hồ sơ ứng viên",
+    "candInfo.phone": "Số điện thoại",
+    "candInfo.bio": "Giới thiệu",
+    "candInfo.desiredPosition": "Vị trí mong muốn",
+    "candInfo.yearsExp": "Kinh nghiệm",
+    "candInfo.yearsExpValue": "{n} năm",
+    "candInfo.openToWork": "Đang tìm việc",
+    "candInfo.salaryExpect": "Mức lương mong muốn",
+    "candInfo.links": "Liên kết",
+    "candInfo.linkedin": "LinkedIn",
+    "candInfo.github": "GitHub",
+    "candInfo.portfolio": "Portfolio",
+    "candInfo.coverLetter": "Thư ứng tuyển",
+    "candInfo.noCoverLetter": "Không có thư ứng tuyển.",
+    "candInfo.noProfile": "Ứng viên chưa cập nhật hồ sơ.",
 
     // ───────────── Recruiter — profile (Company profile) ─────────────
     "recruiter.profile.title": "Hồ sơ công ty",
@@ -890,7 +906,7 @@ export const TRANSLATIONS = {
     "recruiter.editJob.failedLoad": "Không tải được tin tuyển dụng",
 
     // ───────────── CandidateVerifyModal (Recruiter) ─────────────
-    "candVerify.title": "Xác minh 1-chạm",
+    "candVerify.title": "Xác thực văn bằng",
     "candVerify.descBefore": "Kiểm tra tất cả văn bằng của ",
     "candVerify.descAfter":
       " trên blockchain — đối chiếu hash, chữ ký VC và quyền cấp của tổ chức.",
@@ -1905,8 +1921,24 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.candidatesFailedLoad": "Failed to load candidates",
     "recruiter.jobDetail.appsFailedLoad": "Failed to load applications",
     "recruiter.jobDetail.appsEmpty": "No applications yet.",
-    "recruiter.jobDetail.verifyClick": "1-click verify",
+    "recruiter.jobDetail.verifyClick": "Verify credentials",
     "recruiter.jobDetail.anonymousCandidate": "Anonymous candidate",
+    "recruiter.jobDetail.viewProfile": "View profile",
+    "candInfo.title": "Candidate profile",
+    "candInfo.phone": "Phone",
+    "candInfo.bio": "About",
+    "candInfo.desiredPosition": "Desired position",
+    "candInfo.yearsExp": "Experience",
+    "candInfo.yearsExpValue": "{n} years",
+    "candInfo.openToWork": "Open to work",
+    "candInfo.salaryExpect": "Expected salary",
+    "candInfo.links": "Links",
+    "candInfo.linkedin": "LinkedIn",
+    "candInfo.github": "GitHub",
+    "candInfo.portfolio": "Portfolio",
+    "candInfo.coverLetter": "Cover letter",
+    "candInfo.noCoverLetter": "No cover letter provided.",
+    "candInfo.noProfile": "Candidate hasn't updated their profile yet.",
 
     // Recruiter — profile
     "recruiter.profile.title": "Company profile",
@@ -1989,7 +2021,7 @@ export const TRANSLATIONS = {
     "recruiter.editJob.failedLoad": "Failed to load job",
 
     // CandidateVerifyModal
-    "candVerify.title": "1-click verification",
+    "candVerify.title": "Credential verification",
     "candVerify.descBefore": "Checking every credential for ",
     "candVerify.descAfter":
       " against on-chain hash, VC signature, and authorized issuer.",

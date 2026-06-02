@@ -19,7 +19,19 @@ export interface RankedCandidate extends ScoreBreakdown {
     id: string;
     fullName: string;
     email: string;
+    phone: string | null;
     avatarUrl: string | null;
+    candidateProfile?: {
+      bio: string | null;
+      desiredPosition: string | null;
+      yearsOfExperience: number;
+      isOpenToWork: boolean;
+      linkedinUrl: string | null;
+      githubUrl: string | null;
+      portfolioUrl: string | null;
+      desiredSalaryMin: number | null;
+      desiredSalaryMax: number | null;
+    } | null;
   };
 }
 
@@ -109,19 +121,37 @@ export class MatchingService {
       candidateIds.map((cid) => this.calculateScore(cid, jobId)),
     );
 
-    const users = await this.userRepo.findBy({ id: In(candidateIds) });
+    const users = await this.userRepo.find({
+      where: { id: In(candidateIds) },
+      relations: ['candidateProfile'],
+    });
     const userMap = new Map(users.map((u) => [u.id, u]));
 
     return scored
       .map<RankedCandidate>((s) => {
         const u = userMap.get(s.candidateId)!;
+        const cp = u.candidateProfile ?? null;
         return {
           ...s,
           candidate: {
             id: u.id,
             fullName: u.fullName,
             email: u.email,
+            phone: u.phone,
             avatarUrl: u.avatarUrl,
+            candidateProfile: cp
+              ? {
+                  bio: cp.bio,
+                  desiredPosition: cp.desiredPosition,
+                  yearsOfExperience: cp.yearsOfExperience,
+                  isOpenToWork: cp.isOpenToWork,
+                  linkedinUrl: cp.linkedinUrl,
+                  githubUrl: cp.githubUrl,
+                  portfolioUrl: cp.portfolioUrl,
+                  desiredSalaryMin: cp.desiredSalaryMin,
+                  desiredSalaryMax: cp.desiredSalaryMax,
+                }
+              : null,
           },
         };
       })

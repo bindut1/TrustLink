@@ -165,6 +165,7 @@ export class ApplicationsService {
     return this.repo
       .createQueryBuilder('application')
       .leftJoinAndSelect('application.candidate', 'candidate')
+      .leftJoinAndSelect('candidate.candidateProfile', 'candidateProfile')
       .where('application.job_id = :jobId', { jobId })
       .orderBy('application.match_score', 'DESC', 'NULLS LAST')
       .addOrderBy('application.created_at', 'DESC')

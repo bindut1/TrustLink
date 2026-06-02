@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Edit2, MapPin, ShieldCheck } from "lucide-react";
+import { Briefcase, Edit2, MapPin, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,6 +8,10 @@ import { PageHeader } from "@/components/app-shell/PageHeader";
 import { ApplicationStatusBadge } from "@/components/candidate/ApplicationStatusBadge";
 import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
 import { ApplicationStatusSelect } from "@/components/recruiter/ApplicationStatusSelect";
+import {
+  CandidateInfoModal,
+  type CandidateInfoData,
+} from "@/components/recruiter/CandidateInfoModal";
 import { CandidateVerifyModal } from "@/components/recruiter/CandidateVerifyModal";
 import { JobStatusBadge } from "@/components/recruiter/JobStatusBadge";
 import { Alert } from "@/components/ui/Alert";
@@ -245,6 +249,7 @@ function CandidatesTab({ jobId }: { jobId: string }) {
   const { t } = useLanguage();
   const [items, setItems] = useState<RankedCandidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [infoTarget, setInfoTarget] = useState<CandidateInfoData | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<{
     id: string;
     fullName: string;
@@ -289,7 +294,14 @@ function CandidatesTab({ jobId }: { jobId: string }) {
         {items.map((r, i) => (
           <article
             key={r.candidate.id}
-            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6"
+            role="button"
+            tabIndex={0}
+            onClick={() => setInfoTarget({ candidate: r.candidate })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ")
+                setInfoTarget({ candidate: r.candidate });
+            }}
+            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 cursor-pointer hover:border-border-strong transition-colors"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -310,7 +322,10 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                   </div>
                 </div>
               </div>
-              <div className="shrink-0 flex flex-col items-stretch gap-2.5 min-w-[260px]">
+              <div
+                className="shrink-0 flex flex-col items-stretch gap-2.5 min-w-[260px]"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <ScoreBreakdown
                   keywordScore={r.keywordScore}
                   semanticScore={r.semanticScore}
@@ -318,24 +333,39 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                   totalScore={r.totalScore}
                   variant="full"
                 />
-                <Button
-                  variant="secondary"
-                  size="md"
-                  leftIcon={<ShieldCheck size={14} />}
-                  onClick={() =>
-                    setVerifyTarget({
-                      id: r.candidate.id,
-                      fullName: r.candidate.fullName,
-                    })
-                  }
-                >
-                  {t("recruiter.jobDetail.verifyClick")}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    className="flex-1"
+                    leftIcon={<User size={13} />}
+                    onClick={() => setInfoTarget({ candidate: r.candidate })}
+                  >
+                    {t("recruiter.jobDetail.viewProfile")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    leftIcon={<ShieldCheck size={14} />}
+                    onClick={() =>
+                      setVerifyTarget({
+                        id: r.candidate.id,
+                        fullName: r.candidate.fullName,
+                      })
+                    }
+                  >
+                    {t("recruiter.jobDetail.verifyClick")}
+                  </Button>
+                </div>
               </div>
             </div>
           </article>
         ))}
       </div>
+      <CandidateInfoModal
+        data={infoTarget}
+        onClose={() => setInfoTarget(null)}
+      />
       <CandidateVerifyModal
         candidate={verifyTarget}
         onClose={() => setVerifyTarget(null)}
@@ -344,10 +374,22 @@ function CandidatesTab({ jobId }: { jobId: string }) {
   );
 }
 
+function toInfoData(app: ApplicationWithCandidate): CandidateInfoData {
+  return {
+    candidate: app.candidate ?? {
+      id: "",
+      fullName: "",
+      email: "",
+    },
+    coverLetter: app.coverLetter,
+  };
+}
+
 function ApplicationsTab({ jobId }: { jobId: string }) {
   const { t } = useLanguage();
   const [items, setItems] = useState<ApplicationWithCandidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [infoTarget, setInfoTarget] = useState<CandidateInfoData | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<{
     id: string;
     fullName: string;
@@ -407,7 +449,13 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
         {items.map((app) => (
           <article
             key={app.id}
-            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6"
+            role="button"
+            tabIndex={0}
+            onClick={() => setInfoTarget(toInfoData(app))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setInfoTarget(toInfoData(app));
+            }}
+            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 cursor-pointer hover:border-border-strong transition-colors"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -437,13 +485,16 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                     </div>
                   )}
                   {app.coverLetter && (
-                    <p className="mt-3 text-[13.5px] text-fg-muted leading-relaxed border-l-2 border-border pl-3">
+                    <p className="mt-3 text-[13.5px] text-fg-muted leading-relaxed border-l-2 border-border pl-3 line-clamp-2">
                       {app.coverLetter}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="shrink-0 flex flex-col items-stretch gap-3 min-w-[240px]">
+              <div
+                className="shrink-0 flex flex-col items-stretch gap-3 min-w-[240px]"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {app.matchScore != null && (
                   <ScoreBreakdown
                     keywordScore={Number(app.keywordScore ?? 0)}
@@ -457,26 +508,41 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                   status={app.status}
                   onChange={(s) => handleStatusChange(app.id, s)}
                 />
-                {app.candidate && (
+                <div className="flex gap-2">
                   <Button
                     variant="secondary"
                     size="md"
-                    leftIcon={<ShieldCheck size={13} />}
-                    onClick={() =>
-                      setVerifyTarget({
-                        id: app.candidate!.id,
-                        fullName: app.candidate!.fullName,
-                      })
-                    }
+                    className="flex-1"
+                    leftIcon={<User size={13} />}
+                    onClick={() => setInfoTarget(toInfoData(app))}
                   >
-                    Verify credentials
+                    {t("recruiter.jobDetail.viewProfile")}
                   </Button>
-                )}
+                  {app.candidate && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      leftIcon={<ShieldCheck size={13} />}
+                      onClick={() =>
+                        setVerifyTarget({
+                          id: app.candidate!.id,
+                          fullName: app.candidate!.fullName,
+                        })
+                      }
+                    >
+                      {t("recruiter.jobDetail.verifyClick")}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </article>
         ))}
       </div>
+      <CandidateInfoModal
+        data={infoTarget}
+        onClose={() => setInfoTarget(null)}
+      />
       <CandidateVerifyModal
         candidate={verifyTarget}
         onClose={() => setVerifyTarget(null)}
