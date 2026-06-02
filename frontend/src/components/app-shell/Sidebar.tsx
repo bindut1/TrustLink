@@ -25,8 +25,8 @@ export function Sidebar({ role }: SidebarProps) {
 
   return (
     <aside className="hidden md:flex w-[248px] shrink-0 flex-col border-r border-border bg-canvas">
-      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
-        <Logo size={26} />
+      <div className="flex items-center gap-2.5 px-3 h-16 border-b border-border overflow-hidden">
+        <Logo size={64} />
         <div className="leading-tight">
           <div className="text-[15px] font-bold tracking-[-0.02em] text-fg">
             TrustLink

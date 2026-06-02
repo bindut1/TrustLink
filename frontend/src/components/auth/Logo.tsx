@@ -1,24 +1,36 @@
-type LogoProps = { size?: number };
+import Image from "next/image";
 
-export function Logo({ size = 28 }: LogoProps) {
+type LogoProps = {
+  size?: number;
+  /** "icon" = logo mark only; "full" = icon + TrustLink text */
+  variant?: "icon" | "full";
+};
+
+export function Logo({ size = 28, variant = "icon" }: LogoProps) {
+  if (variant === "full") {
+    // Preserve aspect ratio: full-logo is ~4.2:1 (w:h)
+    const height = Math.round(size);
+    const width = Math.round(height * 4.2);
+    return (
+      <Image
+        src="/full-logo.webp"
+        alt="TrustLink"
+        width={width}
+        height={height}
+        priority
+        className="object-contain"
+      />
+    );
+  }
+
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
-      <path
-        d="M16 2 L28 8 V18 C28 24 22 28 16 30 C10 28 4 24 4 18 V8 Z"
-        fill="var(--accent)"
-        fillOpacity="0.14"
-        stroke="var(--accent)"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M11 16 L14.5 19.5 L21 13"
-        stroke="var(--accent)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="16" cy="9" r="1.5" fill="var(--accent)" />
-    </svg>
+    <Image
+      src="/logo.webp"
+      alt="TrustLink"
+      width={size}
+      height={size}
+      priority
+      className="object-contain"
+    />
   );
 }

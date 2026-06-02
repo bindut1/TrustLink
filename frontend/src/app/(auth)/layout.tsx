@@ -15,12 +15,9 @@ export default function AuthLayout({
       <Link
         href="/"
         aria-label={t("header.trustlinkHome")}
-        className="flex items-center gap-3 mb-9"
+        className="mb-9"
       >
-        <Logo size={36} />
-        <span className="text-[22px] font-bold tracking-[-0.025em] text-fg">
-          TrustLink
-        </span>
+        <Logo variant="full" size={80} />
       </Link>
       {children}
     </div>

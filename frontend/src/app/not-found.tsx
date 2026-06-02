@@ -21,7 +21,7 @@ export default function NotFound() {
             aria-label={t("header.trustlinkHome")}
             className="flex shrink-0 items-center gap-2.5 transition-opacity hover:opacity-90"
           >
-            <Logo size={28} />
+            <Logo size={64} />
             <span className="text-[18px] font-bold tracking-[-0.025em] text-fg">
               TrustLink
             </span>
