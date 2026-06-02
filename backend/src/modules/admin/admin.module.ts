@@ -10,6 +10,7 @@ import { UserActionOverride } from '../../database/entities/user-action-override
 import { User } from '../../database/entities/user.entity';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -27,6 +28,7 @@ import { AdminService } from './admin.service';
     ]),
     AuthModule,
     AuditLogsModule,
+    NotificationsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

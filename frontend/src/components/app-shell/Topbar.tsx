@@ -1,9 +1,9 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { AuthUser } from "@/types/auth";
 import { LanguageToggle } from "./LanguageToggle";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserMenu } from "./UserMenu";
 
 type TopbarProps = {
@@ -13,7 +13,6 @@ type TopbarProps = {
 };
 
 export function Topbar({ user, title, description }: TopbarProps) {
-  const { t } = useLanguage();
   return (
     <header className="sticky top-0 z-20 h-16 px-5 sm:px-7 flex items-center gap-4 border-b border-border bg-canvas/85 backdrop-blur-md">
       <div className="min-w-0 flex-1">
@@ -30,16 +29,7 @@ export function Topbar({ user, title, description }: TopbarProps) {
       </div>
 
       <LanguageToggle />
-
-      <button
-        type="button"
-        title={t("a11y.notifications")}
-        aria-label={t("a11y.notifications")}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
-      >
-        <Bell size={18} />
-      </button>
-
+      <NotificationsDropdown enabled={!!user} />
       <UserMenu user={user} />
     </header>
   );

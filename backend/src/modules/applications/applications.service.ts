@@ -22,6 +22,16 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
+const VI_STATUS: Record<string, string> = {
+  applied: 'Đã ứng tuyển',
+  reviewing: 'Đang xem xét',
+  shortlisted: 'Vào vòng tiếp theo',
+  interview: 'Phỏng vấn',
+  offered: 'Đã có offer',
+  rejected: 'Bị từ chối',
+  withdrawn: 'Đã rút đơn',
+};
+
 const ALLOWED_STATUS_TRANSITIONS: Record<
   ApplicationStatus,
   ApplicationStatus[]
@@ -137,8 +147,8 @@ export class ApplicationsService {
     await this.notifications.create({
       userId: job.recruiterId,
       type: NotificationType.APPLICATION_RECEIVED,
-      title: 'New application received',
-      message: `${candidate.fullName} applied to your job "${job.title}".`,
+      title: 'Đơn ứng tuyển mới',
+      message: `${candidate.fullName} đã ứng tuyển vào vị trí "${job.title}".`,
       referenceType: 'application',
       referenceId: saved.id,
     });
@@ -206,8 +216,8 @@ export class ApplicationsService {
     await this.notifications.create({
       userId: saved.candidateId,
       type: NotificationType.APPLICATION_STATUS_CHANGED,
-      title: 'Application status updated',
-      message: `Your application for "${application.job.title}" is now ${saved.status}.`,
+      title: 'Trạng thái đơn ứng tuyển thay đổi',
+      message: `Đơn ứng tuyển của bạn cho vị trí "${application.job.title}" đã chuyển sang: ${VI_STATUS[saved.status] ?? saved.status}.`,
       referenceType: 'application',
       referenceId: saved.id,
     });

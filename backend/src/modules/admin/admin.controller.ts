@@ -24,6 +24,7 @@ import { RequireActions } from '../auth/decorators/require-actions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { AdminService } from './admin.service';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { ListTxQuery } from './dto/list-tx.query';
 import { ListUsersQuery } from './dto/list-users.query';
 import { SetOverrideDto } from './dto/set-override.dto';
@@ -136,5 +137,16 @@ export class AdminController {
       entityId,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
+  }
+
+  @Post('announcements')
+  @HttpCode(HttpStatus.OK)
+  @RequireActions('admin.manage')
+  @ApiOperation({
+    summary: 'Broadcast a system announcement to all users (or a specific role)',
+  })
+  @ApiOkResponse({ description: 'Number of users notified' })
+  async sendAnnouncement(@Body() dto: CreateAnnouncementDto) {
+    return this.admin.broadcastAnnouncement(dto);
   }
 }

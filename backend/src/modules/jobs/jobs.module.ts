@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Job } from '../../database/entities/job.entity';
 import { AuthModule } from '../auth/auth.module';
 import { MatchingModule } from '../matching/matching.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Job]), AuthModule, MatchingModule],
+  imports: [TypeOrmModule.forFeature([Job]), AuthModule, MatchingModule, NotificationsModule],
   controllers: [JobsController],
   providers: [JobsService],
   exports: [JobsService],

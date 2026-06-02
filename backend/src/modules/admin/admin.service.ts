@@ -13,10 +13,13 @@ import {
   AccountStatus,
   ApprovalStatus,
   CredentialStatus,
+  NotificationType,
   TxStatus,
   UserRole,
 } from '../../database/enums';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { ListTxQuery } from './dto/list-tx.query';
 import { ListUsersQuery } from './dto/list-users.query';
 import { SetOverrideDto } from './dto/set-override.dto';
@@ -39,6 +42,7 @@ export class AdminService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
     private readonly auditLogs: AuditLogsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ───────────── Dashboard ─────────────
@@ -302,6 +306,25 @@ export class AdminService {
     limit?: number;
   }) {
     return this.auditLogs.query(filter);
+  }
+
+  // ───────────── Announcements ─────────────
+
+  async broadcastAnnouncement(
+    dto: CreateAnnouncementDto,
+  ): Promise<{ sent: number }> {
+    const where = dto.targetRole ? { role: dto.targetRole } : {};
+    const users = await this.userRepo.find({ where, select: ['id'] });
+    const userIds = users.map((u) => u.id);
+    await this.notifications.broadcast(
+      {
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
+        title: dto.title,
+        message: dto.message,
+      },
+      userIds,
+    );
+    return { sent: userIds.length };
   }
 
   // ───────────── helpers ─────────────

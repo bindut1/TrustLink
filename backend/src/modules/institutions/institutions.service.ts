@@ -142,8 +142,8 @@ export class InstitutionsService {
       await this.notifications.create({
         userId: saved.userId,
         type: NotificationType.INSTITUTION_APPROVED,
-        title: 'Institution approved',
-        message: `Your institution "${saved.name}" has been approved.`,
+        title: 'Tổ chức được duyệt',
+        message: `Tổ chức "${saved.name}" của bạn đã được phê duyệt.`,
         referenceType: 'institution',
         referenceId: saved.id,
       });
@@ -151,10 +151,10 @@ export class InstitutionsService {
       await this.notifications.create({
         userId: saved.userId,
         type: NotificationType.INSTITUTION_REJECTED,
-        title: 'Institution rejected',
+        title: 'Tổ chức bị từ chối',
         message:
           saved.rejectionReason ??
-          `Your institution "${saved.name}" was rejected.`,
+          `Tổ chức "${saved.name}" của bạn đã bị từ chối.`,
         referenceType: 'institution',
         referenceId: saved.id,
       });

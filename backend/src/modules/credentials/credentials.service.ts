@@ -112,6 +112,15 @@ export class CredentialsService {
       credentialType.fieldSchema,
     );
 
+    // 5b. Check if a previous credential of the same type exists for this
+    // candidate — determines whether to send ISSUED or REISSUED notification.
+    const existingCredential = await this.credRepo.findOne({
+      where: {
+        candidateId: candidate.id,
+        credentialTypeId: credentialType.id,
+      },
+    });
+
     // 6. Persist credential + candidate skills in a single transaction.
     const saved = await this.dataSource.transaction(async (manager) => {
       const credential = manager.create(Credential, {
@@ -145,9 +154,13 @@ export class CredentialsService {
 
     await this.notifications.create({
       userId: candidate.id,
-      type: NotificationType.CREDENTIAL_ISSUED,
-      title: 'New credential issued',
-      message: `${institution.name} issued you the credential "${saved.title}".`,
+      type: existingCredential
+        ? NotificationType.CREDENTIAL_REISSUED
+        : NotificationType.CREDENTIAL_ISSUED,
+      title: existingCredential ? 'Cấp lại văn bằng' : 'Văn bằng mới',
+      message: existingCredential
+        ? `${institution.name} đã cấp lại văn bằng "${saved.title}" cho bạn.`
+        : `${institution.name} đã cấp văn bằng "${saved.title}" cho bạn.`,
       referenceType: 'credential',
       referenceId: saved.id,
     });
@@ -235,8 +248,8 @@ export class CredentialsService {
       await this.notifications.create({
         userId: saved.candidateId,
         type: NotificationType.CREDENTIAL_REVOKED,
-        title: 'Credential revoked',
-        message: `Your credential "${saved.title}" has been revoked${
+        title: 'Văn bằng bị thu hồi',
+        message: `Văn bằng "${saved.title}" của bạn đã bị thu hồi${
           dto.reason ? `: ${dto.reason}` : ''
         }.`,
         referenceType: 'credential',

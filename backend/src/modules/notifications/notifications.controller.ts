@@ -1,10 +1,14 @@
 import {
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
+  MessageEvent,
   Param,
   Patch,
+  Req,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -13,6 +17,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Observable } from 'rxjs';
 import { User } from '../../database/entities/user.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,6 +29,23 @@ import { NotificationsService } from './notifications.service';
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
+
+  @Sse('stream')
+  @Header('X-Accel-Buffering', 'no')
+  @Header('Cache-Control', 'no-cache')
+  @ApiOperation({ summary: 'SSE stream — real-time notification push' })
+  stream(
+    @CurrentUser() user: User,
+    @Req() req: Request,
+  ): Observable<MessageEvent> {
+    const { observable, cleanup } = this.service.subscribe(user.id);
+    // Clean up when client disconnects (tab closed / network drop).
+    (req as unknown as { on(event: string, cb: () => void): void }).on(
+      'close',
+      cleanup,
+    );
+    return observable;
+  }
 
   @Get()
   @ApiOperation({ summary: "List current user's notifications (unread first)" })

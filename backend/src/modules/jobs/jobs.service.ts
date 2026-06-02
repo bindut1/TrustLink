@@ -8,8 +8,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from '../../database/entities/job.entity';
-import { JobStatus } from '../../database/enums';
+import { JobStatus, NotificationType } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
+import { MatchingService } from '../matching/matching.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { ListJobsQueryDto } from './dto/list-jobs.query.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -37,6 +39,8 @@ export class JobsService {
     @InjectRepository(Job)
     private readonly repo: Repository<Job>,
     private readonly embeddings: EmbeddingService,
+    private readonly matching: MatchingService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(recruiterId: string, dto: CreateJobDto): Promise<Job> {
@@ -181,9 +185,37 @@ export class JobsService {
       throw new BadRequestException('salaryMin must be <= salaryMax');
     }
 
+    const wasPublished =
+      dto.status === JobStatus.OPEN && job.status === JobStatus.DRAFT;
+
     const saved = await this.repo.save(job);
     await this.refreshEmbedding(saved.id);
+
+    if (wasPublished) {
+      this.notifyTopCandidates(saved).catch((err) =>
+        this.logger.warn(
+          `Job recommendation notifications failed for ${saved.id}: ${(err as Error).message}`,
+        ),
+      );
+    }
+
     return saved;
+  }
+
+  private async notifyTopCandidates(job: Job): Promise<void> {
+    const ranked = await this.matching.recommendCandidatesForJob(job.id, 10);
+    if (ranked.length === 0) return;
+    const userIds = ranked.map((r) => r.candidate.id);
+    await this.notifications.broadcast(
+      {
+        type: NotificationType.JOB_RECOMMENDATION,
+        title: 'Gợi ý việc làm mới',
+        message: `Có một tin tuyển dụng phù hợp với hồ sơ của bạn: "${job.title}".`,
+        referenceType: 'job',
+        referenceId: job.id,
+      },
+      userIds,
+    );
   }
 
   private async refreshEmbedding(jobId: string): Promise<void> {
