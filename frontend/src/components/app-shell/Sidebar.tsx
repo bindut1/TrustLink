@@ -24,14 +24,14 @@ export function Sidebar({ role }: SidebarProps) {
   const { t } = useLanguage();
 
   return (
-    <aside className="hidden md:flex w-[248px] shrink-0 flex-col border-r border-border bg-canvas">
-      <div className="flex items-center gap-2.5 px-3 h-16 border-b border-border overflow-hidden">
+    <aside className="hidden md:flex w-[248px] shrink-0 flex-col bg-navy text-on-navy">
+      <div className="flex items-center gap-2.5 px-3 h-16 border-b border-white/10 overflow-hidden">
         <Logo size={64} />
         <div className="leading-tight">
-          <div className="text-[15px] font-bold tracking-[-0.02em] text-fg">
+          <div className="text-[15px] font-bold tracking-[-0.02em] text-on-navy">
             TrustLink
           </div>
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.10em] text-fg-subtle">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.10em] text-on-navy-faint">
             {t(WORKSPACE_KEY[role])}
           </div>
         </div>
@@ -41,7 +41,7 @@ export function Sidebar({ role }: SidebarProps) {
         {sections.map((section, i) => (
           <div key={i} className="flex flex-col gap-0.5">
             {section.labelKey && (
-              <div className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.10em] text-fg-faint">
+              <div className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.10em] text-on-navy-faint">
                 {t(section.labelKey)}
               </div>
             )}
@@ -83,22 +83,23 @@ function LeafLink({
     <Link
       href={item.href}
       className={cn(
-        "relative flex items-center gap-2.5 h-9 rounded-md text-[14px] font-medium transition-colors",
+        "relative flex items-center gap-2.5 h-9 rounded-md text-[14px] font-medium transition-colors duration-150",
         indent ? "pl-9 pr-3" : "px-3",
         active
-          ? "bg-accent/10 text-fg"
-          : "text-fg-muted hover:text-fg hover:bg-surface-2",
+          ? "bg-white/10 text-on-navy"
+          : "text-on-navy-muted hover:text-on-navy hover:bg-white/5",
       )}
+      aria-current={active ? "page" : undefined}
     >
       {active && (
         <span
           aria-hidden
-          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-accent"
+          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-teal"
         />
       )}
       <Icon
         size={indent ? 14 : 16}
-        className={active ? "text-accent" : "text-fg-subtle"}
+        className={active ? "text-teal" : "text-on-navy-muted"}
         strokeWidth={1.75}
       />
       <span>{t(item.labelKey)}</span>
@@ -132,22 +133,22 @@ function CollapsibleGroup({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-2.5 h-9 px-3 rounded-md text-[14px] font-medium transition-colors w-full",
+          "flex items-center gap-2.5 h-9 px-3 rounded-md text-[14px] font-medium transition-colors duration-150 w-full",
           containsActive
-            ? "text-fg"
-            : "text-fg-muted hover:text-fg hover:bg-surface-2",
+            ? "text-on-navy"
+            : "text-on-navy-muted hover:text-on-navy hover:bg-white/5",
         )}
       >
         <Icon
           size={16}
-          className={containsActive ? "text-accent" : "text-fg-subtle"}
+          className={containsActive ? "text-teal" : "text-on-navy-muted"}
           strokeWidth={1.75}
         />
         <span className="flex-1 text-left">{t(group.labelKey)}</span>
         <ChevronDown
           size={14}
           className={cn(
-            "text-fg-subtle transition-transform",
+            "text-on-navy-faint transition-transform duration-150",
             open ? "rotate-0" : "-rotate-90",
           )}
         />

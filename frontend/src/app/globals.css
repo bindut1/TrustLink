@@ -1,27 +1,55 @@
 @import "tailwindcss";
 
-/* ───────── Design tokens ─────────
- * Light is default. Dark is opt-in via `[data-theme="dark"]`. */
+/* ───────── Design tokens (DESIGN_SPEC §1) ─────────
+ * Light is default. Dark is opt-in via `[data-theme="dark"]`.
+ * Direction: institutional NAVY anchor (sidebar + primary CTAs); TEAL is
+ * reserved for verified / on-chain semantics ONLY — never decorative. */
 :root {
-  --bg: #FFFFFF;
+  /* Canvas / surface (light fintech)
+   * `--bg` stays white = the `bg-canvas` raised-surface token used by cards,
+   * modals and dropdowns app-wide. `--page` is the gray app shell canvas. */
+  --bg: #FFFFFF;          /* cards / raised surface (bg-canvas) */
   --bg-1: #FFFFFF;
-  --bg-2: #F8FAFC;
+  --bg-2: #F6F8FB;
   --bg-3: #F1F5F9;
+  --page: #F6F8FB;        /* app shell page canvas */
   --surface: #FFFFFF;
-  --surface-2: #F8FAFC;
-  --border: #E5E7EB;
+  --surface-2: #F6F8FB;
+  --border: #E2E8F0;      /* slate-200 */
   --border-strong: #CBD5E1;
-  --text: #0F172A;
-  --text-2: #475569;
+
+  /* Text — slate ramp */
+  --text: #0F172A;        /* slate-900 primary */
+  --text-2: #475569;      /* slate-600 secondary */
   --text-3: #64748B;
-  --text-faint: #94A3B8;
+  --text-faint: #94A3B8;  /* slate-400 labels */
 
-  --accent: #25C9D0;
+  /* Institutional navy — sidebar bg + primary buttons */
+  --navy-900: #0B1B3A;
+  --navy-700: #16264D;
+  --on-navy: #F8FAFC;             /* primary text on navy */
+  --on-navy-muted: #93A4C4;       /* secondary text on navy */
+  --on-navy-faint: #5C6E92;       /* section labels on navy */
+
+  /* Teal — verified / on-chain ONLY */
+  --teal-500: #13B5C4;
+  --teal-600: #0C97A4;            /* deeper teal for fills (white-text AA) */
+  --teal-050: #E7F8FA;            /* teal pill bg */
+  --accent: #13B5C4;              /* = teal-500 (verified/on-chain) */
   --accent-2: #10B981;
-  --warn: #F59E0B;
-  --danger: #EF4444;
+  --warn: #F59E0B;                /* pending / minting */
+  --danger: #EF4444;              /* revoked */
 
-  --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -8px rgba(15,23,42,0.10);
+  /* Radius (DESIGN_SPEC) */
+  --r-card: 14px;
+  --r-ctl: 10px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2,.7,.2,1);
+  --dur: 180ms;
+
+  --shadow-card: 0 1px 2px rgba(11,27,58,0.05), 0 8px 24px rgba(11,27,58,0.06);
 }
 
 [data-theme="dark"] {
@@ -44,6 +72,7 @@
 /* Expose tokens as Tailwind utilities */
 @theme inline {
   --color-canvas: var(--bg);
+  --color-page: var(--page);
   --color-surface-1: var(--bg-1);
   --color-surface-2: var(--bg-2);
   --color-surface-3: var(--bg-3);
@@ -53,18 +82,39 @@
   --color-fg-muted: var(--text-2);
   --color-fg-subtle: var(--text-3);
   --color-fg-faint: var(--text-faint);
+
+  /* Institutional navy (sidebar + primary CTAs) */
+  --color-navy: var(--navy-900);
+  --color-navy-700: var(--navy-700);
+  --color-on-navy: var(--on-navy);
+  --color-on-navy-muted: var(--on-navy-muted);
+  --color-on-navy-faint: var(--on-navy-faint);
+
+  /* Teal — verified / on-chain only */
   --color-accent: var(--accent);
+  --color-teal: var(--teal-500);
+  --color-teal-600: var(--teal-600);
+  --color-teal-050: var(--teal-050);
   --color-accent-2: var(--accent-2);
   --color-success: var(--accent-2);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+
+  /* Radius */
+  --radius-card: var(--r-card);
+  --radius-ctl: var(--r-ctl);
+
+  /* Fonts (DESIGN_SPEC: Hanken Grotesk UI, IBM Plex Mono for machine values) */
+  --font-sans: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
 }
 
 /* ───────── Base ───────── */
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
-  font-family: var(--font-sans), 'Inter Tight', system-ui, sans-serif;
+  font-family: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 16px;
@@ -98,6 +148,40 @@ body {
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ───────── Interaction motion (DESIGN_SPEC: 150–220ms, transform/opacity) ─────────
+ * Entrance animations use `both` so they always settle at the visible `to`
+ * state — the element's own base opacity stays 1, so if the animation never
+ * runs (reduced-motion) content is still fully visible. Never gate content
+ * behind opacity:0 in a base rule. */
+@keyframes tl-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+/* `backwards` (not `both`): the start keyframe applies before the run, but the
+ * element reverts to its own styles (transform: none) once finished. Holding a
+ * non-none transform here would make this element the containing block for any
+ * `position: fixed` modal inside it — scoping backdrops to the content area. */
+.page-enter { animation: tl-rise 200ms var(--ease) backwards; }
+
+@keyframes tl-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-pop-in {
+  animation: tl-pop 150ms var(--ease) both;
+  transform-origin: top;
+}
+
+/* Respect reduced-motion: drop entrance/scroll motion, keep content visible. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .page-enter,
+  .animate-pop-in,
+  .animate-float,
+  .animate-pulse-glow { animation: none; }
+  * { transition-duration: 0.01ms !important; }
 }
 
 /* Slow background shimmer for accent glows */

@@ -2,13 +2,14 @@
 
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import {
   createCredentialType,
@@ -59,6 +60,7 @@ const EMPTY_FORM: FormState = {
 
 export default function AdminCredentialTypesPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("admin.credTypes.title"), t("admin.credTypes.description"));
   const [items, setItems] = useState<CredentialType[] | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -143,15 +145,11 @@ export default function AdminCredentialTypesPage() {
 
   return (
     <>
-      <PageHeader
-        title={t("admin.credTypes.title")}
-        description={t("admin.credTypes.description")}
-        actions={
-          <Button onClick={openCreate} leftIcon={<Plus size={16} />}>
-            {t("admin.credTypes.newType")}
-          </Button>
-        }
-      />
+      <div className="flex items-center justify-end mb-4">
+        <Button onClick={openCreate} leftIcon={<Plus size={16} />}>
+          {t("admin.credTypes.newType")}
+        </Button>
+      </div>
 
       <div className="text-[12.5px] text-fg-subtle mb-3">
         {items
@@ -272,21 +270,17 @@ export default function AdminCredentialTypesPage() {
             </FormField>
 
             <FormField label={t("admin.credTypes.fldCategory")} required>
-              <Select
+              <SelectMenu
                 value={form.category}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    category: e.target.value as CredentialCategory,
-                  })
+                onChange={(v) =>
+                  setForm({ ...form, category: v as CredentialCategory })
                 }
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {t(c.labelKey)}
-                  </option>
-                ))}
-              </Select>
+                options={CATEGORIES.map((c) => ({
+                  value: c.value,
+                  label: t(c.labelKey),
+                }))}
+                ariaLabel={t("admin.credTypes.fldCategory")}
+              />
             </FormField>
 
             <FormField label={t("admin.credTypes.fldDescription")}>

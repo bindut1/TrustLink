@@ -2,12 +2,13 @@
 
 import { Search, ShieldOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { UserActionsModal } from "@/components/admin/UserActionsModal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchUsers, updateUserStatus } from "@/lib/admin-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -30,6 +31,7 @@ const STATUS_KEY: Record<AccountStatus, TranslationKey> = {
 
 export default function AdminUsersPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("admin.users.title"), t("admin.users.description"));
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
   const [status, setStatus] = useState("all");
@@ -68,14 +70,27 @@ export default function AdminUsersPage() {
     return t(key).replace("{n}", String(users.length));
   }, [users, t]);
 
+  const roleOptions = [
+    { value: "all", label: t("role.all") },
+    { value: "admin", label: t("role.admin") },
+    { value: "issuer", label: t("role.issuer") },
+    { value: "candidate", label: t("role.candidate") },
+    { value: "recruiter", label: t("role.recruiter") },
+  ];
+  const statusOptions = [
+    { value: "all", label: t("status.account.all") },
+    { value: "active", label: t("status.account.active") },
+    { value: "suspended", label: t("status.account.suspended") },
+    {
+      value: "pending_verification",
+      label: t("status.account.pending_verification"),
+    },
+    { value: "inactive", label: t("status.account.inactive") },
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("admin.users.title")}
-        description={t("admin.users.description")}
-      />
-
-      <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="rounded-card border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1">
           <Search
             size={16}
@@ -89,30 +104,20 @@ export default function AdminUsersPage() {
             className="pl-10 h-11"
           />
         </div>
-        <Select
+        <SelectMenu
           value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="h-11 sm:w-[180px]"
-        >
-          <option value="all">{t("role.all")}</option>
-          <option value="admin">{t("role.admin")}</option>
-          <option value="issuer">{t("role.issuer")}</option>
-          <option value="candidate">{t("role.candidate")}</option>
-          <option value="recruiter">{t("role.recruiter")}</option>
-        </Select>
-        <Select
+          onChange={setRole}
+          options={roleOptions}
+          ariaLabel={t("admin.users.roleColumn")}
+          className="sm:w-[180px]"
+        />
+        <SelectMenu
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-11 sm:w-[200px]"
-        >
-          <option value="all">{t("status.account.all")}</option>
-          <option value="active">{t("status.account.active")}</option>
-          <option value="suspended">{t("status.account.suspended")}</option>
-          <option value="pending_verification">
-            {t("status.account.pending_verification")}
-          </option>
-          <option value="inactive">{t("status.account.inactive")}</option>
-        </Select>
+          onChange={setStatus}
+          options={statusOptions}
+          ariaLabel={t("common.status")}
+          className="sm:w-[200px]"
+        />
       </div>
 
       <div className="text-[12.5px] text-fg-subtle mb-3">{summary}</div>
@@ -169,17 +174,20 @@ export default function AdminUsersPage() {
                   <div className="flex items-center justify-end gap-2">
                     <Button
                       variant="secondary"
-                      size="md"
+                      size="sm"
                       leftIcon={<ShieldOff size={14} />}
                       onClick={() => setOverrideTarget(u)}
                     >
                       {t("admin.users.overrides")}
                     </Button>
+                    {/* Fixed width so toggling Block/Unblock labels never
+                        shifts the row layout. */}
                     <Button
                       variant={u.status === "suspended" ? "primary" : "secondary"}
-                      size="md"
+                      size="sm"
                       loading={savingId === u.id}
                       onClick={() => toggleSuspended(u)}
+                      className="w-[104px]"
                     >
                       {u.status === "suspended"
                         ? t("admin.users.unblock")

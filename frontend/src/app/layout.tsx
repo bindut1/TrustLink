@@ -1,14 +1,26 @@
 import type { Metadata } from "next";
-import { Inter_Tight } from "next/font/google";
+import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { LANG_COOKIE_KEY } from "@/lib/i18n/config";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import type { Language } from "@/lib/i18n/translations";
 import "./globals.css";
 
-const interTight = Inter_Tight({
-  variable: "--font-sans",
+// UI typeface — headings + body (DESIGN_SPEC --font-ui)
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Mono typeface — hashes, match scores, credential IDs, block numbers
+// (DESIGN_SPEC --font-mono). Teal is reserved for verified/on-chain; mono is
+// reserved for machine values.
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +42,7 @@ export default async function RootLayout({
     <html
       lang={initialLang}
       data-theme="light"
-      className={interTight.variable}
+      className={`${hankenGrotesk.variable} ${ibmPlexMono.variable} font-sans`}
       suppressHydrationWarning
     >
       <body>

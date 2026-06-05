@@ -3,18 +3,20 @@
 import {
   AlertTriangle,
   Award,
-  Building2,
   CheckCircle2,
   Link2,
   LogIn,
   ShieldOff,
   UserCog,
-  Users,
   XCircle,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
-import { StatsCard } from "@/components/admin/StatsCard";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Donut } from "@/components/ui/Donut";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { StackBar } from "@/components/ui/StackBar";
 import { fetchAuditLogs, fetchDashboardStats } from "@/lib/admin-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -95,131 +97,180 @@ function useRelativeTime() {
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
   const relativeTime = useRelativeTime();
+  useSetPageMeta(t("admin.dashboard.title"), t("admin.dashboard.description"));
+
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [activity, setActivity] = useState<AuditLog[] | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchDashboardStats().then(setStats);
-    fetchAuditLogs({ limit: 6 }).then(setActivity);
+    let alive = true;
+    setError(false);
+    Promise.all([fetchDashboardStats(), fetchAuditLogs({ limit: 6 })])
+      .then(([s, a]) => {
+        if (!alive) return;
+        setStats(s);
+        setActivity(a);
+      })
+      .catch(() => alive && setError(true));
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  const institutionsRejected = stats
+    ? Math.max(
+        0,
+        stats.institutions.total -
+          stats.institutions.approved -
+          stats.institutions.pending,
+      )
+    : 0;
 
   return (
     <>
-      <PageHeader
-        title={t("admin.dashboard.title")}
-        description={t("admin.dashboard.description")}
-      />
+      {/* System overview — real aggregates only (no fabricated time-series):
+          user role split + on-chain credential / transaction / institution
+          health. Teal = on-chain "good" state; emerald = approved. */}
+      <Card className="mb-4">
+        <CardHeader
+          title={t("admin.dashboard.overview")}
+          description={t("admin.dashboard.overviewDesc")}
+        />
+        {!stats ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Skeleton height={148} className="rounded-card" />
+            <div className="flex flex-col justify-center gap-6">
+              <Skeleton height={56} />
+              <Skeleton height={56} />
+              <Skeleton height={56} />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            <div className="flex flex-col justify-center">
+              <div className="mb-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
+                {t("admin.dashboard.usersByRole")}
+              </div>
+              <Donut
+                size={148}
+                centerLabel={t("nav.users")}
+                data={[
+                  // Categorical palette — distinct hues, teal intentionally
+                  // avoided (reserved for on-chain/verified).
+                  { label: t("role.candidate"), value: stats.users.byRole.candidate, color: "#0B1B3A" },
+                  { label: t("role.recruiter"), value: stats.users.byRole.recruiter, color: "#7C5CFF" },
+                  { label: t("role.issuer"), value: stats.users.byRole.issuer, color: "#3B82F6" },
+                  { label: t("role.admin"), value: stats.users.byRole.admin, color: "#F59E0B" },
+                ]}
+              />
+            </div>
+            <div className="flex flex-col justify-center gap-6">
+              <StackBar
+                title={t("admin.dashboard.credentialHealth")}
+                segments={[
+                  { label: t("admin.dashboard.issued"), value: stats.credentials.issued, color: "var(--teal-500)" },
+                  { label: t("admin.dashboard.revoked"), value: stats.credentials.revoked, color: "var(--danger)" },
+                ]}
+              />
+              <StackBar
+                title={t("admin.dashboard.txHealth")}
+                segments={[
+                  { label: t("admin.dashboard.confirmed"), value: stats.transactions.confirmed, color: "var(--teal-500)" },
+                  { label: t("admin.dashboard.queued"), value: stats.transactions.queued, color: "var(--warn)" },
+                  { label: t("admin.dashboard.failed"), value: stats.transactions.failed, color: "var(--danger)" },
+                ]}
+              />
+              <StackBar
+                title={t("admin.dashboard.institutionHealth")}
+                segments={[
+                  { label: t("admin.dashboard.approved"), value: stats.institutions.approved, color: "var(--accent-2)" },
+                  { label: t("admin.dashboard.pendingShort"), value: stats.institutions.pending, color: "var(--warn)" },
+                  { label: t("admin.dashboard.rejected"), value: institutionsRejected, color: "var(--danger)" },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+      </Card>
 
-      {!stats ? (
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("common.loading")}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatsCard
-              label={t("admin.dashboard.totalUsers")}
-              value={stats.users.total.toLocaleString()}
-              hint={`${stats.users.byRole.candidate} ${t("admin.dashboard.candidates")} · ${stats.users.byRole.recruiter} ${t("admin.dashboard.recruiters")} · ${stats.users.byRole.issuer} ${t("admin.dashboard.issuers")}`}
-              icon={Users}
-              tone="accent"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader
+            title={t("admin.dashboard.recentActivity")}
+            description={t("admin.dashboard.recentActivityDesc")}
+          />
+          {error ? (
+            <EmptyState
+              compact
+              icon={AlertTriangle}
+              title={t("common.errorTitle")}
+              description={t("common.errorRetry")}
             />
-            <StatsCard
-              label={t("admin.dashboard.credentials")}
-              value={stats.credentials.total.toLocaleString()}
-              hint={`${stats.credentials.issued.toLocaleString()} ${t("admin.dashboard.issued")} · ${stats.credentials.revoked.toLocaleString()} ${t("admin.dashboard.revoked")}`}
-              icon={Award}
-              tone="success"
+          ) : activity === null ? (
+            <ActivitySkeleton />
+          ) : activity.length === 0 ? (
+            <EmptyState
+              compact
+              icon={Link2}
+              title={t("admin.dashboard.noActivity")}
             />
-            <StatsCard
-              label={t("admin.dashboard.pendingInstitutions")}
-              value={stats.institutions.pending}
-              hint={`${stats.institutions.approved} ${t("admin.dashboard.approved")} · ${stats.institutions.total} ${t("admin.dashboard.total")}`}
-              icon={Building2}
+          ) : (
+            <ul className="flex flex-col gap-3.5">
+              {activity.map((log) => {
+                const meta = ACTION_META[log.action];
+                const actor =
+                  log.user?.fullName ?? t("admin.dashboard.systemActor");
+                const label = meta ? t(meta.labelKey) : log.action;
+                return (
+                  <ActivityRow
+                    key={log.id}
+                    icon={meta?.icon ?? FALLBACK_META.icon}
+                    tone={meta?.tone ?? FALLBACK_META.tone}
+                    text={`${actor} ${label}`}
+                    time={relativeTime(log.createdAt)}
+                  />
+                );
+              })}
+            </ul>
+          )}
+          <div className="mt-5 pt-4 border-t border-border">
+            <a
+              href="/admin/audit-logs"
+              className="text-[13px] font-medium text-navy hover:underline"
+            >
+              {t("admin.dashboard.viewAllAuditLogs")}
+            </a>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title={t("admin.dashboard.quickLinks")}
+            description={t("admin.dashboard.quickLinksDesc")}
+          />
+          <div className="flex flex-col gap-2">
+            <QuickLink
+              href="/admin/institutions?status=pending"
+              label={t("admin.dashboard.approveInstitutions")}
+              count={stats?.institutions.pending}
               tone="warn"
             />
-            <StatsCard
-              label={t("admin.dashboard.failedTransactions")}
-              value={stats.transactions.failed}
-              hint={`${stats.transactions.queued} ${t("admin.dashboard.queued")} · ${stats.transactions.confirmed.toLocaleString()} ${t("admin.dashboard.confirmed")}`}
-              icon={AlertTriangle}
-              tone={stats.transactions.failed > 0 ? "danger" : "neutral"}
+            <QuickLink
+              href="/admin/blockchain?status=failed"
+              label={t("admin.dashboard.reviewFailedTx")}
+              count={stats?.transactions.failed}
+              tone="danger"
+            />
+            {/* No suspended-user count in AdminDashboardStats — link only,
+                no fabricated badge. */}
+            <QuickLink
+              href="/admin/users?status=suspended"
+              label={t("admin.dashboard.suspendedUsers")}
             />
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 rounded-2xl border border-border bg-canvas p-6">
-              <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-fg mb-1">
-                {t("admin.dashboard.recentActivity")}
-              </h2>
-              <p className="text-[13.5px] text-fg-subtle leading-relaxed">
-                {t("admin.dashboard.recentActivityDesc")}
-              </p>
-              {activity === null ? (
-                <p className="mt-5 text-[13.5px] text-fg-subtle">
-                  {t("common.loading")}
-                </p>
-              ) : activity.length === 0 ? (
-                <p className="mt-5 text-[13.5px] text-fg-subtle">
-                  {t("admin.dashboard.noActivity")}
-                </p>
-              ) : (
-                <ul className="mt-5 flex flex-col gap-3.5">
-                  {activity.map((log) => {
-                    const meta = ACTION_META[log.action];
-                    const actor =
-                      log.user?.fullName ?? t("admin.dashboard.systemActor");
-                    const label = meta ? t(meta.labelKey) : log.action;
-                    return (
-                      <ActivityRow
-                        key={log.id}
-                        icon={meta?.icon ?? FALLBACK_META.icon}
-                        tone={meta?.tone ?? FALLBACK_META.tone}
-                        text={`${actor} ${label}`}
-                        time={relativeTime(log.createdAt)}
-                      />
-                    );
-                  })}
-                </ul>
-              )}
-              <div className="mt-5 pt-4 border-t border-border">
-                <a
-                  href="/admin/audit-logs"
-                  className="text-[13px] text-accent hover:underline"
-                >
-                  {t("admin.dashboard.viewAllAuditLogs")}
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-canvas p-6">
-              <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-fg mb-1">
-                {t("admin.dashboard.quickLinks")}
-              </h2>
-              <p className="text-[13.5px] text-fg-subtle">
-                {t("admin.dashboard.quickLinksDesc")}
-              </p>
-              <div className="mt-4 flex flex-col gap-2">
-                <QuickLink
-                  href="/admin/institutions?status=pending"
-                  label={t("admin.dashboard.approveInstitutions")}
-                  count={stats.institutions.pending}
-                />
-                <QuickLink
-                  href="/admin/blockchain?status=failed"
-                  label={t("admin.dashboard.reviewFailedTx")}
-                  count={stats.transactions.failed}
-                />
-                <QuickLink
-                  href="/admin/users?status=suspended"
-                  label={t("admin.dashboard.suspendedUsers")}
-                  count={1}
-                />
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+        </Card>
+      </div>
     </>
   );
 }
@@ -228,7 +279,7 @@ const TONE_CLASS: Record<ActivityTone, string> = {
   success: "bg-success/12 text-success",
   warn: "bg-warn/15 text-warn",
   danger: "bg-danger/12 text-danger",
-  info: "bg-accent/12 text-accent",
+  info: "bg-navy/8 text-navy",
   neutral: "bg-surface-2 text-fg-muted",
 };
 
@@ -258,24 +309,52 @@ function ActivityRow({
   );
 }
 
+const QUICK_TONE = {
+  warn: "bg-warn/15 text-warn",
+  danger: "bg-danger/12 text-danger",
+  neutral: "bg-surface-2 text-fg-muted",
+} as const;
+
 function QuickLink({
   href,
   label,
   count,
+  tone = "neutral",
 }: {
   href: string;
   label: string;
-  count: number;
+  count?: number;
+  tone?: keyof typeof QUICK_TONE;
 }) {
+  // Urgent counts (>0) keep their semantic tone; zero reads as resolved.
+  const badgeTone = count && count > 0 ? tone : "neutral";
   return (
     <a
       href={href}
-      className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2/50 px-3.5 py-2.5 hover:border-border-strong hover:bg-surface-2 transition-colors"
+      className="group flex items-center justify-between gap-3 rounded-ctl border border-border bg-surface-2/50 px-3.5 py-2.5 hover:border-border-strong hover:bg-surface-2 transition-colors duration-150"
     >
       <span className="text-[14px] font-medium text-fg">{label}</span>
-      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent/15 text-accent text-[12px] font-semibold px-2">
-        {count}
-      </span>
+      {typeof count === "number" && (
+        <span
+          className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-[12px] font-semibold px-2 tabular-nums ${QUICK_TONE[badgeTone]}`}
+        >
+          {count}
+        </span>
+      )}
     </a>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <ul className="flex flex-col gap-3.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <li key={i} className="flex items-center gap-3">
+          <Skeleton width={28} height={28} circle />
+          <Skeleton height={13} className="flex-1" />
+          <Skeleton height={11} className="w-12" />
+        </li>
+      ))}
+    </ul>
   );
 }

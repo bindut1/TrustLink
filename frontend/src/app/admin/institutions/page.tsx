@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { InstitutionCard } from "@/components/admin/InstitutionCard";
 import { fetchInstitutions } from "@/lib/admin-api";
 import { cn } from "@/lib/cn";
@@ -20,6 +20,10 @@ const TABS: { key: FilterTab; labelKey: TranslationKey }[] = [
 
 export default function AdminInstitutionsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(
+    t("admin.institutions.title"),
+    t("admin.institutions.description"),
+  );
   const [tab, setTab] = useState<FilterTab>("pending");
   const [items, setItems] = useState<AdminInstitution[] | null>(null);
 
@@ -45,11 +49,6 @@ export default function AdminInstitutionsPage() {
 
   return (
     <>
-      <PageHeader
-        title={t("admin.institutions.title")}
-        description={t("admin.institutions.description")}
-      />
-
       <div role="tablist" className="flex flex-wrap gap-1 mb-5">
         {TABS.map((tabItem) => (
           <button

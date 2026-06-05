@@ -2,10 +2,11 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchAuditLogs } from "@/lib/admin-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -31,6 +32,7 @@ const ACTION_PRESETS = [
 
 export default function AdminAuditLogsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("admin.auditLogs.title"), t("admin.auditLogs.description"));
   const [logs, setLogs] = useState<AuditLog[] | null>(null);
   const [entityType, setEntityType] = useState<string>("");
   const [action, setAction] = useState<string>("");
@@ -67,43 +69,35 @@ export default function AdminAuditLogsPage() {
     });
   }
 
+  const actionOptions = [
+    { value: "", label: t("admin.auditLogs.allActions") },
+    ...ACTION_PRESETS.map((a) => ({ value: a, label: a })),
+  ];
+  const entityOptions = [
+    { value: "", label: t("admin.auditLogs.allEntities") },
+    ...ENTITY_TYPES.map((et) => ({ value: et, label: et })),
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("admin.auditLogs.title")}
-        description={t("admin.auditLogs.description")}
-      />
-
-      <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-end gap-3">
+      <div className="rounded-card border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="flex-1">
           <Label className="mb-1.5">{t("admin.auditLogs.action")}</Label>
-          <Select
+          <SelectMenu
             value={action}
-            onChange={(e) => setAction(e.target.value)}
-            className="h-11"
-          >
-            <option value="">{t("admin.auditLogs.allActions")}</option>
-            {ACTION_PRESETS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </Select>
+            onChange={setAction}
+            options={actionOptions}
+            ariaLabel={t("admin.auditLogs.action")}
+          />
         </div>
         <div className="flex-1">
           <Label className="mb-1.5">{t("admin.auditLogs.entityType")}</Label>
-          <Select
+          <SelectMenu
             value={entityType}
-            onChange={(e) => setEntityType(e.target.value)}
-            className="h-11"
-          >
-            <option value="">{t("admin.auditLogs.allEntities")}</option>
-            {ENTITY_TYPES.map((et) => (
-              <option key={et} value={et}>
-                {et}
-              </option>
-            ))}
-          </Select>
+            onChange={setEntityType}
+            options={entityOptions}
+            ariaLabel={t("admin.auditLogs.entityType")}
+          />
         </div>
         <div className="sm:w-[120px]">
           <Label className="mb-1.5">{t("admin.auditLogs.limit")}</Label>

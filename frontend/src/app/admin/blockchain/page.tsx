@@ -2,10 +2,10 @@
 
 import { Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { TxFailureModal } from "@/components/admin/TxFailureModal";
 import { TxStatusBadge } from "@/components/admin/TxStatusBadge";
-import { Select } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { fetchTransactions } from "@/lib/admin-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -21,6 +21,7 @@ const TX_TYPE_KEY: Record<TxType, TranslationKey> = {
 
 export default function AdminBlockchainPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("admin.blockchain.title"), t("admin.blockchain.description"));
   const [status, setStatus] = useState<TxStatus | "all">("all");
   const [items, setItems] = useState<BlockchainTx[] | null>(null);
   const [failureTarget, setFailureTarget] = useState<BlockchainTx | null>(null);
@@ -36,13 +37,17 @@ export default function AdminBlockchainPage() {
     };
   }, [status]);
 
+  const statusOptions = [
+    { value: "all", label: t("status.tx.all") },
+    { value: "queued", label: t("status.tx.queued") },
+    { value: "submitted", label: t("status.tx.submitted") },
+    { value: "retrying", label: t("status.tx.retrying") },
+    { value: "confirmed", label: t("status.tx.confirmed") },
+    { value: "failed", label: t("status.tx.failed") },
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("admin.blockchain.title")}
-        description={t("admin.blockchain.description")}
-      />
-
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="text-[12.5px] text-fg-subtle">
           {items
@@ -53,18 +58,13 @@ export default function AdminBlockchainPage() {
               ).replace("{n}", String(items.length))
             : ""}
         </div>
-        <Select
+        <SelectMenu
           value={status}
-          onChange={(e) => setStatus(e.target.value as TxStatus | "all")}
-          className="h-10 w-[180px]"
-        >
-          <option value="all">{t("status.tx.all")}</option>
-          <option value="queued">{t("status.tx.queued")}</option>
-          <option value="submitted">{t("status.tx.submitted")}</option>
-          <option value="retrying">{t("status.tx.retrying")}</option>
-          <option value="confirmed">{t("status.tx.confirmed")}</option>
-          <option value="failed">{t("status.tx.failed")}</option>
-        </Select>
+          onChange={(v) => setStatus(v as TxStatus | "all")}
+          options={statusOptions}
+          ariaLabel={t("common.status")}
+          className="w-[180px]"
+        />
       </div>
 
       <Table>
