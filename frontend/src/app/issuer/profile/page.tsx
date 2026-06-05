@@ -1,7 +1,8 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { ApprovalStatusBadge } from "@/components/issuer/StatusBadge";
 import { Alert } from "@/components/ui/Alert";
@@ -61,6 +62,7 @@ const FIELDS: {
 
 export default function IssuerProfilePage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("issuer.profile.title"), t("issuer.profile.description"));
   const [inst, setInst] = useState<Institution | null>(null);
   const [draft, setDraft] = useState<Partial<Institution>>({});
   const [loading, setLoading] = useState(true);
@@ -126,31 +128,43 @@ export default function IssuerProfilePage() {
 
   if (loading) {
     return (
-      <>
-        <PageHeader title={t("issuer.profile.title")} />
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("issuer.profile.loading")}
-        </div>
-      </>
+      <div className="rounded-card border border-border bg-canvas p-10 text-center text-fg-subtle shadow-[var(--shadow-card)]">
+        {t("issuer.profile.loading")}
+      </div>
     );
   }
 
   if (!inst) {
-    return (
-      <>
-        <PageHeader title={t("issuer.profile.title")} />
-        <Alert variant="error">{error ?? t("issuer.profile.notFound")}</Alert>
-      </>
-    );
+    return <Alert variant="error">{error ?? t("issuer.profile.notFound")}</Alert>;
   }
 
   return (
     <>
-      <PageHeader
-        title={t("issuer.profile.title")}
-        description={t("issuer.profile.description")}
-        actions={<ApprovalStatusBadge status={inst.approvalStatus} />}
-      />
+      {/* Institution status — approval + on-chain issuer address */}
+      <div className="rounded-card border border-border bg-canvas p-5 mb-5 shadow-[var(--shadow-card)] flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle">
+            {t("common.status")}
+          </span>
+          <ApprovalStatusBadge status={inst.approvalStatus} />
+        </div>
+        {inst.blockchainAddress && (
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle">
+              {t("issuer.profile.onChainAddress")}
+            </span>
+            <a
+              href={`https://amoy.polygonscan.com/address/${inst.blockchainAddress}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-[12.5px] text-teal hover:underline truncate"
+            >
+              {`${inst.blockchainAddress.slice(0, 8)}…${inst.blockchainAddress.slice(-6)}`}
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -175,7 +189,7 @@ export default function IssuerProfilePage() {
 
         <AvatarUploader />
 
-        <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+        <div className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
           <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
             {t("issuer.profile.sectionBasic")}
           </div>
@@ -200,7 +214,7 @@ export default function IssuerProfilePage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+        <div className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
           <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
             {t("issuer.profile.sectionAbout")}
           </div>
@@ -209,7 +223,7 @@ export default function IssuerProfilePage() {
               rows={5}
               value={(draft.description as string | undefined) ?? ""}
               onChange={set("description")}
-              className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
+              className="w-full rounded-ctl border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-navy focus:ring-4 focus:ring-navy/12 outline-none transition-colors resize-y"
               placeholder={t("issuer.profile.fldDescriptionPlaceholder")}
             />
           </FormField>

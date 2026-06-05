@@ -1,15 +1,17 @@
 "use client";
 
-import { Ban, ExternalLink, FileX2, Search } from "lucide-react";
+import { Ban, ExternalLink, FileX2, Plus, Search } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { RevokeModal } from "@/components/issuer/RevokeModal";
-import { CredentialStatusBadge } from "@/components/issuer/StatusBadge";
+import { CredentialStatusPill } from "@/components/issuer/StatusBadge";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { ApiError } from "@/lib/api";
 import { fetchCredentials, fetchMyInstitution } from "@/lib/issuer-api";
@@ -18,6 +20,10 @@ import type { Credential, Institution } from "@/types/issuer";
 
 export default function IssuerCredentialsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(
+    t("issuer.credentials.title"),
+    t("issuer.credentials.description"),
+  );
   const [inst, setInst] = useState<Institution | null>(null);
   const [items, setItems] = useState<Credential[] | null>(null);
   const [search, setSearch] = useState("");
@@ -93,20 +99,23 @@ export default function IssuerCredentialsPage() {
     );
   }
 
+  const statusOptions = [
+    { value: "all", label: t("status.cred.all") },
+    { value: "pending", label: t("status.cred.pending") },
+    { value: "issued", label: t("status.cred.issued") },
+    { value: "revoked", label: t("status.cred.revoked") },
+    { value: "reissued", label: t("status.cred.reissued") },
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("issuer.credentials.title")}
-        description={t("issuer.credentials.description")}
-      />
-
       {error && (
         <Alert variant="error" className="mb-4">
           {error}
         </Alert>
       )}
 
-      <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="rounded-card border border-border bg-canvas p-4 sm:p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1">
           <Search
             size={16}
@@ -120,17 +129,18 @@ export default function IssuerCredentialsPage() {
             className="pl-10 h-11"
           />
         </div>
-        <Select
+        <SelectMenu
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-11 sm:w-[200px]"
-        >
-          <option value="all">{t("status.cred.all")}</option>
-          <option value="pending">{t("status.cred.pending")}</option>
-          <option value="issued">{t("status.cred.issued")}</option>
-          <option value="revoked">{t("status.cred.revoked")}</option>
-          <option value="reissued">{t("status.cred.reissued")}</option>
-        </Select>
+          onChange={setStatus}
+          options={statusOptions}
+          ariaLabel={t("common.status")}
+          className="sm:w-[200px]"
+        />
+        <Link href="/issuer/issue">
+          <Button variant="verified" leftIcon={<Plus size={16} />} className="w-full sm:w-auto">
+            {t("issuer.credentials.issueCta")}
+          </Button>
+        </Link>
       </div>
 
       <Table>
@@ -203,10 +213,10 @@ export default function IssuerCredentialsPage() {
                       className="inline-flex w-fit hover:opacity-80 transition-opacity"
                       title={t("issuer.credentials.showReason")}
                     >
-                      <CredentialStatusBadge status={c.status} />
+                      <CredentialStatusPill credential={c} />
                     </button>
                   ) : (
-                    <CredentialStatusBadge status={c.status} />
+                    <CredentialStatusPill credential={c} />
                   )}
                 </TD>
                 <TD>
@@ -215,7 +225,7 @@ export default function IssuerCredentialsPage() {
                       href={`https://amoy.polygonscan.com/tx/${c.blockchainTxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[12px] font-mono text-fg-muted hover:text-accent transition-colors"
+                      className="inline-flex items-center gap-1 text-[12px] font-mono text-fg-muted hover:text-navy transition-colors"
                     >
                       {shortHash(c.blockchainTxHash)}
                       <ExternalLink size={11} />

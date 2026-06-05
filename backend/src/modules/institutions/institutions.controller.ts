@@ -52,6 +52,13 @@ export class InstitutionsController {
     return this.service.findByUserId(user.id);
   }
 
+  @Get('me/dashboard')
+  @ApiOperation({ summary: "Aggregate dashboard for the issuer's institution" })
+  @ApiOkResponse({ description: 'Issuer dashboard aggregates' })
+  async getMyDashboard(@CurrentUser() user: User) {
+    return this.service.getDashboard(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get institution detail' })
   @ApiOkResponse({ description: 'Institution detail' })

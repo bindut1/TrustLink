@@ -2,13 +2,14 @@
 
 import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { BatchProgress } from "@/components/issuer/BatchProgress";
 import { BatchStatusBadge } from "@/components/issuer/StatusBadge";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
-import { Select } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { cn } from "@/lib/cn";
 import {
@@ -21,6 +22,7 @@ import type { BatchImport, CredentialType } from "@/types/issuer";
 
 export default function BatchImportPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("issuer.batch.title"), t("issuer.batch.description"));
   const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [typeId, setTypeId] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -71,14 +73,16 @@ export default function BatchImportPage() {
     }
   }
 
+  const typeOptions = [
+    { value: "", label: t("issuer.batch.selectType") },
+    ...(types ?? [])
+      .filter((ct) => ct.isActive)
+      .map((ct) => ({ value: ct.id, label: ct.name })),
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("issuer.batch.title")}
-        description={t("issuer.batch.description")}
-      />
-
-      <div className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 mb-6">
+      <div className="rounded-card border border-border bg-canvas p-5 sm:p-6 mb-6 shadow-[var(--shadow-card)]">
         <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
           {t("issuer.batch.newUpload")}
         </div>
@@ -91,25 +95,15 @@ export default function BatchImportPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 mb-4 items-end">
           <FormField label={t("issuer.batch.credentialType")} required>
-            {!types ? (
-              <Select disabled>
-                <option>{t("issuer.batch.loadingTypes")}</option>
-              </Select>
-            ) : (
-              <Select
-                value={typeId}
-                onChange={(e) => setTypeId(e.target.value)}
-              >
-                <option value="">{t("issuer.batch.selectType")}</option>
-                {types
-                  .filter((ct) => ct.isActive)
-                  .map((ct) => (
-                    <option key={ct.id} value={ct.id}>
-                      {ct.name}
-                    </option>
-                  ))}
-              </Select>
-            )}
+            <SelectMenu
+              value={typeId}
+              onChange={setTypeId}
+              options={typeOptions}
+              ariaLabel={t("issuer.batch.credentialType")}
+              placeholder={
+                !types ? t("issuer.batch.loadingTypes") : t("issuer.batch.selectType")
+              }
+            />
           </FormField>
         </div>
 
@@ -125,9 +119,9 @@ export default function BatchImportPage() {
             pickFile(e.dataTransfer.files[0]);
           }}
           className={cn(
-            "block rounded-xl border-2 border-dashed px-5 py-10 text-center cursor-pointer transition-colors",
+            "block rounded-xl border-2 border-dashed px-5 py-10 text-center cursor-pointer transition-colors duration-150",
             dragOver
-              ? "border-accent bg-accent/5"
+              ? "border-navy bg-navy/5"
               : "border-border bg-surface-2/40 hover:border-border-strong",
           )}
         >
@@ -204,13 +198,11 @@ export default function BatchImportPage() {
         {t("issuer.batch.history")}
       </h2>
       {!history ? (
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
+        <div className="rounded-card border border-border bg-canvas p-10 text-center text-fg-subtle shadow-[var(--shadow-card)]">
           {t("common.loading")}
         </div>
       ) : history.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("issuer.batch.emptyHistory")}
-        </div>
+        <EmptyState icon={Upload} title={t("issuer.batch.emptyHistory")} />
       ) : (
         <Table>
           <THead>
@@ -251,7 +243,7 @@ export default function BatchImportPage() {
                   <button
                     type="button"
                     onClick={() => setActiveBatchId(b.id)}
-                    className="text-[13px] font-medium text-accent hover:underline"
+                    className="text-[13px] font-medium text-navy hover:underline"
                   >
                     {t("common.view")}
                   </button>

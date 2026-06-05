@@ -484,11 +484,21 @@ export const TRANSLATIONS = {
     "candidate.dashboard.completeProfile": "Hoàn thiện hồ sơ",
 
     // ───────────── Issuer — dashboard ─────────────
-    "issuer.dashboard.title": "Dashboard tổ chức cấp",
+    "issuer.dashboard.title": "Tổng quan",
     "issuer.dashboard.description":
-      "Sắp ra mắt — cấp, import hàng loạt và thu hồi văn bằng xác thực.",
+      "Văn bằng đã cấp, tình trạng on-chain và tổ chức của bạn.",
     "issuer.dashboard.roadmap":
       "Module tổ chức cấp đang trong kế hoạch phát triển.",
+    "issuer.dashboard.issuanceTrend": "Văn bằng cấp theo tháng",
+    "issuer.dashboard.statusBreakdown": "Trạng thái văn bằng",
+    "issuer.dashboard.recent": "Cấp gần đây",
+    "issuer.dashboard.institutionTitle": "Tổ chức",
+    "issuer.dashboard.totalIssued": "Đã cấp",
+    "issuer.dashboard.onChain": "On-chain",
+    "issuer.dashboard.revokedCount": "Đã thu hồi",
+    "issuer.dashboard.candidatesReached": "Ứng viên đã cấp",
+    "issuer.dashboard.noRecent": "Chưa cấp văn bằng nào.",
+    "issuer.dashboard.viewAll": "Xem tất cả",
 
     // ───────────── Issuer — issue ─────────────
     "issuer.issue.title": "Cấp văn bằng",
@@ -532,6 +542,7 @@ export const TRANSLATIONS = {
     "issuer.credentials.colTxHash": "Tx hash",
     "issuer.credentials.colIssued": "Đã cấp",
     "issuer.credentials.revoke": "Thu hồi",
+    "issuer.credentials.issueCta": "Cấp văn bằng",
     "issuer.credentials.showReason": "Xem lý do thu hồi",
     "issuer.credentials.reasonModalTitle": "Lý do thu hồi",
     "issuer.credentials.reasonLabel": "Văn bằng",
@@ -940,6 +951,7 @@ export const TRANSLATIONS = {
     "issuer.profile.rejectedTitle": "Đã bị quản trị viên từ chối",
     "issuer.profile.onChainAuthorized":
       "Đã được cấp quyền là tổ chức trên blockchain",
+    "issuer.profile.onChainAddress": "Địa chỉ on-chain",
     "issuer.profile.sectionBasic": "Thông tin cơ bản",
     "issuer.profile.sectionAbout": "Giới thiệu",
     "issuer.profile.fldName": "Tên tổ chức",
@@ -1676,9 +1688,19 @@ export const TRANSLATIONS = {
     "candidate.dashboard.completeProfile": "Complete profile",
 
     // Issuer — dashboard
-    "issuer.dashboard.title": "Issuer dashboard",
+    "issuer.dashboard.issuanceTrend": "Credentials issued per month",
+    "issuer.dashboard.statusBreakdown": "Credential status",
+    "issuer.dashboard.recent": "Recently issued",
+    "issuer.dashboard.institutionTitle": "Institution",
+    "issuer.dashboard.totalIssued": "Issued",
+    "issuer.dashboard.onChain": "On-chain",
+    "issuer.dashboard.revokedCount": "Revoked",
+    "issuer.dashboard.candidatesReached": "Candidates reached",
+    "issuer.dashboard.noRecent": "No credentials issued yet.",
+    "issuer.dashboard.viewAll": "View all",
+    "issuer.dashboard.title": "Overview",
     "issuer.dashboard.description":
-      "Coming soon — issue, batch import, and revoke verifiable credentials.",
+      "Credentials issued, on-chain status, and your institution.",
     "issuer.dashboard.roadmap": "Issuer module is on the roadmap.",
 
     // Issuer — issue
@@ -1724,6 +1746,7 @@ export const TRANSLATIONS = {
     "issuer.credentials.colTxHash": "Tx hash",
     "issuer.credentials.colIssued": "Issued",
     "issuer.credentials.revoke": "Revoke",
+    "issuer.credentials.issueCta": "Issue credential",
     "issuer.credentials.showReason": "View revocation reason",
     "issuer.credentials.reasonModalTitle": "Revocation reason",
     "issuer.credentials.reasonLabel": "Credential",
@@ -2128,6 +2151,7 @@ export const TRANSLATIONS = {
     "issuer.profile.saveFailed": "Save failed",
     "issuer.profile.rejectedTitle": "Rejected by admin",
     "issuer.profile.onChainAuthorized": "On-chain issuer authorized",
+    "issuer.profile.onChainAddress": "On-chain address",
     "issuer.profile.sectionBasic": "Basic information",
     "issuer.profile.sectionAbout": "About",
     "issuer.profile.fldName": "Institution name",

@@ -8,13 +8,42 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution } from '../../database/entities/institution.entity';
-import { ApprovalStatus, NotificationType } from '../../database/enums';
+import { Credential } from '../../database/entities/credential.entity';
+import {
+  ApprovalStatus,
+  CredentialStatus,
+  NotificationType,
+} from '../../database/enums';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApproveInstitutionDto } from './dto/approve-institution.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
+
+/** Aggregates powering the issuer dashboard. */
+export interface IssuerDashboard {
+  credentials: {
+    total: number;
+    onChain: number;
+    revoked: number;
+    byStatus: { status: string; count: number }[];
+  };
+  issuanceByMonth: { month: string; count: number }[];
+  candidatesReached: number;
+  recent: {
+    id: string;
+    title: string;
+    candidateName: string | null;
+    status: string;
+    issuedDate: string | null;
+  }[];
+  institution: {
+    name: string;
+    approvalStatus: string;
+    blockchainAddress: string | null;
+  };
+}
 
 @Injectable()
 export class InstitutionsService {
@@ -23,10 +52,100 @@ export class InstitutionsService {
   constructor(
     @InjectRepository(Institution)
     private readonly repo: Repository<Institution>,
+    @InjectRepository(Credential)
+    private readonly credentialRepo: Repository<Credential>,
     private readonly notifications: NotificationsService,
     private readonly blockchain: BlockchainService,
     private readonly auditLogs: AuditLogsService,
   ) {}
+
+  /**
+   * Dashboard aggregates for the current issuer's institution. All real DB
+   * aggregations scoped to the institution — credentials by status, on-chain
+   * count, a 6-month issuance time-series, distinct candidates reached, and the
+   * latest issuances.
+   */
+  async getDashboard(userId: string): Promise<IssuerDashboard> {
+    const institution = await this.findByUserId(userId);
+    const instId = institution.id;
+
+    const [total, onChain, revoked, byStatusRows, monthRows, reachedRow, recent] =
+      await Promise.all([
+        this.credentialRepo.count({ where: { institutionId: instId } }),
+        this.credentialRepo
+          .createQueryBuilder('c')
+          .where('c.institutionId = :instId', { instId })
+          .andWhere('c.blockchainTxHash IS NOT NULL')
+          .andWhere('c.status != :revoked', { revoked: CredentialStatus.REVOKED })
+          .getCount(),
+        this.credentialRepo.count({
+          where: { institutionId: instId, status: CredentialStatus.REVOKED },
+        }),
+        this.credentialRepo
+          .createQueryBuilder('c')
+          .select('c.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .where('c.institutionId = :instId', { instId })
+          .groupBy('c.status')
+          .getRawMany<{ status: string; count: string }>(),
+        this.credentialRepo
+          .createQueryBuilder('c')
+          .select("TO_CHAR(DATE_TRUNC('month', c.created_at), 'YYYY-MM')", 'month')
+          .addSelect('COUNT(*)', 'count')
+          .where('c.institutionId = :instId', { instId })
+          .groupBy("DATE_TRUNC('month', c.created_at)")
+          .orderBy("DATE_TRUNC('month', c.created_at)", 'ASC')
+          .getRawMany<{ month: string; count: string }>(),
+        this.credentialRepo
+          .createQueryBuilder('c')
+          .select('COUNT(DISTINCT c.candidate_id)', 'count')
+          .where('c.institutionId = :instId', { instId })
+          .getRawOne<{ count: string }>(),
+        this.credentialRepo
+          .createQueryBuilder('c')
+          .leftJoin('c.candidate', 'cand')
+          .addSelect(['cand.fullName'])
+          .where('c.institutionId = :instId', { instId })
+          .orderBy('c.createdAt', 'DESC')
+          .take(5)
+          .getMany(),
+      ]);
+
+    // Full per-month history (ascending). The client picks a year and renders
+    // 12 month slots, drawing a bar only for months that have data.
+    const issuanceByMonth = monthRows.map((r) => ({
+      month: r.month,
+      count: Number(r.count),
+    }));
+
+    return {
+      credentials: {
+        total,
+        onChain,
+        revoked,
+        byStatus: byStatusRows.map((r) => ({
+          status: r.status,
+          count: Number(r.count),
+        })),
+      },
+      issuanceByMonth,
+      candidatesReached: Number(reachedRow?.count ?? 0),
+      recent: recent.map((c) => ({
+        id: c.id,
+        title: c.title,
+        candidateName: c.candidate?.fullName ?? null,
+        status: c.status,
+        issuedDate: c.issuedDate
+          ? new Date(c.issuedDate).toISOString().slice(0, 10)
+          : null,
+      })),
+      institution: {
+        name: institution.name,
+        approvalStatus: institution.approvalStatus,
+        blockchainAddress: institution.blockchainAddress ?? null,
+      },
+    };
+  }
 
   async create(
     userId: string,

@@ -11,6 +11,7 @@ import type {
   Credential,
   CredentialType,
   Institution,
+  IssuerDashboard,
   IssueCredentialPayload,
 } from "@/types/issuer";
 
@@ -20,6 +21,11 @@ const authOpts = () => ({ token: getAccessToken() ?? undefined });
 
 export function fetchMyInstitution(): Promise<Institution> {
   return apiRequest("/institutions/me", authOpts());
+}
+
+/** Aggregate counts + issuance trend for the issuer dashboard. */
+export function fetchIssuerDashboard(): Promise<IssuerDashboard> {
+  return apiRequest("/institutions/me/dashboard", authOpts());
 }
 
 export async function updateInstitution(

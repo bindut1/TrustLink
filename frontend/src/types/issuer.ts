@@ -2,6 +2,30 @@ export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export type CredentialStatus = "pending" | "issued" | "revoked" | "reissued";
 
+/** Aggregates for the issuer dashboard (GET /institutions/me/dashboard). */
+export type IssuerDashboard = {
+  credentials: {
+    total: number;
+    onChain: number;
+    revoked: number;
+    byStatus: { status: string; count: number }[];
+  };
+  issuanceByMonth: { month: string; count: number }[];
+  candidatesReached: number;
+  recent: {
+    id: string;
+    title: string;
+    candidateName: string | null;
+    status: CredentialStatus;
+    issuedDate: string | null;
+  }[];
+  institution: {
+    name: string;
+    approvalStatus: ApprovalStatus;
+    blockchainAddress: string | null;
+  };
+};
+
 export type BatchStatus =
   | "uploading"
   | "validating"

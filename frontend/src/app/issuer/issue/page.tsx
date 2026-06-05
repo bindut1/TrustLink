@@ -2,13 +2,14 @@
 
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { CandidateLookup } from "@/components/issuer/CandidateLookup";
 import { DynamicForm } from "@/components/issuer/DynamicForm";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { ApiError } from "@/lib/api";
 import {
   fetchCredentialTypes,
@@ -25,6 +26,7 @@ type FieldValue = string | number | undefined;
 
 export default function IssueCredentialPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("issuer.issue.title"), t("issuer.issue.description"));
   const [types, setTypes] = useState<CredentialType[] | null>(null);
   const [typeId, setTypeId] = useState("");
   const [credentialNumber, setCredentialNumber] = useState("");
@@ -98,13 +100,18 @@ export default function IssueCredentialPage() {
     }
   }
 
+  const typeOptions = [
+    { value: "", label: t("issuer.issue.selectTypePlaceholder") },
+    ...(types ?? [])
+      .filter((ct) => ct.isActive)
+      .map((ct) => ({
+        value: ct.id,
+        label: ct.nameEn ? `${ct.name} · ${ct.nameEn}` : ct.name,
+      })),
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("issuer.issue.title")}
-        description={t("issuer.issue.description")}
-      />
-
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -125,45 +132,37 @@ export default function IssueCredentialPage() {
         )}
         {error && <Alert variant="error">{error}</Alert>}
 
-        {/* Step 1: Type */}
-        <Section
-          step="01"
-          title={t("issuer.issue.stepType")}
-          subtitle={t("issuer.issue.stepTypeDesc")}
-        >
-          {!types ? (
-            <div className="text-fg-subtle text-[14px]">
-              {t("issuer.batch.loadingTypes")}
-            </div>
-          ) : (
-            <FormField label={t("issuer.issue.fldType")} required>
-              <Select
-                value={typeId}
-                onChange={(e) => setTypeId(e.target.value)}
-                required
-              >
-                <option value="">{t("issuer.issue.selectTypePlaceholder")}</option>
-                {types
-                  .filter((ct) => ct.isActive)
-                  .map((ct) => (
-                    <option key={ct.id} value={ct.id}>
-                      {ct.name}
-                      {ct.nameEn ? ` · ${ct.nameEn}` : ""}
-                    </option>
-                  ))}
-              </Select>
-            </FormField>
-          )}
-        </Section>
+        {/* Steps 1 & 2 side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+          <Section
+            step="01"
+            title={t("issuer.issue.stepType")}
+            subtitle={t("issuer.issue.stepTypeDesc")}
+          >
+            {!types ? (
+              <div className="text-fg-subtle text-[14px]">
+                {t("issuer.batch.loadingTypes")}
+              </div>
+            ) : (
+              <FormField label={t("issuer.issue.fldType")} required>
+                <SelectMenu
+                  value={typeId}
+                  onChange={setTypeId}
+                  options={typeOptions}
+                  ariaLabel={t("issuer.issue.fldType")}
+                />
+              </FormField>
+            )}
+          </Section>
 
-        {/* Step 2: Candidate */}
-        <Section
-          step="02"
-          title={t("issuer.issue.stepRecipient")}
-          subtitle={t("issuer.issue.stepRecipientDesc")}
-        >
-          <CandidateLookup value={candidate} onChange={setCandidate} />
-        </Section>
+          <Section
+            step="02"
+            title={t("issuer.issue.stepRecipient")}
+            subtitle={t("issuer.issue.stepRecipientDesc")}
+          >
+            <CandidateLookup value={candidate} onChange={setCandidate} />
+          </Section>
+        </div>
 
         {/* Step 3: Credential basics + dynamic fields */}
         {selectedType && (
@@ -244,6 +243,7 @@ export default function IssueCredentialPage() {
         <div className="flex items-center justify-end gap-3">
           <Button
             type="submit"
+            variant="verified"
             size="lg"
             loading={submitting}
             disabled={!candidate || !selectedType}
@@ -269,9 +269,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <section className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
       <div className="flex items-baseline gap-3 mb-5">
-        <span className="text-[11px] font-mono font-semibold uppercase tracking-[0.10em] text-accent">
+        <span className="text-[11px] font-mono font-semibold uppercase tracking-[0.10em] text-navy">
           {step}
         </span>
         <div>
