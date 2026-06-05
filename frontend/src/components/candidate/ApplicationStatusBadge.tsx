@@ -6,10 +6,10 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import type { ApplicationStatus } from "@/types/candidate";
 
 const VARIANT: Record<ApplicationStatus, BadgeVariant> = {
-  applied: "info",
-  reviewing: "info",
-  shortlisted: "accent",
-  interview: "accent",
+  applied: "neutral",
+  reviewing: "navy",
+  shortlisted: "navy",
+  interview: "navy",
   offered: "success",
   rejected: "danger",
   withdrawn: "neutral",

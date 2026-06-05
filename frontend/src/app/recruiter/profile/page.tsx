@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
+import { StatusPill } from "@/components/ui/StatusPill";
 import { ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
@@ -27,8 +29,25 @@ const COMPANY_SIZES = [
   "1000+",
 ];
 
+// Fields the update DTO accepts — everything else (id, userId, isVerified,
+// createdAt, user, …) must not be sent or the server rejects the request.
+const EDITABLE_KEYS: (keyof UpdateRecruiterProfilePayload)[] = [
+  "companyName",
+  "companyNameEn",
+  "companyLogoUrl",
+  "industry",
+  "companySize",
+  "companyWebsite",
+  "companyAddress",
+  "city",
+  "country",
+  "description",
+  "taxCode",
+];
+
 export default function RecruiterProfilePage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("recruiter.profile.title"), t("recruiter.profile.description"));
   const [profile, setProfile] = useState<RecruiterProfile | null>(null);
   const [draft, setDraft] = useState<UpdateRecruiterProfilePayload>({});
   const [loading, setLoading] = useState(true);
@@ -68,7 +87,16 @@ export default function RecruiterProfilePage() {
     setError(null);
     setSaved(false);
     try {
-      const next = await updateMyRecruiterProfile(draft);
+      // Only send fields the API DTO accepts — the server rejects unknown
+      // props (whitelist + forbidNonWhitelisted), e.g. id/userId/isVerified.
+      const payload: UpdateRecruiterProfilePayload = {};
+      for (const key of EDITABLE_KEYS) {
+        const value = draft[key];
+        if (value !== undefined) {
+          (payload as Record<string, unknown>)[key] = value;
+        }
+      }
+      const next = await updateMyRecruiterProfile(payload);
       setProfile(next);
       setDraft(next);
       setSaved(true);
@@ -83,39 +111,35 @@ export default function RecruiterProfilePage() {
 
   if (loading) {
     return (
-      <>
-        <PageHeader title={t("recruiter.profile.title")} />
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("recruiter.profile.loading")}
-        </div>
-      </>
+      <div className="rounded-card border border-border bg-canvas p-10 text-center text-fg-subtle shadow-[var(--shadow-card)]">
+        {t("recruiter.profile.loading")}
+      </div>
     );
   }
 
   if (!profile) {
     return (
-      <>
-        <PageHeader title={t("recruiter.profile.title")} />
-        <Alert variant="error">
-          {error ?? t("recruiter.profile.notFound")}
-        </Alert>
-      </>
+      <Alert variant="error">{error ?? t("recruiter.profile.notFound")}</Alert>
     );
   }
 
   return (
     <>
-      <PageHeader
-        title={t("recruiter.profile.title")}
-        description={t("recruiter.profile.description")}
-        actions={
-          profile.isVerified ? (
-            <Badge variant="success">{t("recruiter.profile.verified")}</Badge>
-          ) : (
-            <Badge variant="neutral">{t("recruiter.profile.notVerified")}</Badge>
-          )
-        }
-      />
+      <div className="rounded-card border border-border bg-canvas p-5 mb-5 shadow-[var(--shadow-card)] flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[15px] font-semibold text-fg truncate">
+            {profile.companyName || t("recruiter.profile.title")}
+          </div>
+          <div className="text-[12.5px] text-fg-subtle mt-0.5">
+            {t("recruiter.profile.description")}
+          </div>
+        </div>
+        {profile.isVerified ? (
+          <StatusPill tone="verified">{t("recruiter.profile.verified")}</StatusPill>
+        ) : (
+          <Badge variant="neutral">{t("recruiter.profile.notVerified")}</Badge>
+        )}
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -156,17 +180,19 @@ export default function RecruiterProfilePage() {
               />
             </FormField>
             <FormField label={t("recruiter.profile.fldCompanySize")}>
-              <Select
+              <SelectMenu
                 value={(draft.companySize as string | undefined) ?? ""}
-                onChange={(e) => set("companySize", e.target.value || null)}
-              >
-                <option value="">{t("recruiter.profile.fldSelect")}</option>
-                {COMPANY_SIZES.map((s) => (
-                  <option key={s} value={s}>
-                    {t("recruiter.profile.fldEmployees").replace("{size}", s)}
-                  </option>
-                ))}
-              </Select>
+                onChange={(v) => set("companySize", v || null)}
+                ariaLabel={t("recruiter.profile.fldCompanySize")}
+                placeholder={t("recruiter.profile.fldSelect")}
+                options={[
+                  { value: "", label: t("recruiter.profile.fldSelect") },
+                  ...COMPANY_SIZES.map((s) => ({
+                    value: s,
+                    label: t("recruiter.profile.fldEmployees").replace("{size}", s),
+                  })),
+                ]}
+              />
             </FormField>
             <FormField label={t("recruiter.profile.fldTaxCode")}>
               <Input
@@ -215,7 +241,7 @@ export default function RecruiterProfilePage() {
                 rows={3}
                 value={(draft.companyAddress as string | undefined) ?? ""}
                 onChange={(e) => set("companyAddress", e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
+                className="w-full rounded-ctl border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-navy focus:ring-4 focus:ring-navy/12 outline-none transition-colors resize-y"
               />
             </FormField>
           </div>
@@ -228,7 +254,7 @@ export default function RecruiterProfilePage() {
               value={(draft.description as string | undefined) ?? ""}
               onChange={(e) => set("description", e.target.value)}
               placeholder={t("recruiter.profile.fldDescriptionPlaceholder")}
-              className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
+              className="w-full rounded-ctl border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-navy focus:ring-4 focus:ring-navy/12 outline-none transition-colors resize-y"
             />
           </FormField>
         </Card>
@@ -258,7 +284,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <section className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
       <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
         {title}
       </div>

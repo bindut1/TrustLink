@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Select } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { updateApplicationStatus } from "@/lib/recruiter-api";
@@ -47,18 +47,13 @@ export function ApplicationStatusSelect({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Select
+      <SelectMenu
         value={status}
-        onChange={(e) => handleChange(e.target.value as ApplicationStatus)}
-        disabled={saving}
-        className="h-9 w-[160px] text-[13.5px]"
-      >
-        {STATUSES.map((s) => (
-          <option key={s.value} value={s.value}>
-            {t(s.labelKey)}
-          </option>
-        ))}
-      </Select>
+        onChange={(v) => handleChange(v as ApplicationStatus)}
+        options={STATUSES.map((s) => ({ value: s.value, label: t(s.labelKey) }))}
+        ariaLabel={t("common.status")}
+        className="w-[160px]"
+      />
       {saving && (
         <span className="text-[11px] text-fg-subtle">
           {t("appStatus.saving")}

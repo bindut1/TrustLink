@@ -3,6 +3,7 @@ import { cn } from "@/lib/cn";
 
 export type BadgeVariant =
   | "neutral"
+  | "navy"
   | "info"
   | "success"
   | "warn"
@@ -11,6 +12,7 @@ export type BadgeVariant =
 
 const VARIANT: Record<BadgeVariant, string> = {
   neutral: "bg-surface-2 text-fg-muted border-border",
+  navy: "bg-navy/8 text-navy border-navy/15",
   info: "bg-accent/10 text-accent border-accent/25",
   success: "bg-success/10 text-success border-success/30",
   warn: "bg-warn/15 text-warn border-warn/30",

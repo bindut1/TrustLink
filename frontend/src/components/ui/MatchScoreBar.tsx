@@ -68,7 +68,7 @@ export function MatchScoreBar({
       aria-valuemax={100}
       aria-label={labels?.match ?? "Match score"}
     >
-      <div className="absolute inset-y-0 left-0 flex">
+      <div className="absolute inset-0 flex">
         <span
           className="h-full bg-navy transition-[width] duration-200"
           style={{ width: `${navyW}%` }}

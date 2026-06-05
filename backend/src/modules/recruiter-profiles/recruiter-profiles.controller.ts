@@ -26,6 +26,13 @@ export class RecruiterProfilesController {
     return this.service.findByUserId(user.id);
   }
 
+  @Get('me/dashboard')
+  @ApiOperation({ summary: 'Aggregate dashboard for the recruiter' })
+  @ApiOkResponse({ description: 'Recruiter dashboard aggregates' })
+  async getMyDashboard(@CurrentUser() user: User) {
+    return this.service.getDashboard(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'View recruiter/company profile by ID' })
   @ApiOkResponse({ description: 'Recruiter profile' })

@@ -16,6 +16,7 @@ import type {
   CreateJobPayload,
   JobStatus,
   RankedCandidate,
+  RecruiterDashboard,
   RecruiterProfile,
   UpdateRecruiterProfilePayload,
 } from "@/types/recruiter-app";
@@ -27,6 +28,11 @@ const authOpts = () => ({ token: getAccessToken() ?? undefined });
 
 export function fetchMyRecruiterProfile(): Promise<RecruiterProfile> {
   return apiRequest("/recruiter-profiles/me", authOpts());
+}
+
+/** Aggregate counts + applications trend for the recruiter dashboard. */
+export function fetchRecruiterDashboard(): Promise<RecruiterDashboard> {
+  return apiRequest("/recruiter-profiles/me/dashboard", authOpts());
 }
 
 export function updateMyRecruiterProfile(

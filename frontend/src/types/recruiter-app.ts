@@ -5,6 +5,7 @@
 
 import type {
   ApplicationItem,
+  ApplicationStatus,
   JobItem,
   ScoreBreakdown,
 } from "./candidate";
@@ -36,6 +37,23 @@ export type JobStatus = "draft" | "open" | "closed" | "expired";
 
 export type RecruiterJob = JobItem & {
   status: JobStatus;
+};
+
+/** Aggregates for the recruiter dashboard (GET /recruiter-profiles/me/dashboard). */
+export type RecruiterDashboard = {
+  jobs: { total: number; open: number; draft: number; closed: number };
+  applicants: { total: number; byStatus: { status: string; count: number }[] };
+  applicationsByMonth: { month: string; count: number }[];
+  recent: {
+    id: string;
+    candidateName: string | null;
+    candidateAvatarUrl: string | null;
+    jobTitle: string | null;
+    status: ApplicationStatus;
+    matchScore: number | null;
+    createdAt: string;
+  }[];
+  profile: { companyName: string; isVerified: boolean };
 };
 
 export type CreateJobPayload = {

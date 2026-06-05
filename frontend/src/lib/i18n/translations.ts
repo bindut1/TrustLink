@@ -578,11 +578,20 @@ export const TRANSLATIONS = {
     "issuer.batch.uploadFailed": "Upload thất bại",
 
     // ───────────── Recruiter — dashboard ─────────────
-    "recruiter.dashboard.title": "Trang quản lý tuyển dụng",
+    "recruiter.dashboard.title": "Tổng quan",
     "recruiter.dashboard.description":
-      "Sắp ra mắt — đăng tin tuyển dụng và xem ứng viên được xếp hạng bằng AI + xác thực blockchain.",
+      "Tin tuyển dụng, ứng viên và tiến trình tuyển dụng của bạn.",
     "recruiter.dashboard.roadmap":
       "Module nhà tuyển dụng đang trong kế hoạch phát triển.",
+    "recruiter.dashboard.applicationsTrend": "Đơn ứng tuyển theo tháng",
+    "recruiter.dashboard.funnel": "Phân loại đơn ứng tuyển",
+    "recruiter.dashboard.recent": "Ứng viên gần đây",
+    "recruiter.dashboard.companyTitle": "Công ty",
+    "recruiter.dashboard.openJobs": "Tin đang mở",
+    "recruiter.dashboard.totalApplicants": "Tổng ứng viên",
+    "recruiter.dashboard.totalJobs": "Tổng tin",
+    "recruiter.dashboard.noApplicants": "Chưa có đơn ứng tuyển nào.",
+    "recruiter.dashboard.viewAll": "Xem tất cả",
 
     // ───────────── Recruiter — jobs list ─────────────
     "recruiter.jobs.title": "Tin tuyển dụng của tôi",
@@ -862,6 +871,9 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.secBenefits": "Quyền lợi",
     "recruiter.jobDetail.secRequiredSkills": "Kỹ năng bắt buộc",
     "recruiter.jobDetail.secPreferredSkills": "Kỹ năng ưu tiên",
+    "recruiter.jobDetail.secSkills": "Kỹ năng",
+    "recruiter.jobDetail.requiredLabel": "Bắt buộc",
+    "recruiter.jobDetail.preferredLabel": "Ưu tiên",
     "recruiter.jobDetail.noSkills": "Chưa thêm.",
     "recruiter.jobDetail.candidatesLoading": "Đang tính điểm AI cho ứng viên…",
     "recruiter.jobDetail.candidatesEmpty":
@@ -1782,9 +1794,18 @@ export const TRANSLATIONS = {
     "issuer.batch.uploadFailed": "Upload failed",
 
     // Recruiter — dashboard
-    "recruiter.dashboard.title": "Recruiter hub",
+    "recruiter.dashboard.applicationsTrend": "Applications per month",
+    "recruiter.dashboard.funnel": "Application funnel",
+    "recruiter.dashboard.recent": "Recent applicants",
+    "recruiter.dashboard.companyTitle": "Company",
+    "recruiter.dashboard.openJobs": "Open jobs",
+    "recruiter.dashboard.totalApplicants": "Total applicants",
+    "recruiter.dashboard.totalJobs": "Total jobs",
+    "recruiter.dashboard.noApplicants": "No applications yet.",
+    "recruiter.dashboard.viewAll": "View all",
+    "recruiter.dashboard.title": "Overview",
     "recruiter.dashboard.description":
-      "Coming soon — post jobs and review AI-ranked, blockchain-verified candidates.",
+      "Your jobs, applicants and hiring pipeline.",
     "recruiter.dashboard.roadmap": "Recruiter module is on the roadmap.",
 
     // Recruiter — jobs list
@@ -2063,6 +2084,9 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.secBenefits": "Benefits",
     "recruiter.jobDetail.secRequiredSkills": "Required skills",
     "recruiter.jobDetail.secPreferredSkills": "Preferred skills",
+    "recruiter.jobDetail.secSkills": "Skills",
+    "recruiter.jobDetail.requiredLabel": "Required",
+    "recruiter.jobDetail.preferredLabel": "Preferred",
     "recruiter.jobDetail.noSkills": "None added.",
     "recruiter.jobDetail.candidatesLoading": "Computing AI rankings…",
     "recruiter.jobDetail.candidatesEmpty":

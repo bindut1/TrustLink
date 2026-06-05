@@ -1,12 +1,11 @@
 "use client";
 
-import { Briefcase, Edit2, MapPin, ShieldCheck, User } from "lucide-react";
+import { Briefcase, Edit2, MapPin, ShieldCheck, User, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { ApplicationStatusBadge } from "@/components/candidate/ApplicationStatusBadge";
-import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
 import { ApplicationStatusSelect } from "@/components/recruiter/ApplicationStatusSelect";
 import {
   CandidateInfoModal,
@@ -18,6 +17,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { SkillTag } from "@/components/ui/SkillTag";
 import { cn } from "@/lib/cn";
 import {
   fetchJob,
@@ -52,6 +55,11 @@ export default function RecruiterJobDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
 
+  useSetPageMeta(
+    job?.title ?? t("recruiter.jobDetail.titleFallback"),
+    job?.industry ?? undefined,
+  );
+
   useEffect(() => {
     if (!jobId) return;
     fetchJob(jobId).then(setJob).catch((e: unknown) => {
@@ -79,60 +87,43 @@ export default function RecruiterJobDetailPage() {
   }
 
   if (error) {
-    return (
-      <>
-        <PageHeader title={t("recruiter.jobDetail.titleFallback")} />
-        <Alert variant="error">{error}</Alert>
-      </>
-    );
+    return <Alert variant="error">{error}</Alert>;
   }
 
   if (!job) {
     return (
-      <>
-        <PageHeader title={t("recruiter.jobDetail.titleFallback")} />
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("common.loading")}
-        </div>
-      </>
+      <div className="rounded-card border border-border bg-canvas p-10 text-center text-fg-subtle shadow-[var(--shadow-card)]">
+        {t("common.loading")}
+      </div>
     );
   }
 
   return (
     <>
-      <PageHeader
-        title={job.title}
-        description={job.industry ?? undefined}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <JobStatusBadge status={job.status as JobStatus} />
-            {job.status === "draft" && (
-              <Button
-                size="md"
-                onClick={() => transition("open")}
-                loading={statusSaving}
-              >
-                {t("recruiter.jobDetail.publish")}
-              </Button>
-            )}
-            {job.status === "open" && (
-              <Button
-                size="md"
-                variant="secondary"
-                onClick={() => transition("closed")}
-                loading={statusSaving}
-              >
-                {t("recruiter.jobDetail.close")}
-              </Button>
-            )}
-            <Link href={`/recruiter/jobs/${job.id}/edit`}>
-              <Button size="md" variant="secondary" leftIcon={<Edit2 size={13} />}>
-                {t("recruiter.jobDetail.edit")}
-              </Button>
-            </Link>
-          </div>
-        }
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <JobStatusBadge status={job.status as JobStatus} />
+        <div className="flex flex-wrap items-center gap-2">
+          {job.status === "draft" && (
+            <Button onClick={() => transition("open")} loading={statusSaving}>
+              {t("recruiter.jobDetail.publish")}
+            </Button>
+          )}
+          {job.status === "open" && (
+            <Button
+              variant="secondary"
+              onClick={() => transition("closed")}
+              loading={statusSaving}
+            >
+              {t("recruiter.jobDetail.close")}
+            </Button>
+          )}
+          <Link href={`/recruiter/jobs/${job.id}/edit`}>
+            <Button variant="secondary" leftIcon={<Edit2 size={13} />}>
+              {t("recruiter.jobDetail.edit")}
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-fg-muted mb-5">
         {(job.city || job.location) && (
@@ -141,7 +132,7 @@ export default function RecruiterJobDetailPage() {
             {job.city ?? job.location}
           </span>
         )}
-        {job.isRemote && <Badge variant="info">{t("common.remote")}</Badge>}
+        {job.isRemote && <Badge variant="neutral">{t("common.remote")}</Badge>}
         {job.jobType && (
           <span className="inline-flex items-center gap-1.5">
             <Briefcase size={13} className="text-fg-subtle" />
@@ -163,9 +154,9 @@ export default function RecruiterJobDetailPage() {
             aria-selected={tab === tabItem.key}
             onClick={() => setTab(tabItem.key)}
             className={cn(
-              "h-10 px-4 -mb-px border-b-2 text-[14px] font-medium transition-colors",
+              "h-10 px-4 -mb-px border-b-2 text-[14px] font-medium transition-colors duration-150",
               tab === tabItem.key
-                ? "border-accent text-fg"
+                ? "border-navy text-fg"
                 : "border-transparent text-fg-muted hover:text-fg",
             )}
           >
@@ -184,8 +175,7 @@ export default function RecruiterJobDetailPage() {
 function OverviewTab({ job }: { job: JobItem }) {
   const { t } = useLanguage();
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <div className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
         <Section title={t("recruiter.jobDetail.secDescription")}>
           <p className="text-[14.5px] text-fg-muted whitespace-pre-wrap leading-relaxed">
             {job.description}
@@ -205,9 +195,6 @@ function OverviewTab({ job }: { job: JobItem }) {
             </p>
           </Section>
         )}
-      </div>
-
-      <aside className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 h-fit">
         <Section title={t("recruiter.jobDetail.secRequiredSkills")}>
           {job.requiredSkills.length === 0 ? (
             <p className="text-[13px] text-fg-subtle">
@@ -216,12 +203,9 @@ function OverviewTab({ job }: { job: JobItem }) {
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {job.requiredSkills.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center rounded-md border border-accent/25 bg-accent/8 px-2 py-0.5 text-[12px] text-accent"
-                >
+                <SkillTag key={s} size="sm">
                   {s}
-                </span>
+                </SkillTag>
               ))}
             </div>
           )}
@@ -230,17 +214,13 @@ function OverviewTab({ job }: { job: JobItem }) {
           <Section title={t("recruiter.jobDetail.secPreferredSkills")}>
             <div className="flex flex-wrap gap-1.5">
               {job.preferredSkills.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center rounded-md border border-border bg-surface-2/60 px-2 py-0.5 text-[12px] text-fg-muted"
-                >
+                <SkillTag key={s} size="sm">
                   {s}
-                </span>
+                </SkillTag>
               ))}
             </div>
           </Section>
         )}
-      </aside>
     </div>
   );
 }
@@ -257,7 +237,7 @@ function CandidatesTab({ jobId }: { jobId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchRecommendedCandidates(jobId, 20)
+    fetchRecommendedCandidates(jobId, 10)
       .then((r) => {
         if (!cancelled) setItems(r);
       })
@@ -277,15 +257,15 @@ function CandidatesTab({ jobId }: { jobId: string }) {
   if (error) return <Alert variant="error">{error}</Alert>;
   if (!items)
     return (
-      <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-        {t("recruiter.jobDetail.candidatesLoading")}
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} height={120} className="rounded-card" />
+        ))}
       </div>
     );
   if (items.length === 0)
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-        {t("recruiter.jobDetail.candidatesEmpty")}
-      </div>
+      <EmptyState icon={Users} title={t("recruiter.jobDetail.candidatesEmpty")} />
     );
 
   return (
@@ -301,12 +281,13 @@ function CandidatesTab({ jobId }: { jobId: string }) {
               if (e.key === "Enter" || e.key === " ")
                 setInfoTarget({ candidate: r.candidate });
             }}
-            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 cursor-pointer hover:border-border-strong transition-colors"
+            className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)] cursor-pointer tl-card-interactive"
           >
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="flex items-start gap-3 min-w-0 flex-1">
-                <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent text-[12px] font-mono font-semibold border border-accent/25">
-                  #{i + 1}
+            <div className="flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-8">
+              {/* Candidate */}
+              <div className="flex items-start gap-3 min-w-0 lg:w-[280px] lg:shrink-0">
+                <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full bg-navy/8 text-navy text-[12px] font-mono font-semibold">
+                  {i + 1}
                 </span>
                 <Avatar
                   name={r.candidate.fullName}
@@ -317,46 +298,58 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                   <div className="text-[16px] font-semibold text-fg leading-tight">
                     {r.candidate.fullName}
                   </div>
-                  <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5">
+                  <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5 truncate">
                     {r.candidate.email}
                   </div>
+                  {r.candidate.candidateProfile?.desiredPosition && (
+                    <div className="text-[12.5px] text-fg-muted mt-1 truncate">
+                      {r.candidate.candidateProfile.desiredPosition}
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Match score — compact (big number + thin bar) */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="font-mono text-[26px] font-semibold text-fg tabular-nums leading-none">
+                    {Math.round(Number(r.totalScore))}
+                  </span>
+                  <span className="text-[13px] text-fg-subtle">
+                    / 100 {t("candidate.recs.match")}
+                  </span>
+                </div>
+                <MatchScoreBar breakdown={r} className="max-w-[360px]" />
+              </div>
+
+              {/* Actions */}
               <div
-                className="shrink-0 flex flex-col items-stretch gap-2.5 min-w-[260px]"
+                className="shrink-0 flex flex-col gap-2 lg:w-[176px]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <ScoreBreakdown
-                  keywordScore={r.keywordScore}
-                  semanticScore={r.semanticScore}
-                  verifiedBonus={r.verifiedBonus}
-                  totalScore={r.totalScore}
-                  variant="full"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    className="flex-1"
-                    leftIcon={<User size={13} />}
-                    onClick={() => setInfoTarget({ candidate: r.candidate })}
-                  >
-                    {t("recruiter.jobDetail.viewProfile")}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    leftIcon={<ShieldCheck size={14} />}
-                    onClick={() =>
-                      setVerifyTarget({
-                        id: r.candidate.id,
-                        fullName: r.candidate.fullName,
-                      })
-                    }
-                  >
-                    {t("recruiter.jobDetail.verifyClick")}
-                  </Button>
-                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  block
+                  leftIcon={<User size={13} />}
+                  onClick={() => setInfoTarget({ candidate: r.candidate })}
+                >
+                  {t("recruiter.jobDetail.viewProfile")}
+                </Button>
+                <Button
+                  variant="verified"
+                  size="sm"
+                  block
+                  leftIcon={<ShieldCheck size={14} />}
+                  onClick={() =>
+                    setVerifyTarget({
+                      id: r.candidate.id,
+                      fullName: r.candidate.fullName,
+                    })
+                  }
+                >
+                  {t("recruiter.jobDetail.verifyClick")}
+                </Button>
               </div>
             </div>
           </article>
@@ -432,15 +425,15 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
   if (error) return <Alert variant="error">{error}</Alert>;
   if (!items)
     return (
-      <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-        {t("common.loading")}
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} height={140} className="rounded-card" />
+        ))}
       </div>
     );
   if (items.length === 0)
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-canvas p-10 text-center text-fg-subtle">
-        {t("recruiter.jobDetail.appsEmpty")}
-      </div>
+      <EmptyState icon={User} title={t("recruiter.jobDetail.appsEmpty")} />
     );
 
   return (
@@ -455,7 +448,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") setInfoTarget(toInfoData(app));
             }}
-            className="rounded-2xl border border-border bg-canvas p-5 sm:p-6 cursor-pointer hover:border-border-strong transition-colors"
+            className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)] cursor-pointer tl-card-interactive"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -496,12 +489,22 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {app.matchScore != null && (
-                  <ScoreBreakdown
-                    keywordScore={Number(app.keywordScore ?? 0)}
-                    semanticScore={Number(app.semanticScore ?? 0)}
-                    verifiedBonus={Number(app.verifiedBonus ?? 0)}
-                    totalScore={Number(app.matchScore)}
-                  />
+                  <div>
+                    <div className="flex items-baseline gap-1.5 mb-1.5">
+                      <span className="font-mono text-[18px] font-semibold text-fg tabular-nums leading-none">
+                        {Math.round(Number(app.matchScore))}
+                      </span>
+                      <span className="text-[11px] text-fg-faint">/ 100</span>
+                    </div>
+                    <MatchScoreBar
+                      breakdown={{
+                        keywordScore: Number(app.keywordScore ?? 0),
+                        semanticScore: Number(app.semanticScore ?? 0),
+                        verifiedBonus: Number(app.verifiedBonus ?? 0),
+                        totalScore: Number(app.matchScore),
+                      }}
+                    />
+                  </div>
                 )}
                 <ApplicationStatusSelect
                   applicationId={app.id}
@@ -511,7 +514,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
-                    size="md"
+                    size="sm"
                     className="flex-1"
                     leftIcon={<User size={13} />}
                     onClick={() => setInfoTarget(toInfoData(app))}
@@ -520,8 +523,8 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                   </Button>
                   {app.candidate && (
                     <Button
-                      variant="secondary"
-                      size="md"
+                      variant="verified"
+                      size="sm"
                       leftIcon={<ShieldCheck size={13} />}
                       onClick={() =>
                         setVerifyTarget({
