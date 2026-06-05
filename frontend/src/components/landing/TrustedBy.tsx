@@ -10,7 +10,7 @@ export function TrustedBy() {
     <section className="border-y border-border/70 bg-surface-2/50 backdrop-blur-sm">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-6 py-12 sm:py-14">
         <Reveal>
-          <p className="text-center text-[13px] uppercase tracking-[0.14em] font-semibold text-fg-subtle mb-9">
+          <p className="text-center text-[14px] uppercase tracking-[0.14em] font-semibold text-fg-subtle mb-9">
             {t("landing.trustedBy.title")}
           </p>
         </Reveal>

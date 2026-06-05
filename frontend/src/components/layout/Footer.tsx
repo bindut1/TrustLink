@@ -51,10 +51,10 @@ export function Footer() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-8 border-t border-border">
-          <p className="text-[13px] text-fg-subtle">
+          <p className="text-[14px] text-fg-subtle">
             {t("footer.copyright").replace("{year}", String(year))}
           </p>
-          <div className="flex items-center gap-5 text-[13px]">
+          <div className="flex items-center gap-5 text-[14px]">
             {SOCIAL_LINKS.map((link) => (
               <a
                 key={link.label}

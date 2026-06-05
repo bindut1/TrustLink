@@ -13,9 +13,9 @@ export function CtaBanner() {
       <Reveal>
         <div className="rounded-[28px] border border-border bg-canvas px-8 sm:px-14 py-16 sm:py-24">
           <div className="max-w-[760px] mx-auto text-center">
-            <h2 className="text-[42px] sm:text-[56px] lg:text-[64px] font-bold tracking-[-0.032em] leading-[1.04] text-fg mb-6">
+            <h2 className="text-[42px] sm:text-[56px] lg:text-[64px] font-black tracking-[-0.032em] leading-[1.04] text-fg mb-6">
               {t("landing.cta.titlePartA")}{" "}
-              <span className="text-accent">
+              <span className="text-[#25C9D0]">
                 {t("landing.cta.titleHighlight")}
               </span>
               {t("landing.cta.titlePartB")}

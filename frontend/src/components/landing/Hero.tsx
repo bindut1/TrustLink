@@ -15,9 +15,9 @@ export function Hero() {
       <div className="mx-auto max-w-[1200px] px-5 sm:px-6 pt-20 sm:pt-28 lg:pt-32 pb-20 sm:pb-28 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         <div className="lg:col-span-6">
           <Reveal>
-            <span className="inline-flex items-center gap-2 text-[13px] uppercase tracking-[0.14em] font-semibold text-accent mb-7">
+            <span className="inline-flex items-center gap-2 text-[14px] uppercase tracking-[0.14em] font-semibold text-[#25C9D0] mb-7">
               <span
-                className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-glow"
+                className="h-1.5 w-1.5 rounded-full bg-[#25C9D0] animate-pulse-glow"
                 aria-hidden
               />
               {t("landing.hero.eyebrow")}
@@ -25,13 +25,13 @@ export function Hero() {
           </Reveal>
 
           <Reveal delay={80}>
-            <h1 className="text-[52px] sm:text-[72px] lg:text-[88px] font-bold tracking-[-0.038em] leading-[1.0] text-fg mb-8">
+            <h1 className="text-[52px] sm:text-[72px] lg:text-[88px] font-extrabold tracking-[-0.038em] leading-[1.0] text-fg mb-8">
               {t("landing.hero.titlePartA")}{" "}
-              <span className="relative inline-block text-accent">
+              <span className="relative inline-block text-[#25C9D0]">
                 {t("landing.hero.titleHighlight")}
                 <span
                   aria-hidden
-                  className="absolute inset-x-0 -bottom-1 h-[12px] bg-gradient-to-r from-accent/0 via-accent/30 to-accent/0 blur-md"
+                  className="absolute inset-x-0 -bottom-1 h-[12px] bg-gradient-to-r from-[#25C9D0]/0 via-[#25C9D0]/30 to-[#25C9D0]/0 blur-md"
                 />
               </span>
               {t("landing.hero.titlePartB")}
@@ -64,10 +64,10 @@ export function Hero() {
           <div className="relative">
             <div
               aria-hidden
-              className="absolute -inset-6 sm:-inset-10 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_60%_40%,rgba(37,201,208,0.18),transparent_70%)]"
+              className="absolute -inset-6 sm:-inset-10 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_60%_40%,rgba(11,27,58,0.10),transparent_70%)]"
             />
 
-            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border bg-surface-2 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.20),0_0_0_1px_rgba(15,23,42,0.04)] group">
+            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border bg-surface-2 shadow-[0_30px_60px_-20px_rgba(11,27,58,0.20),0_0_0_1px_rgba(11,27,58,0.04)] group">
               <Image
                 src={HERO_IMAGE.src}
                 alt={t(HERO_IMAGE.altKey)}
@@ -78,7 +78,7 @@ export function Hero() {
               />
             </div>
 
-            <div className="hidden sm:flex absolute -bottom-5 -left-5 items-center gap-3 rounded-2xl bg-canvas border border-border px-5 py-4 shadow-[0_16px_32px_-12px_rgba(15,23,42,0.20),0_0_0_1px_rgba(37,201,208,0.06)] animate-float">
+            <div className="hidden sm:flex absolute -bottom-5 -left-5 items-center gap-3 rounded-2xl bg-canvas border border-border px-5 py-4 shadow-[0_16px_32px_-12px_rgba(11,27,58,0.20),0_0_0_1px_rgba(19,181,196,0.10)] animate-float">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
                 <ShieldCheckIcon />
               </span>

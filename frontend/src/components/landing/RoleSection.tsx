@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -16,6 +17,7 @@ type RoleSectionProps = {
 
 export function RoleSection({ content, reverse }: RoleSectionProps) {
   const { t } = useLanguage();
+  const [imgError, setImgError] = useState(false);
   return (
     <section className="mx-auto max-w-[1200px] px-5 sm:px-6 py-24 sm:py-32">
       <div
@@ -26,14 +28,14 @@ export function RoleSection({ content, reverse }: RoleSectionProps) {
       >
         <div className="lg:col-span-6">
           <Reveal from={reverse ? "right" : "left"}>
-            <span className="inline-flex items-center gap-2 text-[13px] uppercase tracking-[0.14em] font-semibold text-accent mb-6">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+            <span className="inline-flex items-center gap-2 text-[14px] uppercase tracking-[0.14em] font-semibold text-[#25C9D0] mb-6">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#25C9D0]" aria-hidden />
               {t(content.eyebrowKey)}
             </span>
           </Reveal>
 
           <Reveal from={reverse ? "right" : "left"} delay={80}>
-            <h2 className="text-[40px] sm:text-[52px] lg:text-[56px] font-bold tracking-[-0.032em] leading-[1.06] text-fg mb-7 max-w-[20ch]">
+            <h2 className="text-[40px] sm:text-[52px] lg:text-[56px] font-black tracking-[-0.032em] leading-[1.06] text-fg mb-7 max-w-[20ch]">
               {t(content.titleKey)}
             </h2>
           </Reveal>
@@ -48,7 +50,7 @@ export function RoleSection({ content, reverse }: RoleSectionProps) {
             {content.bulletKeys.map((bulletKey, i) => (
               <Reveal key={bulletKey} as="li" delay={200 + i * 80}>
                 <span className="flex items-start gap-3.5 text-[17.5px] text-fg leading-[1.55]">
-                  <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-accent shrink-0">
+                  <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#25C9D0]/8 text-[#25C9D0] shrink-0">
                     <Check size={14} strokeWidth={3} />
                   </span>
                   <span>{t(bulletKey)}</span>
@@ -60,7 +62,7 @@ export function RoleSection({ content, reverse }: RoleSectionProps) {
           <Reveal delay={460}>
             <Link
               href={content.cta.href}
-              className="group inline-flex items-center gap-1.5 text-[16.5px] font-semibold text-accent transition-all duration-300 hover:gap-3"
+              className="group inline-flex items-center gap-1.5 text-[16.5px] font-semibold text-[#25C9D0] transition-all duration-300 hover:gap-3"
             >
               {t(content.cta.labelKey)}
               <ArrowRight
@@ -75,17 +77,24 @@ export function RoleSection({ content, reverse }: RoleSectionProps) {
           <div className="relative group">
             <div
               aria-hidden
-              className="absolute -inset-4 sm:-inset-8 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(37,201,208,0.10),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+              className="absolute -inset-4 sm:-inset-8 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(11,27,58,0.10),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700"
             />
-            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border bg-surface-2 shadow-[0_24px_48px_-20px_rgba(15,23,42,0.18),0_0_0_1px_rgba(15,23,42,0.03)]">
-              <Image
-                src={content.image.src}
-                alt={t(content.image.altKey)}
-                fill
-                loading="lazy"
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.03]"
-              />
+            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border bg-surface-2 shadow-[0_24px_48px_-20px_rgba(11,27,58,0.18),0_0_0_1px_rgba(11,27,58,0.03)]">
+              {imgError ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(ellipse_80%_70%_at_50%_40%,rgba(11,27,58,0.06),transparent_70%)]">
+                  <BadgeCheck size={64} strokeWidth={1.4} className="text-fg-faint" />
+                </div>
+              ) : (
+                <Image
+                  src={content.image.src}
+                  alt={t(content.image.altKey)}
+                  fill
+                  loading="lazy"
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  onError={() => setImgError(true)}
+                  className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.03]"
+                />
+              )}
             </div>
           </div>
         </Reveal>

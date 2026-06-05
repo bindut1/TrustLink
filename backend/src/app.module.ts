@@ -23,6 +23,7 @@ import { MatchingModule } from './modules/matching/matching.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { EmailModule } from './modules/email/email.module';
+import { PublicStatsModule } from './modules/public-stats/public-stats.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { EmailModule } from './modules/email/email.module';
     AdminModule,
     AuditLogsModule,
     EmailModule,
+    PublicStatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -78,7 +78,7 @@ export const ROLE_SECTIONS: RoleSectionContent[] = [
     ],
     cta: { labelKey: "landing.role.issuers.cta", href: "/register" },
     image: {
-      src: UNSPLASH("photo-1523050854058-8df90110c9f1", 1200),
+      src: UNSPLASH("photo-1523240795612-9a054b0db644", 1200),
       altKey: "landing.role.issuers.imageAlt",
     },
   },
@@ -107,12 +107,14 @@ export const HOW_IT_WORKS: {
   },
 ];
 
+// Each stat reads a real aggregate from GET /public/stats (no fabricated data).
 export const STATS: {
-  valueKey: TranslationKey;
+  key: "credentialsOnChain" | "partners" | "verifiedSkills" | "applications";
   labelKey: TranslationKey;
+  suffix?: string;
 }[] = [
-  { valueKey: "landing.stats.value1", labelKey: "landing.stats.label1" },
-  { valueKey: "landing.stats.value2", labelKey: "landing.stats.label2" },
-  { valueKey: "landing.stats.value3", labelKey: "landing.stats.label3" },
-  { valueKey: "landing.stats.value4", labelKey: "landing.stats.label4" },
+  { key: "credentialsOnChain", labelKey: "landing.stats.label1" },
+  { key: "partners", labelKey: "landing.stats.label2" },
+  { key: "verifiedSkills", labelKey: "landing.stats.label3" },
+  { key: "applications", labelKey: "landing.stats.label4" },
 ];

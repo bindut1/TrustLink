@@ -1130,14 +1130,10 @@ export const TRANSLATIONS = {
       "Nhà tuyển dụng nhìn thấy bằng chứng on-chain ngay tại chỗ, trong khi AI gợi ý ứng viên cho đúng vị trí.",
 
     // ───────────── Landing — Stats ─────────────
-    "landing.stats.value1": "2,4 triệu",
     "landing.stats.label1": "Văn bằng đã ghi trên blockchain",
-    "landing.stats.value2": "184",
     "landing.stats.label2": "Tổ chức và công ty đối tác",
-    "landing.stats.value3": "97%",
-    "landing.stats.label3": "Độ chính xác từ kỹ năng đã xác thực",
-    "landing.stats.value4": "2,3 giây",
-    "landing.stats.label4": "Thời gian AI xếp hạng trung bình",
+    "landing.stats.label3": "Kỹ năng đã được xác thực",
+    "landing.stats.label4": "Lượt ứng tuyển trên nền tảng",
 
     // ───────────── Landing — CTA banner ─────────────
     "landing.cta.titlePartA": "Sẵn sàng nâng cấp tuyển dụng bằng",
@@ -2341,14 +2337,10 @@ export const TRANSLATIONS = {
       "Recruiters see the on-chain proof inline while AI matches the candidate to the right roles.",
 
     // Landing — Stats
-    "landing.stats.value1": "2.4M",
     "landing.stats.label1": "Credentials anchored on-chain",
-    "landing.stats.value2": "184",
     "landing.stats.label2": "Partner institutions and employers",
-    "landing.stats.value3": "97%",
-    "landing.stats.label3": "Match accuracy from verified skills",
-    "landing.stats.value4": "2.3s",
-    "landing.stats.label4": "Average AI re-rank time",
+    "landing.stats.label3": "Verified skills",
+    "landing.stats.label4": "Applications on the platform",
 
     // Landing — CTA banner
     "landing.cta.titlePartA": "Ready to upgrade hiring with",
