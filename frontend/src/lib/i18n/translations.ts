@@ -440,6 +440,16 @@ export const TRANSLATIONS = {
     "candidate.credentials.verifyFailed": "Xác minh thất bại",
     "candidate.credentials.downloadFailed": "Tải xuống thất bại. Vui lòng thử lại.",
     "candidate.credentials.downloadForbidden": "Tính năng tải văn bằng đã bị hạn chế trên tài khoản này. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.",
+    "candidate.credentials.all": "Tất cả",
+    "candidate.credentials.issuer": "Tổ chức cấp",
+    "candidate.credentials.skills": "Kỹ năng",
+    "candidate.credentials.details": "Thông tin văn bằng",
+    "candidate.credentials.credentialId": "Mã văn bằng",
+    "candidate.credentials.transaction": "Giao dịch",
+    "candidate.credentials.verification": "Xác minh",
+    "candidate.credentials.verifyHint": "Kiểm tra tính xác thực on-chain của văn bằng.",
+    "candidate.credentials.notVerifiedYet": "Chưa kiểm tra",
+    "candidate.credentials.viewDetail": "Xem chi tiết",
 
     // ───────────── Candidate — applications ─────────────
     "candidate.applications.title": "Đơn ứng tuyển của tôi",
@@ -456,11 +466,22 @@ export const TRANSLATIONS = {
     "candidate.applications.recruiterNote": "Lời nhắn từ nhà tuyển dụng:",
 
     // ───────────── Candidate — dashboard ─────────────
-    "candidate.dashboard.title": "Workspace ứng viên",
+    "candidate.dashboard.title": "Tổng quan",
     "candidate.dashboard.description":
-      "Sắp ra mắt — văn bằng đã xác thực, đơn ứng tuyển và gợi ý việc AI.",
+      "Văn bằng đã xác thực, đơn ứng tuyển và gợi ý việc làm bằng AI.",
     "candidate.dashboard.roadmap":
       "Module ứng viên đang trong kế hoạch phát triển.",
+    "candidate.dashboard.pipeline": "Tiến trình ứng tuyển",
+    "candidate.dashboard.topMatches": "Việc làm phù hợp nhất",
+    "candidate.dashboard.credentialsTitle": "Văn bằng",
+    "candidate.dashboard.profileTitle": "Hồ sơ",
+    "candidate.dashboard.viewAll": "Xem tất cả",
+    "candidate.dashboard.onChainCount": "{n} đã lên blockchain",
+    "candidate.dashboard.applicationsTotal": "{n} đơn ứng tuyển",
+    "candidate.dashboard.noApplications": "Chưa có đơn ứng tuyển nào.",
+    "candidate.dashboard.noMatches": "Hoàn thiện hồ sơ để nhận gợi ý phù hợp.",
+    "candidate.dashboard.noCredentials": "Chưa có văn bằng nào.",
+    "candidate.dashboard.completeProfile": "Hoàn thiện hồ sơ",
 
     // ───────────── Issuer — dashboard ─────────────
     "issuer.dashboard.title": "Dashboard tổ chức cấp",
@@ -713,6 +734,12 @@ export const TRANSLATIONS = {
       "Khi bạn hoàn thiện hồ sơ và có văn bằng, hệ thống sẽ gợi ý việc làm phù hợp với kỹ năng thực tế đã được xác thực.",
     "candidate.recs.applied": "Đã ứng tuyển",
     "candidate.recs.failedJob": "Không tải được tin tuyển dụng",
+    "candidate.recs.whyMatch": "Vì sao phù hợp · AI xếp hạng",
+    "candidate.recs.requiredSkills": "Kỹ năng yêu cầu",
+    "candidate.recs.skillsVerified":
+      "{n}/{total} kỹ năng yêu cầu đã được xác minh on-chain trên hồ sơ của bạn",
+    "candidate.recs.applyVerified": "Ứng tuyển với hồ sơ đã xác minh",
+    "candidate.recs.match": "phù hợp",
 
     // ───────────── Candidate — jobs (Search) ─────────────
     "candidate.jobs.title": "Tìm việc làm",
@@ -748,6 +775,11 @@ export const TRANSLATIONS = {
     "candidate.profile.sectionAbout": "Giới thiệu",
     "candidate.profile.sectionLinks": "Liên kết",
     "candidate.profile.sectionCareer": "Mong muốn công việc",
+    "candidate.profile.sectionSkills": "Kỹ năng",
+    "candidate.profile.skillsHint":
+      "{n} kỹ năng đã được xác minh on-chain từ văn bằng của bạn.",
+    "candidate.profile.completenessHint":
+      "Hồ sơ đầy đủ giúp bạn được gợi ý chính xác hơn.",
     "candidate.profile.fldBio": "Giới thiệu ngắn",
     "candidate.profile.fldBioHint":
       "Vài câu — dùng cho cả AI gợi ý việc làm theo ngữ nghĩa.",
@@ -1601,6 +1633,16 @@ export const TRANSLATIONS = {
     "candidate.credentials.verifyFailed": "Verification failed",
     "candidate.credentials.downloadFailed": "Download failed. Please try again.",
     "candidate.credentials.downloadForbidden": "Downloading credentials has been restricted on this account. Please contact your administrator for more details.",
+    "candidate.credentials.all": "All",
+    "candidate.credentials.issuer": "Issued by",
+    "candidate.credentials.skills": "Skills",
+    "candidate.credentials.details": "Credential details",
+    "candidate.credentials.credentialId": "Credential ID",
+    "candidate.credentials.transaction": "Transaction",
+    "candidate.credentials.verification": "Verification",
+    "candidate.credentials.verifyHint": "Run an on-chain authenticity check for this credential.",
+    "candidate.credentials.notVerifiedYet": "Not checked yet",
+    "candidate.credentials.viewDetail": "View detail",
 
     // Candidate — applications
     "candidate.applications.title": "My applications",
@@ -1617,10 +1659,21 @@ export const TRANSLATIONS = {
     "candidate.applications.recruiterNote": "Recruiter note:",
 
     // Candidate — dashboard
-    "candidate.dashboard.title": "Candidate workspace",
+    "candidate.dashboard.title": "Overview",
     "candidate.dashboard.description":
-      "Coming soon — your verified credentials, applications, and AI job matches.",
+      "Your verified credentials, applications, and AI job matches.",
     "candidate.dashboard.roadmap": "Candidate module is on the roadmap.",
+    "candidate.dashboard.pipeline": "Application pipeline",
+    "candidate.dashboard.topMatches": "Top matches",
+    "candidate.dashboard.credentialsTitle": "Credentials",
+    "candidate.dashboard.profileTitle": "Profile",
+    "candidate.dashboard.viewAll": "View all",
+    "candidate.dashboard.onChainCount": "{n} on-chain",
+    "candidate.dashboard.applicationsTotal": "{n} applications",
+    "candidate.dashboard.noApplications": "No applications yet.",
+    "candidate.dashboard.noMatches": "Complete your profile to get matches.",
+    "candidate.dashboard.noCredentials": "No credentials yet.",
+    "candidate.dashboard.completeProfile": "Complete profile",
 
     // Issuer — dashboard
     "issuer.dashboard.title": "Issuer dashboard",
@@ -1871,6 +1924,12 @@ export const TRANSLATIONS = {
       "Once your profile and credentials are populated, we'll suggest jobs that fit your real, verified skills.",
     "candidate.recs.applied": "Applied",
     "candidate.recs.failedJob": "Failed to load job",
+    "candidate.recs.whyMatch": "Why you match · AI ranked",
+    "candidate.recs.requiredSkills": "Required skills",
+    "candidate.recs.skillsVerified":
+      "{n} of {total} required skills are blockchain-verified on your profile",
+    "candidate.recs.applyVerified": "Apply with verified profile",
+    "candidate.recs.match": "match",
 
     // Candidate — jobs (Search)
     "candidate.jobs.title": "Find jobs",
@@ -1905,6 +1964,11 @@ export const TRANSLATIONS = {
     "candidate.profile.sectionAbout": "About",
     "candidate.profile.sectionLinks": "Links",
     "candidate.profile.sectionCareer": "Career preferences",
+    "candidate.profile.sectionSkills": "Skills",
+    "candidate.profile.skillsHint":
+      "{n} skill(s) blockchain-verified from your credentials.",
+    "candidate.profile.completenessHint":
+      "A complete profile leads to more accurate recommendations.",
     "candidate.profile.fldBio": "Short bio",
     "candidate.profile.fldBioHint":
       "A few sentences — used for AI semantic matching too.",

@@ -2,8 +2,68 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CandidateProfile } from '../../database/entities/candidate-profile.entity';
+import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
+import { Credential } from '../../database/entities/credential.entity';
+import { Application } from '../../database/entities/application.entity';
+import { CredentialStatus } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
 import { UpdateCandidateProfileDto } from './dto/update-candidate-profile.dto';
+
+/** A candidate skill exposed to the owner (read-only). */
+export interface CandidateSkillView {
+  id: string;
+  skillName: string;
+  proficiencyLevel: string | null;
+  isVerified: boolean;
+  sourceCredentialId: string | null;
+}
+
+/**
+ * Real profile-completeness (0–100) computed from the fields that are actually
+ * filled — 11 equally-weighted signals. This replaces the previously static
+ * `profile_completeness` column so the number reflects the live profile.
+ */
+export function computeProfileCompleteness(
+  p: CandidateProfile,
+  avatarUrl: string | null,
+  skillCount: number,
+): number {
+  const locations = Array.isArray(p.preferredLocations)
+    ? (p.preferredLocations as unknown[])
+    : [];
+  const checks: boolean[] = [
+    !!avatarUrl,
+    !!p.bio,
+    !!p.dateOfBirth,
+    !!p.gender,
+    p.yearsOfExperience != null && p.yearsOfExperience > 0,
+    !!p.desiredPosition,
+    p.desiredSalaryMin != null || p.desiredSalaryMax != null,
+    locations.length > 0,
+    !!p.resumeUrl,
+    !!(p.linkedinUrl || p.githubUrl || p.portfolioUrl),
+    skillCount > 0,
+  ];
+  const filled = checks.filter(Boolean).length;
+  return Math.round((filled / checks.length) * 100);
+}
+
+/** Aggregate counts powering the candidate dashboard. */
+export interface CandidateDashboard {
+  credentials: {
+    total: number;
+    onChain: number;
+    byCategory: { category: string; count: number }[];
+  };
+  applications: {
+    total: number;
+    byStatus: { status: string; count: number }[];
+  };
+  profile: {
+    completeness: number;
+    isOpenToWork: boolean;
+  };
+}
 
 @Injectable()
 export class CandidateProfilesService {
@@ -12,6 +72,12 @@ export class CandidateProfilesService {
   constructor(
     @InjectRepository(CandidateProfile)
     private readonly repo: Repository<CandidateProfile>,
+    @InjectRepository(CandidateSkill)
+    private readonly skillRepo: Repository<CandidateSkill>,
+    @InjectRepository(Credential)
+    private readonly credentialRepo: Repository<Credential>,
+    @InjectRepository(Application)
+    private readonly applicationRepo: Repository<Application>,
     private readonly embeddings: EmbeddingService,
   ) {}
 
@@ -25,7 +91,7 @@ export class CandidateProfilesService {
       .where('p.id = :id', { id })
       .getOne();
     if (!profile) throw new NotFoundException('Candidate profile not found');
-    return profile;
+    return this.withCompleteness(profile);
   }
 
   async findByUserId(userId: string): Promise<CandidateProfile> {
@@ -36,6 +102,25 @@ export class CandidateProfilesService {
       .where('p.userId = :userId', { userId })
       .getOne();
     if (!profile) throw new NotFoundException('Candidate profile not found');
+    return this.withCompleteness(profile);
+  }
+
+  /**
+   * Compute live completeness from the real fields and set it on the returned
+   * profile. Not persisted here — reads stay side-effect free; the column is
+   * refreshed on save (`updateByUserId`).
+   */
+  private async withCompleteness(
+    profile: CandidateProfile,
+  ): Promise<CandidateProfile> {
+    const skillCount = await this.skillRepo.count({
+      where: { candidateId: profile.userId },
+    });
+    profile.profileCompleteness = computeProfileCompleteness(
+      profile,
+      profile.user?.avatarUrl ?? null,
+      skillCount,
+    );
     return profile;
   }
 
@@ -45,6 +130,15 @@ export class CandidateProfilesService {
   ): Promise<CandidateProfile> {
     const profile = await this.findByUserId(userId);
     Object.assign(profile, dto);
+    // Recompute from the merged result and persist the fresh value.
+    const skillCount = await this.skillRepo.count({
+      where: { candidateId: userId },
+    });
+    profile.profileCompleteness = computeProfileCompleteness(
+      profile,
+      profile.user?.avatarUrl ?? null,
+      skillCount,
+    );
     const saved = await this.repo.save(profile);
 
     // Bio + desired_position feed into the embedding source text, so refresh
@@ -59,5 +153,88 @@ export class CandidateProfilesService {
     }
 
     return saved;
+  }
+
+  /**
+   * Read-only list of the candidate's skills, verified-first then alphabetical.
+   * `isVerified` means the skill is backed by an on-chain credential
+   * (`source_credential_id`).
+   */
+  async findSkillsByUserId(userId: string): Promise<CandidateSkillView[]> {
+    const skills = await this.skillRepo.find({
+      where: { candidateId: userId },
+      order: { isVerified: 'DESC', skillName: 'ASC' },
+    });
+    return skills.map((s) => ({
+      id: s.id,
+      skillName: s.skillName,
+      proficiencyLevel: s.proficiencyLevel,
+      isVerified: s.isVerified,
+      sourceCredentialId: s.sourceCredentialId,
+    }));
+  }
+
+  /**
+   * Dashboard aggregates for the current candidate. All counts are real DB
+   * aggregations scoped to the candidate — no synthetic data.
+   */
+  async getDashboard(userId: string): Promise<CandidateDashboard> {
+    const [
+      credTotal,
+      onChain,
+      byCategoryRows,
+      appTotal,
+      byStatusRows,
+      profile,
+    ] = await Promise.all([
+      this.credentialRepo.count({ where: { candidateId: userId } }),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .where('c.candidateId = :userId', { userId })
+        .andWhere('c.blockchainTxHash IS NOT NULL')
+        .andWhere('c.status != :revoked', {
+          revoked: CredentialStatus.REVOKED,
+        })
+        .getCount(),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .leftJoin('c.credentialType', 'ct')
+        .select('ct.category', 'category')
+        .addSelect('COUNT(*)', 'count')
+        .where('c.candidateId = :userId', { userId })
+        .groupBy('ct.category')
+        .getRawMany<{ category: string | null; count: string }>(),
+      this.applicationRepo.count({ where: { candidateId: userId } }),
+      this.applicationRepo
+        .createQueryBuilder('a')
+        .select('a.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .where('a.candidateId = :userId', { userId })
+        .groupBy('a.status')
+        .getRawMany<{ status: string; count: string }>(),
+      // findByUserId computes live completeness from the real fields.
+      this.findByUserId(userId).catch(() => null),
+    ]);
+
+    return {
+      credentials: {
+        total: credTotal,
+        onChain,
+        byCategory: byCategoryRows
+          .filter((r) => r.category)
+          .map((r) => ({ category: r.category as string, count: Number(r.count) })),
+      },
+      applications: {
+        total: appTotal,
+        byStatus: byStatusRows.map((r) => ({
+          status: r.status,
+          count: Number(r.count),
+        })),
+      },
+      profile: {
+        completeness: profile?.profileCompleteness ?? 0,
+        isOpenToWork: profile?.isOpenToWork ?? false,
+      },
+    };
   }
 }

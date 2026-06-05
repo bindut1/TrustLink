@@ -149,6 +149,10 @@ body {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 
 /* ───────── Interaction motion (DESIGN_SPEC: 150–220ms, transform/opacity) ─────────
  * Entrance animations use `both` so they always settle at the visible `to`
@@ -172,6 +176,28 @@ body {
 .animate-pop-in {
   animation: tl-pop 150ms var(--ease) both;
   transform-origin: top;
+}
+
+/* Interactive card: lift + elevate on hover. Transitions transform, shadow and
+ * border together on the shared easing so the motion reads as one smooth gesture
+ * (the previous per-property 150ms transform-only hover felt abrupt). */
+.tl-card-interactive {
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+  will-change: transform;
+}
+.tl-card-interactive:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  box-shadow:
+    0 4px 12px rgba(11, 27, 58, 0.08),
+    0 18px 36px -14px rgba(11, 27, 58, 0.16);
+}
+.tl-card-interactive:active {
+  transform: translateY(-1px);
+  transition-duration: 80ms;
 }
 
 /* Respect reduced-motion: drop entrance/scroll motion, keep content visible. */

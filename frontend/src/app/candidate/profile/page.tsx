@@ -1,19 +1,27 @@
 "use client";
 
+import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
+import { ProgressRing } from "@/components/ui/ProgressRing";
+import { SkillTag } from "@/components/ui/SkillTag";
 import { ApiError } from "@/lib/api";
-import { fetchMyProfile, updateMyProfile } from "@/lib/candidate-api";
+import {
+  fetchMyProfile,
+  fetchMySkills,
+  updateMyProfile,
+} from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   CandidateProfile,
+  CandidateSkill,
   UpdateCandidateProfilePayload,
 } from "@/types/candidate";
 
@@ -48,8 +56,10 @@ const URL_FIELDS: Array<{
 
 export default function CandidateProfilePage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("candidate.profile.title"), t("candidate.profile.description"));
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [draft, setDraft] = useState<UpdateCandidateProfilePayload>({});
+  const [skills, setSkills] = useState<CandidateSkill[]>([]);
   const [locationInput, setLocationInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,9 +81,13 @@ export default function CandidateProfilePage() {
         );
       })
       .finally(() => !cancelled && setLoading(false));
+    fetchMySkills()
+      .then((s) => !cancelled && setSkills(s))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function update<K extends keyof UpdateCandidateProfilePayload>(
@@ -119,51 +133,75 @@ export default function CandidateProfilePage() {
 
   if (loading) {
     return (
-      <>
-        <PageHeader title={t("candidate.profile.title")} />
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("candidate.profile.loading")}
-        </div>
-      </>
+      <div className="rounded-card border border-border bg-canvas p-10 text-center text-fg-subtle">
+        {t("candidate.profile.loading")}
+      </div>
     );
   }
 
   if (!profile) {
     return (
-      <>
-        <PageHeader title={t("candidate.profile.title")} />
-        <Alert variant="error">{error ?? t("candidate.profile.notFound")}</Alert>
-      </>
+      <Alert variant="error">{error ?? t("candidate.profile.notFound")}</Alert>
     );
   }
 
+  const verifiedCount = skills.filter((s) => s.isVerified).length;
+
   return (
-    <>
-      <PageHeader
-        title={t("candidate.profile.title")}
-        description={t("candidate.profile.description")}
-        actions={
-          profile.isOpenToWork ? (
-            <Badge variant="success">{t("candidate.profile.openToWork")}</Badge>
-          ) : (
-            <Badge variant="neutral">
-              {t("candidate.profile.closedToOffers")}
-            </Badge>
-          )
-        }
-      />
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+      className="flex flex-col gap-5"
+    >
+      {error && <Alert variant="error">{error}</Alert>}
+      {saved && <Alert variant="success">{t("candidate.profile.saved")}</Alert>}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-        className="flex flex-col gap-5"
-      >
-        {error && <Alert variant="error">{error}</Alert>}
-        {saved && <Alert variant="success">{t("candidate.profile.saved")}</Alert>}
+      {/* Summary: avatar + completeness + open-to-work */}
+      <section className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)] flex flex-col sm:flex-row sm:items-center gap-6">
+        <div className="flex-1 min-w-0">
+          <AvatarUploader />
+        </div>
+        <div className="flex items-center gap-5 sm:border-l sm:border-border sm:pl-6">
+          <ProgressRing value={profile.profileCompleteness ?? 0}>
+            {(profile.profileCompleteness ?? 0) >= 100 ? (
+              <CheckCircle2 size={22} className="text-teal" />
+            ) : undefined}
+          </ProgressRing>
+          <div>
+            {profile.isOpenToWork ? (
+              <Badge variant="success">{t("candidate.profile.openToWork")}</Badge>
+            ) : (
+              <Badge variant="neutral">
+                {t("candidate.profile.closedToOffers")}
+              </Badge>
+            )}
+            <p className="mt-2 text-[12.5px] text-fg-subtle max-w-[28ch]">
+              {t("candidate.profile.completenessHint")}
+            </p>
+          </div>
+        </div>
+      </section>
 
-        <AvatarUploader />
+      {/* Skills (read-only, from candidate_skills) */}
+      {skills.length > 0 && (
+        <Card title={t("candidate.profile.sectionSkills")}>
+          <p className="text-[12.5px] text-fg-subtle mb-3">
+            {t("candidate.profile.skillsHint").replace(
+              "{n}",
+              String(verifiedCount),
+            )}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {skills.map((s) => (
+              <SkillTag key={s.id} verified={s.isVerified}>
+                {s.skillName}
+              </SkillTag>
+            ))}
+          </div>
+        </Card>
+      )}
 
         {/* About */}
         <Card title={t("candidate.profile.sectionAbout")}>
@@ -176,7 +214,7 @@ export default function CandidateProfilePage() {
               value={(draft.bio as string) ?? ""}
               onChange={(e) => update("bio", e.target.value)}
               placeholder={t("candidate.profile.fldBioPlaceholder")}
-              className="w-full rounded-lg border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none transition-colors resize-y"
+              className="w-full rounded-ctl border border-border bg-surface-1 p-3 text-[15px] text-fg placeholder:text-fg-faint focus:border-navy focus:ring-4 focus:ring-navy/12 outline-none transition-colors resize-y"
             />
           </FormField>
         </Card>
@@ -314,7 +352,7 @@ export default function CandidateProfilePage() {
                 type="checkbox"
                 checked={Boolean(draft.isOpenToWork)}
                 onChange={(e) => update("isOpenToWork", e.target.checked)}
-                className="h-4 w-4 rounded border-border-strong text-accent focus:ring-accent/30"
+                className="h-4 w-4 rounded border-border-strong text-navy focus:ring-navy/30"
               />
               <span className="text-[14px] text-fg font-medium">
                 {t("candidate.profile.openToWorkLabel")}
@@ -338,8 +376,7 @@ export default function CandidateProfilePage() {
             {t("candidate.profile.save")}
           </Button>
         </div>
-      </form>
-    </>
+    </form>
   );
 }
 
@@ -351,7 +388,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <section className="rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]">
       <div className="text-[11.5px] uppercase tracking-[0.10em] font-semibold text-fg-subtle mb-5">
         {title}
       </div>

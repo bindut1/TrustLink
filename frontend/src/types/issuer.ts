@@ -56,8 +56,14 @@ export type Credential = {
   id: string;
   credentialNumber: string;
   credentialTypeId: string;
-  credentialType?: { id: string; name: string; nameEn?: string | null } | null;
+  credentialType?: {
+    id: string;
+    name: string;
+    nameEn?: string | null;
+    category?: string | null;
+  } | null;
   institutionId: string;
+  institution?: { id: string; name: string; nameEn?: string | null } | null;
   candidateId: string;
   candidate?: { id: string; fullName: string; email: string; avatarUrl?: string | null } | null;
   title: string;

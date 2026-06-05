@@ -3,6 +3,7 @@
 import { ArrowRight, Briefcase, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { SkillTag } from "@/components/ui/SkillTag";
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -15,9 +16,11 @@ type JobCardProps = {
   onViewDetail?: () => void;
   /** Optional slot for a score panel etc. */
   meta?: ReactNode;
+  /** Normalized (lowercase) names of the candidate's on-chain-verified skills. */
+  verifiedSkills?: Set<string>;
 };
 
-export function JobCard({ job, onApply, onViewDetail, meta }: JobCardProps) {
+export function JobCard({ job, onApply, onViewDetail, meta, verifiedSkills }: JobCardProps) {
   const { t } = useLanguage();
   const jobTypeKey = job.jobType ? jobTypeKeyFor(job.jobType) : null;
   const expKey = job.experienceLevel ? expKeyFor(job.experienceLevel) : null;
@@ -25,8 +28,8 @@ export function JobCard({ job, onApply, onViewDetail, meta }: JobCardProps) {
   return (
     <article
       className={cn(
-        "rounded-2xl border border-border bg-canvas p-5 sm:p-6 transition-colors hover:border-border-strong",
-        onViewDetail && "cursor-pointer",
+        "rounded-card border border-border bg-canvas p-5 sm:p-6 shadow-[var(--shadow-card)]",
+        onViewDetail && "cursor-pointer tl-card-interactive",
       )}
       onClick={onViewDetail}
       role={onViewDetail ? "button" : undefined}
@@ -42,7 +45,7 @@ export function JobCard({ job, onApply, onViewDetail, meta }: JobCardProps) {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            {job.isRemote && <Badge variant="info">{t("common.remote")}</Badge>}
+            {job.isRemote && <Badge variant="neutral">{t("common.remote")}</Badge>}
             {jobTypeKey && <Badge variant="neutral">{t(jobTypeKey)}</Badge>}
             {expKey && <Badge variant="neutral">{t(expKey)}</Badge>}
           </div>
@@ -69,12 +72,13 @@ export function JobCard({ job, onApply, onViewDetail, meta }: JobCardProps) {
           {job.requiredSkills.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {job.requiredSkills.slice(0, 6).map((s) => (
-                <span
+                <SkillTag
                   key={s}
-                  className="inline-flex items-center rounded-md border border-border bg-surface-2/60 px-2 py-0.5 text-[12px] text-fg-muted"
+                  size="sm"
+                  verified={verifiedSkills?.has(s.trim().toLowerCase())}
                 >
                   {s}
-                </span>
+                </SkillTag>
               ))}
               {job.requiredSkills.length > 6 && (
                 <span className="text-[12px] text-fg-subtle px-2 py-0.5">

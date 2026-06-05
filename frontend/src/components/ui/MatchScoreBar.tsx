@@ -1,18 +1,18 @@
+import { MATCH_WEIGHTS } from "@/types/candidate";
 import { cn } from "@/lib/cn";
 
 /**
  * AI match-score visualization, backed by the real `ScoreBreakdown`
  * (keyword / semantic / verified) returned by the matching service.
  *
- * The track is split into a NAVY segment (keyword + semantic contribution) and
- * a TEAL tail (the verified/on-chain bonus) — teal carries the verified
- * semantic, never decoration. Both widths come straight from the data:
- *   verifiedBonus is already expressed in score points, so
- *   teal width = verifiedBonus, navy width = totalScore − verifiedBonus.
+ * The backend sub-scores are raw 0–100; each contributes to the total weighted
+ * by `MATCH_WEIGHTS` (40 / 50 / 10). The track is split into a NAVY segment
+ * (keyword + semantic contribution) and a TEAL tail (the verified contribution
+ * = verifiedScore × 0.1) — teal carries the verified/on-chain semantic, never
+ * decoration. Widths are derived straight from the data, not fabricated.
  *
- * `compact` renders just the bar (for rows/cards); `detailed` adds the score
- * header and the per-signal breakdown (for the match modal). Per-signal weight
- * labels are shown only when `weights` is supplied — never fabricated.
+ * `compact` renders just the bar (rows/cards); `detailed` adds the score header
+ * and the per-signal breakdown with weight labels (the match modal).
  */
 type ScoreLike = {
   keywordScore: number | string;
@@ -26,7 +26,7 @@ type Weights = { keyword: number; semantic: number; verified: number };
 type MatchScoreBarProps = {
   breakdown: ScoreLike;
   variant?: "compact" | "detailed";
-  /** Optional real weights (0–1) used only to label the breakdown columns. */
+  /** Weights (0–1) for the breakdown labels; defaults to the real MATCH_WEIGHTS. */
   weights?: Weights;
   /** Localized labels so the primitive stays i18n-agnostic. */
   labels?: {
@@ -49,14 +49,14 @@ const clampPct = (n: number) => Math.max(0, Math.min(100, n));
 export function MatchScoreBar({
   breakdown,
   variant = "compact",
-  weights,
+  weights = MATCH_WEIGHTS,
   labels,
   className,
 }: MatchScoreBarProps) {
   const total = clampPct(num(breakdown.totalScore));
-  const verified = clampPct(num(breakdown.verifiedBonus));
-  // Teal tail never exceeds the total fill.
-  const tealW = Math.min(verified, total);
+  // Verified contribution in score points = raw verified score × its weight.
+  const verifiedContrib = clampPct(num(breakdown.verifiedBonus) * weights.verified);
+  const tealW = Math.min(verifiedContrib, total);
   const navyW = Math.max(0, total - tealW);
 
   const Track = (
@@ -131,12 +131,9 @@ export function MatchScoreBar({
                   /100
                 </span>
               </div>
-              {weights && (
-                <div className="mt-1 text-[11.5px] text-fg-faint">
-                  {labels?.weight ?? "weight"}{" "}
-                  {Math.round(weights[c.key] * 100)}%
-                </div>
-              )}
+              <div className="mt-1 text-[11.5px] text-fg-faint">
+                {labels?.weight ?? "weight"} {Math.round(weights[c.key] * 100)}%
+              </div>
             </div>
           );
         })}

@@ -7,7 +7,9 @@ import { API_BASE_URL, ApiError, apiRequest } from "./api";
 import { getAccessToken } from "./auth-storage";
 import type {
   ApplicationItem,
+  CandidateDashboard,
   CandidateProfile,
+  CandidateSkill,
   JobItem,
   PaginatedJobs,
   RankedJob,
@@ -21,6 +23,16 @@ const authOpts = () => ({ token: getAccessToken() ?? undefined });
 
 export function fetchMyProfile(): Promise<CandidateProfile> {
   return apiRequest("/candidate-profiles/me", authOpts());
+}
+
+/** Read-only skills for the current candidate (verified-first). */
+export function fetchMySkills(): Promise<CandidateSkill[]> {
+  return apiRequest("/candidate-profiles/me/skills", authOpts());
+}
+
+/** Aggregate counts for the candidate dashboard. */
+export function fetchCandidateDashboard(): Promise<CandidateDashboard> {
+  return apiRequest("/candidate-profiles/me/dashboard", authOpts());
 }
 
 export function updateMyProfile(

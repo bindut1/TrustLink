@@ -24,7 +24,7 @@ export function Sidebar({ role }: SidebarProps) {
   const { t } = useLanguage();
 
   return (
-    <aside className="hidden md:flex w-[248px] shrink-0 flex-col bg-navy text-on-navy">
+    <aside className="hidden md:flex w-[248px] shrink-0 flex-col bg-navy text-on-navy sticky top-0 h-screen self-start">
       <div className="flex items-center gap-2.5 px-3 h-16 border-b border-white/10 overflow-hidden">
         <Logo size={64} />
         <div className="leading-tight">

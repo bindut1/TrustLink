@@ -2,83 +2,76 @@
 
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { ApplyModal } from "@/components/candidate/ApplyModal";
-import { JobCard } from "@/components/candidate/JobCard";
-import { JobDetailModal } from "@/components/candidate/JobDetailModal";
-import { ScoreBreakdown } from "@/components/candidate/ScoreBreakdown";
+import { JobMatchModal } from "@/components/candidate/JobMatchModal";
 import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   fetchJob,
   fetchMyApplications,
+  fetchMySkills,
   fetchRecommendedJobs,
 } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { JobItem, RankedJob } from "@/types/candidate";
+import type { CandidateSkill, JobItem, RankedJob } from "@/types/candidate";
 
 export default function RecommendationsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("candidate.recs.title"), t("candidate.recs.description"));
+
   const [items, setItems] = useState<RankedJob[] | null>(null);
-  const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
-  const [detailTarget, setDetailTarget] = useState<JobItem | null>(null);
-  const [loadingApply, setLoadingApply] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [skills, setSkills] = useState<CandidateSkill[]>([]);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
+  // Match modal: the ranked row + its fully-loaded job.
+  const [matchJob, setMatchJob] = useState<JobItem | null>(null);
+  const [matchRanked, setMatchRanked] = useState<RankedJob | null>(null);
+  const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
-    fetchRecommendedJobs(20)
-      .then((r) => {
-        if (!cancelled) setItems(r);
-      })
+    fetchRecommendedJobs(10)
+      .then((r) => !cancelled && setItems(r))
       .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(
-          e instanceof Error ? e.message : t("issuer.credentials.failedLoad"),
-        );
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
       });
+    fetchMySkills().then((s) => !cancelled && setSkills(s)).catch(() => {});
     fetchMyApplications()
-      .then((apps) => {
-        if (!cancelled) setAppliedJobIds(new Set(apps.map((a) => a.jobId)));
-      })
+      .then((apps) => !cancelled && setAppliedJobIds(new Set(apps.map((a) => a.jobId))))
       .catch(() => {});
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function openDetail(jobId: string) {
-    setLoadingDetail(true);
+  async function openMatch(ranked: RankedJob) {
+    setOpeningId(ranked.jobId);
     try {
-      const job = await fetchJob(jobId);
-      setDetailTarget(job);
+      const job = await fetchJob(ranked.jobId);
+      setMatchJob(job);
+      setMatchRanked(ranked);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
     } finally {
-      setLoadingDetail(false);
+      setOpeningId(null);
     }
   }
 
-  async function openApply(jobId: string) {
-    setLoadingApply(true);
-    try {
-      const job = await fetchJob(jobId);
-      setApplyTarget(job);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("candidate.recs.failedJob"));
-    } finally {
-      setLoadingApply(false);
-    }
+  function closeMatch() {
+    setMatchJob(null);
+    setMatchRanked(null);
   }
 
   return (
     <>
-      <PageHeader
-        title={t("candidate.recs.title")}
-        description={t("candidate.recs.description")}
-      />
-
       {error && (
         <Alert variant="error" className="mb-4">
           {error}
@@ -86,19 +79,17 @@ export default function RecommendationsPage() {
       )}
 
       {!items ? (
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("candidate.recs.loading")}
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={104} className="rounded-card" />
+          ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
-          <Sparkles size={32} className="mx-auto text-fg-subtle mb-4" />
-          <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            {t("candidate.recs.emptyTitle")}
-          </h3>
-          <p className="text-[13.5px] text-fg-muted max-w-[44ch] mx-auto">
-            {t("candidate.recs.emptyDesc")}
-          </p>
-        </div>
+        <EmptyState
+          icon={Sparkles}
+          title={t("candidate.recs.emptyTitle")}
+          description={t("candidate.recs.emptyDesc")}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((r, i) => (
@@ -106,26 +97,27 @@ export default function RecommendationsPage() {
               key={r.jobId}
               rank={i + 1}
               ranked={r}
-              alreadyApplied={appliedJobIds.has(r.jobId)}
-              onViewDetail={loadingDetail ? () => undefined : () => openDetail(r.jobId)}
-              onApply={loadingApply ? () => undefined : () => openApply(r.jobId)}
+              applied={appliedJobIds.has(r.jobId)}
+              opening={openingId === r.jobId}
+              onOpen={() => openMatch(r)}
             />
           ))}
         </div>
       )}
 
-      <JobDetailModal
-        job={detailTarget}
-        applied={detailTarget ? appliedJobIds.has(detailTarget.id) : false}
-        onClose={() => setDetailTarget(null)}
-        onApply={
-          detailTarget && !appliedJobIds.has(detailTarget.id)
-            ? () => {
-                setDetailTarget(null);
-                openApply(detailTarget.id);
-              }
-            : undefined
-        }
+      <JobMatchModal
+        job={matchJob}
+        ranked={matchRanked}
+        skills={skills}
+        applied={matchJob ? appliedJobIds.has(matchJob.id) : false}
+        onClose={closeMatch}
+        onApply={() => {
+          if (matchJob) {
+            const job = matchJob;
+            closeMatch();
+            setApplyTarget(job);
+          }
+        }}
       />
 
       <ApplyModal
@@ -144,74 +136,65 @@ export default function RecommendationsPage() {
 function RankedJobCard({
   rank,
   ranked,
-  alreadyApplied,
-  onViewDetail,
-  onApply,
+  applied,
+  opening,
+  onOpen,
 }: {
   rank: number;
   ranked: RankedJob;
-  alreadyApplied: boolean;
-  onViewDetail: () => void;
-  onApply: () => void;
+  applied: boolean;
+  opening: boolean;
+  onOpen: () => void;
 }) {
   const { t } = useLanguage();
-  // Build a synthetic JobItem for the JobCard component (server returns a
-  // pruned shape on `ranked.job`).
-  const job: JobItem = {
-    id: ranked.job.id,
-    recruiterId: "",
-    title: ranked.job.title,
-    description: "",
-    requirements: null,
-    benefits: null,
-    jobType: undefined,
-    experienceLevel: null,
-    industry: null,
-    location: null,
-    city: ranked.job.city ?? null,
-    isRemote: ranked.job.isRemote,
-    salaryMin: ranked.job.salaryMin ?? null,
-    salaryMax: ranked.job.salaryMax ?? null,
-    salaryVisible: true,
-    requiredSkills: [],
-    preferredSkills: [],
-    status: "open",
-    applicationDeadline: null,
-    viewCount: 0,
-    createdAt: "",
-  };
+  const job = ranked.job;
+  const meta = [
+    job.city || (job.isRemote ? t("common.remote") : null),
+    formatSalary(job.salaryMin, job.salaryMax),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="relative">
+    <article className="flex items-center gap-4 rounded-card border border-border bg-canvas p-4 sm:p-5 shadow-[var(--shadow-card)] tl-card-interactive">
       <span
         aria-hidden
-        className="absolute -left-1 top-5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-accent text-[12px] font-mono font-semibold border border-accent/30"
+        className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-navy/8 text-navy text-[12px] font-mono font-semibold"
       >
-        #{rank}
+        {rank}
       </span>
-      <div className="pl-9">
-        <JobCard
-          job={job}
-          onViewDetail={onViewDetail}
-          onApply={alreadyApplied ? undefined : onApply}
-          meta={
-            <div className="flex flex-col items-stretch gap-2.5 min-w-[260px]">
-              <ScoreBreakdown
-                keywordScore={ranked.keywordScore}
-                semanticScore={ranked.semanticScore}
-                verifiedBonus={ranked.verifiedBonus}
-                totalScore={ranked.totalScore}
-                variant="full"
-              />
-              {alreadyApplied && (
-                <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[12px] font-medium text-success">
-                  {t("candidate.recs.applied")}
-                </span>
-              )}
-            </div>
-          }
-        />
+
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[15.5px] font-semibold text-fg leading-snug truncate">
+          {job.title}
+        </h3>
+        {meta && <p className="text-[12.5px] text-fg-subtle mt-0.5">{meta}</p>}
+        <div className="mt-2.5 flex items-center gap-3">
+          <MatchScoreBar breakdown={ranked} className="max-w-[220px]" />
+          <span className="font-mono text-[15px] font-semibold text-fg tabular-nums">
+            {Math.round(Number(ranked.totalScore))}
+            <span className="text-[12px] font-normal text-fg-faint"> /100</span>
+          </span>
+        </div>
       </div>
-    </div>
+
+      <div className="shrink-0 flex flex-col items-stretch gap-2">
+        <Button variant="verified" size="sm" onClick={onOpen} loading={opening}>
+          {t("common.view")}
+        </Button>
+        {applied && (
+          <span className="text-center text-[11.5px] font-medium text-success">
+            {t("candidate.recs.applied")}
+          </span>
+        )}
+      </div>
+    </article>
   );
+}
+
+function formatSalary(min?: number | null, max?: number | null): string | null {
+  if (!min && !max) return null;
+  const fmt = (n: number) => `${Math.round(n / 1_000_000)}M`;
+  if (min && max) return `${fmt(min)} – ${fmt(max)} VND`;
+  return `${fmt((min ?? max)!)}+ VND`;
 }

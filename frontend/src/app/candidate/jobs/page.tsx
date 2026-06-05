@@ -2,14 +2,22 @@
 
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { ApplyModal } from "@/components/candidate/ApplyModal";
 import { JobCard } from "@/components/candidate/JobCard";
 import { JobDetailModal } from "@/components/candidate/JobDetailModal";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
-import { fetchJobs, fetchMyApplications } from "@/lib/candidate-api";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
+import { Skeleton } from "@/components/ui/Skeleton";
+import {
+  fetchJobs,
+  fetchMyApplications,
+  fetchMySkills,
+} from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { JobItem, PaginatedJobs } from "@/types/candidate";
@@ -26,6 +34,7 @@ const PAGE_SIZE = 10;
 
 export default function CandidateJobsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(t("candidate.jobs.title"), t("candidate.jobs.description"));
   // Filter state (live as user types/changes)
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
@@ -40,6 +49,7 @@ export default function CandidateJobsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+  const [verifiedSkills, setVerifiedSkills] = useState<Set<string>>(new Set());
   const [applyTarget, setApplyTarget] = useState<JobItem | null>(null);
   const [detailTarget, setDetailTarget] = useState<JobItem | null>(null);
 
@@ -83,6 +93,19 @@ export default function CandidateJobsPage() {
       .catch(() => {
         // Non-fatal
       });
+    // Verified skills let us mark which required skills the candidate already
+    // holds an on-chain credential for.
+    fetchMySkills()
+      .then((skills) =>
+        setVerifiedSkills(
+          new Set(
+            skills
+              .filter((s) => s.isVerified)
+              .map((s) => s.skillName.trim().toLowerCase()),
+          ),
+        ),
+      )
+      .catch(() => {});
   }, []);
 
   const totalPages = useMemo(
@@ -90,14 +113,19 @@ export default function CandidateJobsPage() {
     [data],
   );
 
+  const jobTypeOptions = JOB_TYPES.map((o) => ({
+    value: o.value,
+    label: t(o.labelKey),
+  }));
+  const remoteOptions = [
+    { value: "", label: t("candidate.jobs.anyLocation") },
+    { value: "true", label: t("candidate.jobs.remoteOnly") },
+    { value: "false", label: t("candidate.jobs.onsiteOnly") },
+  ];
+
   return (
     <>
-      <PageHeader
-        title={t("candidate.jobs.title")}
-        description={t("candidate.jobs.description")}
-      />
-
-      <div className="rounded-2xl border border-border bg-canvas p-4 sm:p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+      <div className="rounded-card border border-border bg-canvas p-4 sm:p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
         <div className="relative lg:col-span-4">
           <Search
             size={16}
@@ -117,17 +145,13 @@ export default function CandidateJobsPage() {
           onChange={(e) => setCity(e.target.value)}
           className="h-11 lg:col-span-2"
         />
-        <Select
+        <SelectMenu
           value={jobType}
-          onChange={(e) => setJobType(e.target.value)}
-          className="h-11 lg:col-span-2"
-        >
-          {JOB_TYPES.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {t(opt.labelKey)}
-            </option>
-          ))}
-        </Select>
+          onChange={setJobType}
+          options={jobTypeOptions}
+          ariaLabel={t("candidate.jobs.anyType")}
+          className="lg:col-span-2"
+        />
         <Input
           type="number"
           min={0}
@@ -136,15 +160,13 @@ export default function CandidateJobsPage() {
           onChange={(e) => setSalaryMin(e.target.value)}
           className="h-11 lg:col-span-2"
         />
-        <Select
+        <SelectMenu
           value={isRemote}
-          onChange={(e) => setIsRemote(e.target.value as "" | "true" | "false")}
-          className="h-11 lg:col-span-2"
-        >
-          <option value="">{t("candidate.jobs.anyLocation")}</option>
-          <option value="true">{t("candidate.jobs.remoteOnly")}</option>
-          <option value="false">{t("candidate.jobs.onsiteOnly")}</option>
-        </Select>
+          onChange={(v) => setIsRemote(v as "" | "true" | "false")}
+          options={remoteOptions}
+          ariaLabel={t("candidate.jobs.anyLocation")}
+          className="lg:col-span-2"
+        />
       </div>
 
       <div className="text-[12.5px] text-fg-subtle mb-3">
@@ -163,8 +185,10 @@ export default function CandidateJobsPage() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("candidate.jobs.loading")}
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={150} className="rounded-card" />
+          ))}
         </div>
       ) : data && data.items.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -174,6 +198,7 @@ export default function CandidateJobsPage() {
               <JobCard
                 key={j.id}
                 job={j}
+                verifiedSkills={verifiedSkills}
                 onViewDetail={() => setDetailTarget(j)}
                 onApply={
                   alreadyApplied
@@ -182,9 +207,7 @@ export default function CandidateJobsPage() {
                 }
                 meta={
                   alreadyApplied ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[12px] font-medium text-success">
-                      {t("jobCard.applied")}
-                    </span>
+                    <Badge variant="success">{t("jobCard.applied")}</Badge>
                   ) : null
                 }
               />
@@ -192,9 +215,7 @@ export default function CandidateJobsPage() {
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center text-fg-subtle">
-          {t("candidate.jobs.empty")}
-        </div>
+        <EmptyState icon={Search} title={t("candidate.jobs.empty")} />
       )}
 
       {data && totalPages > 1 && (

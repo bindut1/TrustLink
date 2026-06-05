@@ -1,275 +1,263 @@
 "use client";
 
+import { Award } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import {
-  Award,
-  CheckCircle2,
-  Download,
-  ExternalLink,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/app-shell/PageHeader";
-import { CredentialStatusBadge } from "@/components/issuer/StatusBadge";
+  CredentialDetailDrawer,
+  categoryIcon,
+  credentialPill,
+} from "@/components/candidate/CredentialDetailDrawer";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { SkillTag } from "@/components/ui/SkillTag";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { cn } from "@/lib/cn";
 import { ApiError } from "@/lib/api";
-import {
-  downloadVc,
-  fetchMyCredentials,
-  verifyCredential,
-  type VerificationResult,
-} from "@/lib/candidate-api";
+import { fetchMyCredentials, fetchMySkills } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import type { CandidateSkill } from "@/types/candidate";
 import type { Credential } from "@/types/issuer";
 
 export default function CandidateCredentialsPage() {
   const { t } = useLanguage();
+  useSetPageMeta(
+    t("candidate.credentials.title"),
+    t("candidate.credentials.description"),
+  );
+
   const [items, setItems] = useState<Credential[] | null>(null);
+  const [skills, setSkills] = useState<CandidateSkill[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, VerificationResult>>({});
+  const [tab, setTab] = useState<string>("all");
+  const [selected, setSelected] = useState<Credential | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchMyCredentials()
-      .then((r) => {
-        if (!cancelled) setItems(r);
-      })
+      .then((r) => !cancelled && setItems(r))
       .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? e.message
-            : t("issuer.credentials.failedLoad"),
-        );
+        if (!cancelled)
+          setError(
+            e instanceof ApiError ? e.message : t("issuer.credentials.failedLoad"),
+          );
       });
+    fetchMySkills()
+      .then((s) => !cancelled && setSkills(s))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleVerify(c: Credential) {
-    setVerifying(c.id);
-    setError(null);
-    try {
-      const r = await verifyCredential(c.id);
-      setResults((p) => ({ ...p, [c.id]: r }));
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : t("candidate.credentials.verifyFailed"),
-      );
-    } finally {
-      setVerifying(null);
+  // Tabs from the categories actually present in the wallet.
+  const categories = useMemo(() => {
+    if (!items) return [];
+    const set = new Set<string>();
+    for (const c of items) {
+      const cat = c.credentialType?.category;
+      if (cat) set.add(cat);
     }
-  }
+    return [...set];
+  }, [items]);
 
-  async function handleDownload(c: Credential) {
-    setDownloading(c.id);
-    setError(null);
-    try {
-      await downloadVc(
-        c.id,
-        `${c.credentialNumber || c.id}.vc.json`,
-      );
-    } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 403
-          ? t("candidate.credentials.downloadForbidden")
-          : t("candidate.credentials.downloadFailed"),
-      );
-    } finally {
-      setDownloading(null);
-    }
-  }
+  const filtered = useMemo(() => {
+    if (!items) return [];
+    if (tab === "all") return items;
+    return items.filter((c) => c.credentialType?.category === tab);
+  }, [items, tab]);
 
   return (
     <>
-      <PageHeader
-        title={t("candidate.credentials.title")}
-        description={t("candidate.credentials.description")}
-      />
-
       {error && (
         <Alert variant="error" className="mb-4">
           {error}
         </Alert>
       )}
 
+      {/* Filter tabs */}
+      {items && items.length > 0 && (
+        <div role="tablist" className="flex flex-wrap gap-1 mb-5">
+          <Tab active={tab === "all"} onClick={() => setTab("all")}>
+            {t("candidate.credentials.all")}
+          </Tab>
+          {categories.map((cat) => (
+            <Tab key={cat} active={tab === cat} onClick={() => setTab(cat)}>
+              {t(`credCategory.${cat}` as TranslationKey)}
+            </Tab>
+          ))}
+        </div>
+      )}
+
       {!items ? (
-        <div className="rounded-2xl border border-border bg-canvas p-10 text-center text-fg-subtle">
-          {t("common.loading")}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-canvas p-12 text-center">
-          <Award size={32} className="mx-auto text-fg-subtle mb-4" />
-          <h3 className="text-[16px] font-semibold text-fg mb-1.5">
-            {t("candidate.credentials.emptyTitle")}
-          </h3>
-          <p className="text-[13.5px] text-fg-muted max-w-[40ch] mx-auto">
-            {t("candidate.credentials.emptyDesc")}
-          </p>
-        </div>
+        <EmptyState
+          icon={Award}
+          title={t("candidate.credentials.emptyTitle")}
+          description={t("candidate.credentials.emptyDesc")}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {items.map((c) => (
+          {filtered.map((c) => (
             <CredentialCard
               key={c.id}
               credential={c}
-              verification={results[c.id]}
-              onVerify={() => handleVerify(c)}
-              verifying={verifying === c.id}
-              onDownload={() => handleDownload(c)}
-              downloading={downloading === c.id}
+              skills={skills}
+              onOpen={() => setSelected(c)}
             />
           ))}
         </div>
       )}
+
+      <CredentialDetailDrawer
+        credential={selected}
+        skills={skills}
+        onClose={() => setSelected(null)}
+      />
     </>
   );
 }
 
+function Tab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "h-9 px-3.5 rounded-ctl text-[13.5px] font-medium transition-colors duration-150",
+        active
+          ? "bg-navy text-on-navy"
+          : "text-fg-muted hover:text-fg hover:bg-surface-2",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+const ACCENT: Record<string, string> = {
+  "on-chain": "before:bg-teal",
+  verified: "before:bg-teal",
+  pending: "before:bg-warn",
+  revoked: "before:bg-danger",
+  neutral: "before:bg-border-strong",
+};
+
 function CredentialCard({
-  credential,
-  verification,
-  onVerify,
-  verifying,
-  onDownload,
-  downloading,
+  credential: c,
+  skills,
+  onOpen,
 }: {
   credential: Credential;
-  verification?: VerificationResult;
-  onVerify: () => void;
-  verifying: boolean;
-  onDownload: () => void;
-  downloading: boolean;
+  skills: CandidateSkill[];
+  onOpen: () => void;
 }) {
   const { t } = useLanguage();
-  const tx = credential.blockchainTxHash;
-  const isFinal = credential.status === "issued";
+  const Icon = categoryIcon(c.credentialType?.category);
+  const pill = credentialPill(c);
+  const tags = skills.filter((s) => s.sourceCredentialId === c.id).slice(0, 4);
+  const hash = c.blockchainTxHash ?? c.credentialHash;
+
   return (
-    <article className="flex flex-col rounded-2xl border border-border bg-canvas p-5 sm:p-6">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        "group relative flex flex-col rounded-card border border-border bg-canvas p-5 cursor-pointer overflow-hidden",
+        "shadow-[var(--shadow-card)] tl-card-interactive",
+        "before:content-[''] before:absolute before:inset-y-0 before:left-0 before:w-1",
+        ACCENT[pill.tone] ?? ACCENT.neutral,
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40",
+      )}
+    >
       <div className="flex items-start gap-3 mb-3">
-        <span className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-accent/12 text-accent">
-          <Award size={20} strokeWidth={1.75} />
+        <span className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-navy/8 text-navy">
+          <Icon size={18} strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[16px] font-semibold text-fg leading-snug truncate">
-            {credential.title}
+          {c.credentialType?.category && (
+            <div className="text-[10.5px] uppercase tracking-[0.10em] font-semibold text-fg-faint">
+              {t(`credCategory.${c.credentialType.category}` as TranslationKey)}
+            </div>
+          )}
+          <h3 className="text-[15.5px] font-semibold text-fg leading-snug truncate">
+            {c.title}
           </h3>
-          <div className="text-[12.5px] font-mono text-fg-subtle mt-0.5">
-            {credential.credentialNumber}
-          </div>
         </div>
-        <CredentialStatusBadge status={credential.status} />
+        <StatusPill tone={pill.tone}>{t(pill.labelKey)}</StatusPill>
       </div>
 
-      <dl className="grid grid-cols-2 gap-y-2 gap-x-4 text-[13px] mb-4">
-        <dt className="text-fg-subtle">
-          {t("candidate.credentials.issued")}
-        </dt>
-        <dd className="text-fg-muted">
-          {new Date(credential.issuedDate).toLocaleDateString()}
-        </dd>
-        {credential.expiryDate && (
-          <>
-            <dt className="text-fg-subtle">
-              {t("candidate.credentials.expires")}
-            </dt>
-            <dd className="text-fg-muted">
-              {new Date(credential.expiryDate).toLocaleDateString()}
-            </dd>
-          </>
-        )}
-        {tx && (
-          <>
-            <dt className="text-fg-subtle">Tx</dt>
-            <dd>
-              <a
-                href={`https://amoy.polygonscan.com/tx/${tx}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[12px] font-mono text-accent hover:underline"
-              >
-                {`${tx.slice(0, 8)}…${tx.slice(-6)}`}
-                <ExternalLink size={11} />
-              </a>
-            </dd>
-          </>
-        )}
-      </dl>
+      <p className="text-[13px] text-fg-muted mb-3">
+        {c.institution?.name ?? "—"}
+        {" · "}
+        {new Date(c.issuedDate).toLocaleDateString(undefined, {
+          month: "short",
+          year: "numeric",
+        })}
+      </p>
 
-      {verification && (
-        <div
-          className={`mb-4 rounded-lg border px-3.5 py-3 text-[13px] ${
-            verification.result === "valid"
-              ? "border-success/30 bg-success/[0.06] text-success"
-              : "border-danger/30 bg-danger/[0.06] text-danger"
-          }`}
-        >
-          <div className="flex items-center gap-2 font-semibold mb-2">
-            {verification.result === "valid" ? (
-              <CheckCircle2 size={16} />
-            ) : (
-              <XCircle size={16} />
-            )}
-            {verification.result === "valid"
-              ? t("candidate.credentials.authentic")
-              : t("candidate.credentials.verifyResult").replace(
-                  "{result}",
-                  verification.result,
-                )}
-          </div>
-          <ul className="text-[12.5px] text-fg-muted leading-relaxed grid grid-cols-3 gap-2">
-            <Check
-              ok={verification.onChainVerified}
-              label={t("candidate.credentials.onChain")}
-            />
-            <Check
-              ok={verification.vcSignatureValid}
-              label={t("candidate.credentials.vcSignature")}
-            />
-            <Check
-              ok={verification.issuerAuthorized}
-              label={t("candidate.credentials.issuerAuthorized")}
-            />
-          </ul>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {tags.map((s) => (
+            <SkillTag key={s.id} size="sm" verified={s.isVerified}>
+              {s.skillName}
+            </SkillTag>
+          ))}
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-2">
-        <Button
-          variant="secondary"
-          onClick={onVerify}
-          loading={verifying}
-          leftIcon={<ShieldCheck size={14} />}
-          disabled={!isFinal}
-        >
-          {t("candidate.credentials.verify")}
-        </Button>
-        <Button
-          onClick={onDownload}
-          loading={downloading}
-          leftIcon={<Download size={14} />}
-          disabled={!isFinal}
-        >
-          {t("candidate.credentials.downloadVc")}
-        </Button>
+      <div className="mt-auto flex items-center justify-between gap-3 pt-2">
+        <span className="font-mono text-[12px] text-fg-subtle truncate">
+          {hash ? `# ${hash.slice(0, 8)}…${hash.slice(-4)}` : "# —"}
+        </span>
+        <span className="text-[12.5px] font-medium text-navy group-hover:underline">
+          {t("candidate.credentials.viewDetail")}
+        </span>
       </div>
     </article>
   );
 }
 
-function Check({ ok, label }: { ok: boolean; label: string }) {
+function CardSkeleton() {
   return (
-    <li className="flex items-center gap-1.5">
-      {ok ? (
-        <CheckCircle2 size={12} className="text-success shrink-0" />
-      ) : (
-        <XCircle size={12} className="text-danger shrink-0" />
-      )}
-      <span className="truncate text-fg-muted">{label}</span>
-    </li>
+    <div className="rounded-card border border-border bg-canvas p-5 shadow-[var(--shadow-card)]">
+      <div className="flex items-start gap-3 mb-3">
+        <Skeleton width={40} height={40} className="rounded-xl" />
+        <div className="flex-1">
+          <Skeleton height={10} className="w-20 mb-2" />
+          <Skeleton height={16} className="w-3/4" />
+        </div>
+      </div>
+      <Skeleton height={12} className="w-1/2 mb-4" />
+      <div className="flex gap-1.5">
+        <Skeleton height={22} className="w-16 rounded-md" />
+        <Skeleton height={22} className="w-16 rounded-md" />
+      </div>
+    </div>
   );
 }

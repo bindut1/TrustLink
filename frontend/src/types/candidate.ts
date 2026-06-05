@@ -63,6 +63,39 @@ export type ScoreBreakdown = {
   totalScore: number;
 };
 
+/** Real matching weights (mirror backend matching.service W_*). */
+export const MATCH_WEIGHTS = {
+  keyword: 0.4,
+  semantic: 0.5,
+  verified: 0.1,
+} as const;
+
+/** A candidate skill (read-only). `isVerified` = backed by an on-chain credential. */
+export type CandidateSkill = {
+  id: string;
+  skillName: string;
+  proficiencyLevel?: string | null;
+  isVerified: boolean;
+  sourceCredentialId?: string | null;
+};
+
+/** Aggregates for the candidate dashboard (GET /candidate-profiles/me/dashboard). */
+export type CandidateDashboard = {
+  credentials: {
+    total: number;
+    onChain: number;
+    byCategory: { category: string; count: number }[];
+  };
+  applications: {
+    total: number;
+    byStatus: { status: string; count: number }[];
+  };
+  profile: {
+    completeness: number;
+    isOpenToWork: boolean;
+  };
+};
+
 export type RankedJob = ScoreBreakdown & {
   job: Pick<JobItem, "id" | "title" | "city" | "isRemote" | "salaryMin" | "salaryMax">;
 };

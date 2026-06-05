@@ -26,6 +26,20 @@ export class CandidateProfilesController {
     return this.service.findByUserId(user.id);
   }
 
+  @Get('me/skills')
+  @ApiOperation({ summary: "Get the current candidate's skills (read-only)" })
+  @ApiOkResponse({ description: 'Skills with on-chain verification flag' })
+  async findMySkills(@CurrentUser() user: User) {
+    return this.service.findSkillsByUserId(user.id);
+  }
+
+  @Get('me/dashboard')
+  @ApiOperation({ summary: 'Aggregate dashboard counts for the candidate' })
+  @ApiOkResponse({ description: 'Credential / application / profile aggregates' })
+  async getMyDashboard(@CurrentUser() user: User) {
+    return this.service.getDashboard(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'View candidate profile by ID' })
   @ApiOkResponse({ description: 'Candidate profile' })
