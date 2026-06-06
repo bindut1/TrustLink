@@ -348,6 +348,23 @@ export class BlockchainService implements OnModuleInit {
     };
   }
 
+  /**
+   * Read-only verification of a Merkle batch root (Blockcerts-style anchoring).
+   * The recorded `issuer` is the institution wallet that broadcast `issueBatch`.
+   */
+  async verifyBatchOnChain(merkleRoot: string): Promise<OnChainVerification> {
+    if (!this.contract) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+    const result = await this.contract.verifyBatch(merkleRoot);
+    return {
+      exists: Boolean(result[0]),
+      issuer: String(result[1]),
+      timestamp: Number(result[2]),
+      isRevoked: Boolean(result[3]),
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Worker-facing API (called by BlockchainProcessor)
   // ---------------------------------------------------------------------------

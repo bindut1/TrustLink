@@ -23,11 +23,14 @@ import {
 } from '../../database/enums';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { EIP712_PROOF_TYPE } from '../blockchain/eip712';
+import { verifyProof } from '../blockchain/merkle';
 import { VcService } from '../blockchain/vc.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
+import { StatusListService } from './status-list.service';
 import { validateCredentialMetadata } from './helpers/metadata-validator';
 import {
   ExtractedSkill,
@@ -65,6 +68,7 @@ export class CredentialsService {
     private readonly blockchain: BlockchainService,
     private readonly vcService: VcService,
     private readonly auditLogs: AuditLogsService,
+    private readonly statusList: StatusListService,
   ) {}
 
   async create(
@@ -147,6 +151,10 @@ export class CredentialsService {
 
       return persisted;
     });
+
+    // Assign a StatusList2021 slot so this credential can later be revoked
+    // individually (bitstring check), independent of on-chain batch revocation.
+    await this.statusList.assignEntry(saved.id);
 
     await this.blockchain.issueCredentialOnChain({
       credentialId: saved.id,
@@ -239,6 +247,10 @@ export class CredentialsService {
     credential.revokedAt = new Date();
     credential.revocationReason = dto.reason;
     const saved = await this.credRepo.save(credential);
+
+    // Flip the StatusList2021 bit immediately so verification reflects the
+    // revocation even before the on-chain batch revoke (if any) lands.
+    await this.statusList.revokeByCredential(saved.id);
 
     await this.blockchain.revokeCredentialOnChain({
       credentialId: saved.id,
@@ -360,33 +372,84 @@ export class CredentialsService {
     credential: Credential,
   ): Promise<Omit<VerificationOutcome, 'cached'>> {
     const details: Record<string, unknown> = {};
+    const isBatch = !!credential.merkleRoot;
 
-    // T1.1 — content integrity: recompute the hash from the credential's CURRENT
-    // content and compare it to the hash that was stored/anchored. If the content
-    // was tampered with (and the stored hash left intact), they diverge. We then
-    // query the chain by the RECOMPUTED hash so that even a tampered row whose
-    // stored hash was also rewritten resolves to NOT_FOUND on-chain.
+    // Content integrity: recompute the hash from CURRENT content. Batch
+    // credentials must prove the leaf belongs to the anchored Merkle root;
+    // legacy per-credential anchoring compares against the stored hash. Either
+    // way, tampering changes the leaf and breaks verification.
     const recomputedHash = this.blockchain.computeCredentialHash(credential);
-    const contentIntegrityValid = recomputedHash === credential.credentialHash;
-    details.contentIntegrity = {
-      valid: contentIntegrityValid,
-      recomputedHash,
-      storedHash: credential.credentialHash,
-      hashVersion: credential.hashVersion ?? 'legacy',
-    };
+    let contentIntegrityValid: boolean;
+    if (isBatch) {
+      contentIntegrityValid =
+        Array.isArray(credential.merkleProof) &&
+        verifyProof(
+          recomputedHash,
+          credential.merkleProof,
+          credential.merkleRoot!,
+        );
+      details.contentIntegrity = {
+        mode: 'merkle',
+        valid: contentIntegrityValid,
+        leaf: recomputedHash,
+        merkleRoot: credential.merkleRoot,
+        hashVersion: credential.hashVersion ?? 'legacy',
+      };
+    } else {
+      contentIntegrityValid = recomputedHash === credential.credentialHash;
+      details.contentIntegrity = {
+        mode: 'direct',
+        valid: contentIntegrityValid,
+        recomputedHash,
+        storedHash: credential.credentialHash,
+        hashVersion: credential.hashVersion ?? 'legacy',
+      };
+    }
+
+    // VC signature: EthereumEip712Signature2021 (non-custodial MetaMask) or the
+    // legacy did-jwt JWS, chosen by the stored proof type.
+    let vcSignatureValid = false;
+    const proofType = (
+      credential.vcJson as { proof?: { type?: string } } | null
+    )?.proof?.type;
+    if (proofType === EIP712_PROOF_TYPE) {
+      const v = this.vcService.verifyEip712(credential.vcJson);
+      vcSignatureValid = v.valid;
+      details.vc = {
+        type: 'eip712',
+        valid: v.valid,
+        signerAddress: v.signerAddress,
+        issuerDid: v.issuerDid,
+        ...(v.error ? { error: v.error } : {}),
+      };
+    } else if (credential.vcJwt) {
+      const v = await this.vcService.verifyJwt(credential.vcJwt);
+      vcSignatureValid = v.valid;
+      details.vc = {
+        type: 'jwt',
+        valid: v.valid,
+        issuerDid: v.issuerDid,
+        signerAddress: v.signerAddress,
+        ...(v.error ? { error: v.error } : {}),
+      };
+    } else {
+      details.vc = { valid: false, error: 'No VC proof on credential' };
+    }
 
     let onChainVerified = false;
     let onChainIssuer: string | null = null;
     let onChainRevoked = false;
     let onChainExists = false;
     try {
-      const onChain =
-        await this.blockchain.verifyCredentialOnChain(recomputedHash);
+      const onChain = isBatch
+        ? await this.blockchain.verifyBatchOnChain(credential.merkleRoot!)
+        : await this.blockchain.verifyCredentialOnChain(recomputedHash);
       onChainExists = onChain.exists;
       onChainIssuer = onChain.issuer;
       onChainRevoked = onChain.isRevoked;
       onChainVerified = onChain.exists && !onChain.isRevoked;
       details.onChain = {
+        mode: isBatch ? 'batch' : 'direct',
         exists: onChain.exists,
         issuer: onChain.issuer,
         timestamp: onChain.timestamp,
@@ -407,20 +470,6 @@ export class CredentialsService {
       };
     }
 
-    let vcSignatureValid = false;
-    if (credential.vcJwt) {
-      const verified = await this.vcService.verifyJwt(credential.vcJwt);
-      vcSignatureValid = verified.valid;
-      details.vc = {
-        valid: verified.valid,
-        issuerDid: verified.issuerDid,
-        signerAddress: verified.signerAddress,
-        ...(verified.error ? { error: verified.error } : {}),
-      };
-    } else {
-      details.vc = { valid: false, error: 'No VC JWT on credential' };
-    }
-
     let issuerAuthorized = false;
     if (onChainIssuer && onChainIssuer !== ethers.ZeroAddress) {
       issuerAuthorized = await this.blockchain.isIssuerAuthorized(onChainIssuer);
@@ -430,18 +479,22 @@ export class CredentialsService {
       };
     }
 
-    // T1.3 — a credential revoked in our DB must never verify as VALID, even if
-    // the on-chain revoke tx hasn't landed (or failed). Treat the divergence as
-    // REVOKED and record it for reconciliation.
+    // T1.3 + T2.4 — a credential revoked in our DB or via its StatusList2021 bit
+    // must never verify as VALID, even if the on-chain revoke hasn't landed.
     const dbRevoked = credential.status === CredentialStatus.REVOKED;
-    if (dbRevoked !== onChainRevoked) {
-      details.revocationDivergence = { dbRevoked, onChainRevoked };
+    const statusListRevoked = await this.statusList.isRevoked(credential.id);
+    if (dbRevoked !== onChainRevoked || statusListRevoked !== onChainRevoked) {
+      details.revocationDivergence = {
+        dbRevoked,
+        onChainRevoked,
+        statusListRevoked,
+      };
     }
 
     let result: VerificationResult;
     if (!onChainExists) {
       result = VerificationResult.NOT_FOUND;
-    } else if (onChainRevoked || dbRevoked) {
+    } else if (onChainRevoked || dbRevoked || statusListRevoked) {
       result = VerificationResult.REVOKED;
     } else if (
       onChainVerified &&
