@@ -130,6 +130,27 @@ export class Credential {
   })
   blockchainTimestamp: Date | null;
 
+  // Merkle batching (Blockcerts-style): the credential's canonical hash is a
+  // leaf under `merkle_root`, which is what gets anchored on-chain. `merkle_proof`
+  // proves this leaf belongs to that root; `leaf_index` is its position.
+  @Column({
+    name: 'merkle_root',
+    type: 'varchar',
+    length: 66,
+    nullable: true,
+  })
+  merkleRoot: string | null;
+
+  @Column({
+    name: 'merkle_proof',
+    type: 'jsonb',
+    nullable: true,
+  })
+  merkleProof: string[] | null;
+
+  @Column({ name: 'leaf_index', type: 'int', nullable: true })
+  leafIndex: number | null;
+
   @Column({ name: 'vc_jwt', type: 'text', nullable: true })
   vcJwt: string | null;
 

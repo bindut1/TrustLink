@@ -92,6 +92,17 @@ export class Institution {
   })
   blockchainAddress: string | null;
 
+  // The institution's own (non-custodial) signing address — the MetaMask wallet
+  // that signs VCs (EthereumEip712Signature2021) and broadcasts batch anchors.
+  // Verification recovers the signer from the VC proof and matches it here.
+  @Column({
+    name: 'signing_address',
+    type: 'varchar',
+    length: 42,
+    nullable: true,
+  })
+  signingAddress: string | null;
+
   @Column({
     name: 'did_identifier',
     type: 'varchar',

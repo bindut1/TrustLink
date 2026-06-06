@@ -16,6 +16,15 @@ import { ethers } from 'ethers';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
+import {
+  CREDENTIAL_EIP712_PRIMARY_TYPE,
+  CREDENTIAL_EIP712_TYPES,
+  CredentialEip712Message,
+  CredentialTypedData,
+  Eip712Domain,
+  EIP712_PROOF_TYPE,
+  buildCredentialDomain,
+} from './eip712';
 
 export interface SignedVc {
   vcJwt: string;
@@ -135,6 +144,159 @@ export class VcService {
         signerAddress,
         issuerDid,
         payload: result.payload as Record<string, unknown>,
+      };
+    } catch (err) {
+      return {
+        valid: false,
+        signerAddress: null,
+        issuerDid: null,
+        error: (err as Error).message,
+      };
+    }
+  }
+
+  // ─────────────────── EthereumEip712Signature2021 (non-custodial) ───────────────────
+
+  /**
+   * Build the EIP-712 typed data the issuer's MetaMask will sign. Binds the
+   * signature to the credential's canonical hash (also the Merkle leaf).
+   */
+  buildCredentialTypedData(args: {
+    credential: Credential;
+    institution: Institution;
+    candidate: User;
+  }): CredentialTypedData {
+    const { credential, institution, candidate } = args;
+    const signingAddress =
+      institution.signingAddress ?? institution.blockchainAddress;
+    if (!signingAddress || !ethers.isAddress(signingAddress)) {
+      throw new InternalServerErrorException(
+        `Institution ${institution.id} has no valid signing_address — cannot build VC typed data`,
+      );
+    }
+    if (!credential.credentialHash) {
+      throw new InternalServerErrorException(
+        `Credential ${credential.id} has no hash to bind the signature to`,
+      );
+    }
+    const issuerDid = this.buildIssuerDid(signingAddress);
+    const message: CredentialEip712Message = {
+      credentialId: credential.id,
+      credentialNumber: credential.credentialNumber,
+      title: credential.title,
+      issuerDid,
+      subjectId: `urn:trustlink:user:${candidate.id}`,
+      credentialHash: credential.credentialHash,
+      issuedDate: this.normalizeDate(credential.issuedDate),
+    };
+    return {
+      domain: buildCredentialDomain(this.chainIdHex()),
+      types: CREDENTIAL_EIP712_TYPES,
+      primaryType: CREDENTIAL_EIP712_PRIMARY_TYPE,
+      message,
+    };
+  }
+
+  /**
+   * Assemble the W3C VC JSON-LD with an EthereumEip712Signature2021 proof, given
+   * the issuer's signature over the typed data. Stored on the credential row.
+   */
+  assembleEip712Vc(args: {
+    typedData: CredentialTypedData;
+    signature: string;
+    candidate: User;
+    institutionName: string;
+    createdAt: string;
+  }): Record<string, unknown> {
+    const { typedData, signature, candidate, institutionName, createdAt } = args;
+    const m = typedData.message;
+    return {
+      '@context': [
+        'https://www.w3.org/2018/credentials/v1',
+        'https://w3id.org/security/suites/eip712sig-2021/v1',
+      ],
+      type: ['VerifiableCredential', 'TrustLinkCredential'],
+      id: `urn:trustlink:credential:${m.credentialId}`,
+      issuer: { id: m.issuerDid, name: institutionName },
+      issuanceDate: createdAt,
+      credentialSubject: {
+        id: m.subjectId,
+        name: candidate.fullName,
+        credential: {
+          id: m.credentialId,
+          credentialNumber: m.credentialNumber,
+          title: m.title,
+          credentialHash: m.credentialHash,
+          issuedDate: m.issuedDate,
+        },
+      },
+      proof: {
+        type: EIP712_PROOF_TYPE,
+        created: createdAt,
+        proofPurpose: 'assertionMethod',
+        verificationMethod: m.issuerDid,
+        proofValue: signature,
+        eip712: {
+          domain: typedData.domain,
+          types: typedData.types,
+          primaryType: typedData.primaryType,
+          message: m,
+        },
+      },
+    };
+  }
+
+  /**
+   * Verify an EthereumEip712Signature2021 proof: recover the signer from the
+   * stored typed data + signature and match it to the issuer DID's address.
+   */
+  verifyEip712(vcJson: Record<string, unknown> | null | undefined): VerifiedVc {
+    try {
+      const proof = (vcJson?.['proof'] ?? null) as {
+        type?: string;
+        proofValue?: string;
+        verificationMethod?: string;
+        eip712?: {
+          domain: Eip712Domain;
+          types: { Credential: { name: string; type: string }[] };
+          message: CredentialEip712Message;
+        };
+      } | null;
+
+      if (!proof || proof.type !== EIP712_PROOF_TYPE) {
+        return {
+          valid: false,
+          signerAddress: null,
+          issuerDid: null,
+          error: 'Not an EthereumEip712Signature2021 proof',
+        };
+      }
+      if (!proof.eip712 || !proof.proofValue) {
+        return {
+          valid: false,
+          signerAddress: null,
+          issuerDid: null,
+          error: 'Malformed EIP-712 proof',
+        };
+      }
+
+      const recovered = ethers.verifyTypedData(
+        proof.eip712.domain,
+        { Credential: proof.eip712.types.Credential },
+        proof.eip712.message,
+        proof.proofValue,
+      );
+      const issuerDid = proof.verificationMethod ?? null;
+      const expected = issuerDid ? this.parseAddressFromDid(issuerDid) : null;
+      const valid = !!expected && recovered.toLowerCase() === expected;
+      return {
+        valid,
+        signerAddress: recovered.toLowerCase(),
+        issuerDid,
+        payload: vcJson as Record<string, unknown>,
+        ...(valid
+          ? {}
+          : { error: 'Recovered signer does not match issuer DID' }),
       };
     } catch (err) {
       return {

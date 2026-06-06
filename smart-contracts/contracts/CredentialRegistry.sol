@@ -12,7 +12,18 @@ contract CredentialRegistry {
     mapping(address => bool) public authorizedIssuers;
     mapping(bytes32 => Credential) public credentials;
 
+    // Blockcerts-style batch anchoring: one Merkle root represents many
+    // credentials. Individual credential revocation is handled off-chain via a
+    // StatusList; on-chain we only track whole-batch existence/revocation.
+    mapping(bytes32 => Batch) public batches;
+
     struct Credential {
+        address issuer;
+        uint256 timestamp;
+        bool isRevoked;
+    }
+
+    struct Batch {
         address issuer;
         uint256 timestamp;
         bool isRevoked;
@@ -22,6 +33,8 @@ contract CredentialRegistry {
     event IssuerRemoved(address indexed issuer);
     event CredentialIssued(bytes32 indexed credentialHash, address indexed issuer, uint256 timestamp);
     event CredentialRevoked(bytes32 indexed credentialHash, address indexed issuer);
+    event BatchIssued(bytes32 indexed merkleRoot, address indexed issuer, uint256 timestamp);
+    event BatchRevoked(bytes32 indexed merkleRoot, address indexed issuer);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -86,5 +99,46 @@ contract CredentialRegistry {
 
     function isIssuer(address _addr) external view returns (bool) {
         return authorizedIssuers[_addr];
+    }
+
+    // ───────────────────────── Batch (Merkle) anchoring ─────────────────────────
+
+    /**
+     * @notice Anchor a Merkle root representing a batch of credentials.
+     * @dev msg.sender (the issuing institution) is recorded as the batch issuer,
+     *      so on-chain attribution reflects the real issuer — not a relayer.
+     */
+    function issueBatch(bytes32 _merkleRoot) external onlyAuthorizedIssuer {
+        require(batches[_merkleRoot].timestamp == 0, "Batch already exists");
+
+        batches[_merkleRoot] = Batch({
+            issuer: msg.sender,
+            timestamp: block.timestamp,
+            isRevoked: false
+        });
+
+        emit BatchIssued(_merkleRoot, msg.sender, block.timestamp);
+    }
+
+    function revokeBatch(bytes32 _merkleRoot) external onlyAuthorizedIssuer {
+        Batch storage b = batches[_merkleRoot];
+        require(b.timestamp != 0, "Batch does not exist");
+        require(b.issuer == msg.sender, "Not batch issuer");
+        require(!b.isRevoked, "Already revoked");
+
+        b.isRevoked = true;
+        emit BatchRevoked(_merkleRoot, msg.sender);
+    }
+
+    function verifyBatch(bytes32 _merkleRoot)
+        external
+        view
+        returns (bool exists, address issuer, uint256 timestamp, bool isRevoked)
+    {
+        Batch storage b = batches[_merkleRoot];
+        if (b.timestamp == 0) {
+            return (false, address(0), 0, false);
+        }
+        return (true, b.issuer, b.timestamp, b.isRevoked);
     }
 }
