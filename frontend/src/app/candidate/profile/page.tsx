@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { ProgressRing } from "@/components/ui/ProgressRing";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { SkillTag } from "@/components/ui/SkillTag";
 import { ApiError } from "@/lib/api";
 import {
@@ -202,6 +203,35 @@ export default function CandidateProfilePage() {
           </div>
         </Card>
       )}
+
+        {/* Personal information */}
+        <Card title={t("candidate.profile.sectionPersonal")}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label={t("candidate.profile.fldDob")}>
+              <Input
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                value={String(draft.dateOfBirth ?? "").slice(0, 10)}
+                onChange={(e) =>
+                  update("dateOfBirth", e.target.value || undefined)
+                }
+              />
+            </FormField>
+            <FormField label={t("candidate.profile.fldGender")}>
+              <SelectMenu
+                value={draft.gender ?? ""}
+                onChange={(v) => update("gender", v)}
+                ariaLabel={t("candidate.profile.fldGender")}
+                options={[
+                  { value: "", label: t("candidate.profile.genderUnspecified") },
+                  { value: "male", label: t("candidate.profile.genderMale") },
+                  { value: "female", label: t("candidate.profile.genderFemale") },
+                  { value: "other", label: t("candidate.profile.genderOther") },
+                ]}
+              />
+            </FormField>
+          </div>
+        </Card>
 
         {/* About */}
         <Card title={t("candidate.profile.sectionAbout")}>

@@ -796,6 +796,13 @@ export const TRANSLATIONS = {
     "candidate.profile.sectionLinks": "Liên kết",
     "candidate.profile.sectionCareer": "Mong muốn công việc",
     "candidate.profile.sectionSkills": "Kỹ năng",
+    "candidate.profile.sectionPersonal": "Thông tin cá nhân",
+    "candidate.profile.fldDob": "Ngày sinh",
+    "candidate.profile.fldGender": "Giới tính",
+    "candidate.profile.genderUnspecified": "Không xác định",
+    "candidate.profile.genderMale": "Nam",
+    "candidate.profile.genderFemale": "Nữ",
+    "candidate.profile.genderOther": "Khác",
     "candidate.profile.skillsHint":
       "{n} kỹ năng đã được xác minh on-chain từ văn bằng của bạn.",
     "candidate.profile.completenessHint":
@@ -2017,6 +2024,13 @@ export const TRANSLATIONS = {
     "candidate.profile.sectionLinks": "Links",
     "candidate.profile.sectionCareer": "Career preferences",
     "candidate.profile.sectionSkills": "Skills",
+    "candidate.profile.sectionPersonal": "Personal information",
+    "candidate.profile.fldDob": "Date of birth",
+    "candidate.profile.fldGender": "Gender",
+    "candidate.profile.genderUnspecified": "Prefer not to say",
+    "candidate.profile.genderMale": "Male",
+    "candidate.profile.genderFemale": "Female",
+    "candidate.profile.genderOther": "Other",
     "candidate.profile.skillsHint":
       "{n} skill(s) blockchain-verified from your credentials.",
     "candidate.profile.completenessHint":
