@@ -13,6 +13,7 @@ import type {
   JobItem,
   PaginatedJobs,
   RankedJob,
+  RecruiterPublicProfile,
   UpdateCandidateProfilePayload,
 } from "@/types/candidate";
 import type { Credential } from "@/types/issuer";
@@ -104,6 +105,13 @@ export function fetchJobs(params?: {
 
 export function fetchJob(id: string): Promise<JobItem> {
   return apiRequest(`/jobs/${id}`, authOpts());
+}
+
+/** Public company profile for the recruiter who owns a job (by their user id). */
+export function fetchRecruiterByUserId(
+  userId: string,
+): Promise<RecruiterPublicProfile> {
+  return apiRequest(`/recruiter-profiles/by-user/${userId}`, authOpts());
 }
 
 export function trackJobView(id: string): Promise<void> {

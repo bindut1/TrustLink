@@ -1,10 +1,12 @@
 "use client";
 
-import { Bookmark, ShieldCheck } from "lucide-react";
+import { Bookmark, Building2, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
 import { Modal } from "@/components/ui/Modal";
 import { SkillTag } from "@/components/ui/SkillTag";
+import { RecruiterInfoModal } from "./RecruiterInfoModal";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { CandidateSkill, RankedJob } from "@/types/candidate";
 import type { JobItem } from "@/types/candidate";
@@ -27,6 +29,7 @@ export function JobMatchModal({
   onApply,
 }: Props) {
   const { t } = useLanguage();
+  const [showRecruiter, setShowRecruiter] = useState(false);
   if (!job || !ranked) return null;
 
   const verifiedSet = new Set(
@@ -47,6 +50,7 @@ export function JobMatchModal({
     .join(" · ");
 
   return (
+    <>
     <Modal
       open={Boolean(job)}
       onClose={onClose}
@@ -55,6 +59,14 @@ export function JobMatchModal({
       description={meta || undefined}
       footer={
         <>
+          <Button
+            variant="secondary"
+            className="mr-auto"
+            leftIcon={<Building2 size={15} />}
+            onClick={() => setShowRecruiter(true)}
+          >
+            {t("jobModal.viewRecruiter")}
+          </Button>
           <Button variant="secondary" onClick={onClose} leftIcon={<Bookmark size={15} />}>
             {t("common.save")}
           </Button>
@@ -114,6 +126,11 @@ export function JobMatchModal({
         )}
       </div>
     </Modal>
+    <RecruiterInfoModal
+      recruiterId={showRecruiter ? job.recruiterId : null}
+      onClose={() => setShowRecruiter(false)}
+    />
+    </>
   );
 }
 

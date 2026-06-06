@@ -47,6 +47,23 @@ export type JobItem = {
   createdAt: string;
 };
 
+/** Sanitized public company profile (GET /recruiter-profiles/by-user/:userId). */
+export type RecruiterPublicProfile = {
+  id: string;
+  companyName: string;
+  companyNameEn?: string | null;
+  companyLogoUrl?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  companyWebsite?: string | null;
+  companyAddress?: string | null;
+  city?: string | null;
+  country?: string | null;
+  description?: string | null;
+  isVerified: boolean;
+  createdAt: string;
+};
+
 export type PaginatedJobs = {
   items: JobItem[];
   total: number;

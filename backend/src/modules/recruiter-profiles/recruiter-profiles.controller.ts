@@ -33,6 +33,17 @@ export class RecruiterProfilesController {
     return this.service.getDashboard(user.id);
   }
 
+  @Get('by-user/:userId')
+  @ApiOperation({
+    summary: 'View a public company profile by the recruiter user id',
+    description:
+      "Sanitized company info (no tax code / contact email). Used so a candidate can view a job's hiring company.",
+  })
+  @ApiOkResponse({ description: 'Public recruiter/company profile' })
+  async findPublicByUserId(@Param('userId') userId: string) {
+    return this.service.findPublicByUserId(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'View recruiter/company profile by ID' })
   @ApiOkResponse({ description: 'Recruiter profile' })

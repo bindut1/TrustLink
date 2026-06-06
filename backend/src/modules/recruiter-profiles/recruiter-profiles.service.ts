@@ -147,6 +147,31 @@ export class RecruiterProfilesService {
     return profile;
   }
 
+  /**
+   * Sanitized public company profile for a recruiter, looked up by their
+   * user id (= Job.recruiterId). Excludes sensitive fields (tax code, contact
+   * email) so any authenticated user — e.g. a candidate browsing jobs — can
+   * view the hiring company.
+   */
+  async findPublicByUserId(userId: string) {
+    const p = await this.findByUserId(userId);
+    return {
+      id: p.id,
+      companyName: p.companyName,
+      companyNameEn: p.companyNameEn,
+      companyLogoUrl: p.companyLogoUrl,
+      industry: p.industry,
+      companySize: p.companySize,
+      companyWebsite: p.companyWebsite,
+      companyAddress: p.companyAddress,
+      city: p.city,
+      country: p.country,
+      description: p.description,
+      isVerified: p.isVerified,
+      createdAt: p.createdAt,
+    };
+  }
+
   async updateByUserId(
     userId: string,
     dto: UpdateRecruiterProfileDto,

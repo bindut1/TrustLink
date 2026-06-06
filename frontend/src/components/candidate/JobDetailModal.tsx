@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, Briefcase, Calendar, MapPin } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { ArrowRight, Briefcase, Building2, Calendar, MapPin } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { RecruiterInfoModal } from "./RecruiterInfoModal";
 import { trackJobView } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -25,6 +26,7 @@ export function JobDetailModal({
 }: JobDetailModalProps) {
   const { t } = useLanguage();
   const trackedRef = useRef<Set<string>>(new Set());
+  const [showRecruiter, setShowRecruiter] = useState(false);
 
   // Fire-and-forget: track view once per job per modal lifecycle
   useEffect(() => {
@@ -39,6 +41,7 @@ export function JobDetailModal({
   const expKey = job.experienceLevel ? expKeyFor(job.experienceLevel) : null;
 
   return (
+    <>
     <Modal
       open
       onClose={onClose}
@@ -52,21 +55,31 @@ export function JobDetailModal({
         </div>
       }
       footer={
-        applied ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-4 py-1.5 text-[13px] font-medium text-success">
-            {t("jobCard.applied")}
-          </span>
-        ) : onApply ? (
+        <>
           <Button
-            onClick={() => {
-              onClose();
-              onApply();
-            }}
-            rightIcon={<ArrowRight size={14} />}
+            variant="secondary"
+            className="mr-auto"
+            leftIcon={<Building2 size={15} />}
+            onClick={() => setShowRecruiter(true)}
           >
-            {t("jobCard.apply")}
+            {t("jobModal.viewRecruiter")}
           </Button>
-        ) : null
+          {applied ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-4 py-1.5 text-[13px] font-medium text-success">
+              {t("jobCard.applied")}
+            </span>
+          ) : onApply ? (
+            <Button
+              onClick={() => {
+                onClose();
+                onApply();
+              }}
+              rightIcon={<ArrowRight size={14} />}
+            >
+              {t("jobCard.apply")}
+            </Button>
+          ) : null}
+        </>
       }
     >
       {/* Meta row */}
@@ -164,6 +177,11 @@ export function JobDetailModal({
         )}
       </div>
     </Modal>
+    <RecruiterInfoModal
+      recruiterId={showRecruiter ? job.recruiterId : null}
+      onClose={() => setShowRecruiter(false)}
+    />
+    </>
   );
 }
 

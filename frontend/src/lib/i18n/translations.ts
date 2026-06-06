@@ -841,6 +841,18 @@ export const TRANSLATIONS = {
     "jobModal.deadline": "Hạn ứng tuyển",
     "jobModal.industry": "Ngành",
     "jobModal.postedAt": "Đăng ngày",
+    "jobModal.viewRecruiter": "Xem nhà tuyển dụng",
+
+    // ───────────── RecruiterInfoModal (candidate xem nhà tuyển dụng) ─────────────
+    "recruiterInfo.title": "Nhà tuyển dụng",
+    "recruiterInfo.verified": "Đã xác thực",
+    "recruiterInfo.industry": "Lĩnh vực",
+    "recruiterInfo.size": "Quy mô",
+    "recruiterInfo.location": "Địa điểm",
+    "recruiterInfo.website": "Website",
+    "recruiterInfo.about": "Giới thiệu",
+    "recruiterInfo.empty": "Chưa có thông tin nhà tuyển dụng.",
+    "recruiterInfo.loadFailed": "Không tải được thông tin nhà tuyển dụng.",
 
     // ───────────── ApplyModal ─────────────
     "applyModal.title": "Ứng tuyển vị trí",
@@ -2050,6 +2062,18 @@ export const TRANSLATIONS = {
     "jobModal.deadline": "Application deadline",
     "jobModal.industry": "Industry",
     "jobModal.postedAt": "Posted",
+    "jobModal.viewRecruiter": "View employer",
+
+    // RecruiterInfoModal (candidate viewing the employer)
+    "recruiterInfo.title": "Employer",
+    "recruiterInfo.verified": "Verified",
+    "recruiterInfo.industry": "Industry",
+    "recruiterInfo.size": "Company size",
+    "recruiterInfo.location": "Location",
+    "recruiterInfo.website": "Website",
+    "recruiterInfo.about": "About",
+    "recruiterInfo.empty": "No employer information available.",
+    "recruiterInfo.loadFailed": "Failed to load employer information.",
 
     // ApplyModal
     "applyModal.title": "Apply for this job",
