@@ -53,3 +53,33 @@ export interface CredentialTypedData {
   primaryType: typeof CREDENTIAL_EIP712_PRIMARY_TYPE;
   message: CredentialEip712Message;
 }
+
+// ─────────────────── Batch signing (1 signature for N credentials) ───────────────────
+// For bulk issuance the issuer signs the Merkle ROOT once instead of each VC.
+// Each credential's membership is then proven by its Merkle proof; the single
+// batch signature is shared across the whole batch.
+
+export const BATCH_EIP712_TYPES = {
+  Batch: [
+    { name: 'merkleRoot', type: 'bytes32' },
+    { name: 'issuerDid', type: 'string' },
+    { name: 'count', type: 'uint256' },
+    { name: 'issuedAt', type: 'string' },
+  ],
+} as const;
+
+export const BATCH_EIP712_PRIMARY_TYPE = 'Batch';
+
+export interface BatchEip712Message {
+  merkleRoot: string;
+  issuerDid: string;
+  count: number;
+  issuedAt: string;
+}
+
+export interface BatchTypedData {
+  domain: Eip712Domain;
+  types: typeof BATCH_EIP712_TYPES;
+  primaryType: typeof BATCH_EIP712_PRIMARY_TYPE;
+  message: BatchEip712Message;
+}

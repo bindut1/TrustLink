@@ -17,6 +17,10 @@ import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
 import {
+  BATCH_EIP712_PRIMARY_TYPE,
+  BATCH_EIP712_TYPES,
+  BatchEip712Message,
+  BatchTypedData,
   CREDENTIAL_EIP712_PRIMARY_TYPE,
   CREDENTIAL_EIP712_TYPES,
   CredentialEip712Message,
@@ -297,6 +301,157 @@ export class VcService {
         ...(valid
           ? {}
           : { error: 'Recovered signer does not match issuer DID' }),
+      };
+    } catch (err) {
+      return {
+        valid: false,
+        signerAddress: null,
+        issuerDid: null,
+        error: (err as Error).message,
+      };
+    }
+  }
+
+  // ─────────────────── Batch signing (1 signature for N credentials) ───────────────────
+
+  /** Typed data the issuer signs ONCE for a whole Merkle batch. */
+  buildBatchTypedData(args: {
+    merkleRoot: string;
+    institution: Institution;
+    count: number;
+    issuedAt: string;
+  }): BatchTypedData {
+    const signingAddress =
+      args.institution.signingAddress ?? args.institution.blockchainAddress;
+    if (!signingAddress || !ethers.isAddress(signingAddress)) {
+      throw new InternalServerErrorException(
+        `Institution ${args.institution.id} has no valid signing_address`,
+      );
+    }
+    const message: BatchEip712Message = {
+      merkleRoot: args.merkleRoot,
+      issuerDid: this.buildIssuerDid(signingAddress),
+      count: args.count,
+      issuedAt: args.issuedAt,
+    };
+    return {
+      domain: buildCredentialDomain(this.chainIdHex()),
+      types: BATCH_EIP712_TYPES,
+      primaryType: BATCH_EIP712_PRIMARY_TYPE,
+      message,
+    };
+  }
+
+  /**
+   * Assemble one credential's VC carrying the SHARED batch signature plus this
+   * credential's Merkle proof (proof.eip712.primaryType === 'Batch').
+   */
+  assembleBatchVc(args: {
+    credential: Credential;
+    candidate: User;
+    institutionName: string;
+    batchTypedData: BatchTypedData;
+    batchSignature: string;
+    createdAt: string;
+  }): Record<string, unknown> {
+    const { credential, candidate, institutionName, batchTypedData } = args;
+    const issuerDid = batchTypedData.message.issuerDid;
+    return {
+      '@context': [
+        'https://www.w3.org/2018/credentials/v1',
+        'https://w3id.org/security/suites/eip712sig-2021/v1',
+      ],
+      type: ['VerifiableCredential', 'TrustLinkCredential'],
+      id: `urn:trustlink:credential:${credential.id}`,
+      issuer: { id: issuerDid, name: institutionName },
+      issuanceDate: args.createdAt,
+      credentialSubject: {
+        id: `urn:trustlink:user:${candidate.id}`,
+        name: candidate.fullName,
+        credential: {
+          id: credential.id,
+          credentialNumber: credential.credentialNumber,
+          title: credential.title,
+          credentialHash: credential.credentialHash,
+          issuedDate: this.normalizeDate(credential.issuedDate),
+        },
+      },
+      proof: {
+        type: EIP712_PROOF_TYPE,
+        created: args.createdAt,
+        proofPurpose: 'assertionMethod',
+        verificationMethod: issuerDid,
+        proofValue: args.batchSignature,
+        merkleRoot: credential.merkleRoot,
+        merkleProof: credential.merkleProof,
+        leafIndex: credential.leafIndex,
+        eip712: {
+          domain: batchTypedData.domain,
+          types: batchTypedData.types,
+          primaryType: batchTypedData.primaryType,
+          message: batchTypedData.message,
+        },
+      },
+    };
+  }
+
+  /**
+   * Verify a batch-signed VC: recover the signer from the (shared) batch
+   * signature over the Batch typed data and match it to the issuer DID; also
+   * confirm the credential's root equals the signed root. Merkle membership of
+   * the leaf is checked separately by the caller.
+   */
+  verifyBatchEip712(vcJson: Record<string, unknown> | null | undefined): VerifiedVc {
+    try {
+      const proof = (vcJson?.['proof'] ?? null) as {
+        type?: string;
+        proofValue?: string;
+        verificationMethod?: string;
+        merkleRoot?: string;
+        eip712?: {
+          domain: Eip712Domain;
+          types: { Batch: { name: string; type: string }[] };
+          primaryType?: string;
+          message: BatchEip712Message;
+        };
+      } | null;
+
+      if (
+        !proof ||
+        proof.type !== EIP712_PROOF_TYPE ||
+        proof.eip712?.primaryType !== BATCH_EIP712_PRIMARY_TYPE ||
+        !proof.eip712 ||
+        !proof.proofValue
+      ) {
+        return {
+          valid: false,
+          signerAddress: null,
+          issuerDid: null,
+          error: 'Not a batch EthereumEip712Signature2021 proof',
+        };
+      }
+
+      const recovered = ethers.verifyTypedData(
+        proof.eip712.domain,
+        { Batch: proof.eip712.types.Batch },
+        proof.eip712.message,
+        proof.proofValue,
+      );
+      const issuerDid = proof.verificationMethod ?? null;
+      const expected = issuerDid ? this.parseAddressFromDid(issuerDid) : null;
+      const rootMatches =
+        (proof.merkleRoot ?? '').toLowerCase() ===
+        (proof.eip712.message.merkleRoot ?? '').toLowerCase();
+      const valid =
+        !!expected && recovered.toLowerCase() === expected && rootMatches;
+      return {
+        valid,
+        signerAddress: recovered.toLowerCase(),
+        issuerDid,
+        payload: vcJson as Record<string, unknown>,
+        ...(valid
+          ? {}
+          : { error: 'Batch signature does not match issuer / root' }),
       };
     } catch (err) {
       return {

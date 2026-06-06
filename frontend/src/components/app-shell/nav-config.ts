@@ -100,6 +100,7 @@ const ISSUER_NAV: NavSection[] = [
     labelKey: "navSection.credentials",
     items: [
       { labelKey: "nav.allCredentials", href: "/issuer/credentials", icon: Award },
+      { labelKey: "nav.issueOnchain", href: "/issuer/issue-onchain", icon: Link2 },
       { labelKey: "nav.issue", href: "/issuer/issue", icon: ShieldCheck },
       { labelKey: "nav.batch", href: "/issuer/batch", icon: ClipboardList },
     ],

@@ -22,6 +22,12 @@ import { RequireActions } from '../auth/decorators/require-actions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { CredentialsService } from './credentials.service';
+import {
+  AnchorBatchDto,
+  AnchorBulkDto,
+  PrepareBatchDto,
+  RegisterIssuerWalletDto,
+} from './dto/batch.dto';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
@@ -42,6 +48,56 @@ export class CredentialsController {
     @Body() dto: CreateCredentialDto,
   ) {
     return this.service.create(user.id, dto);
+  }
+
+  @Post('issuer/wallet')
+  @RequireActions('credential.issue')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Register the issuer's non-custodial signing wallet" })
+  @ApiOkResponse({ description: 'Signing address registered' })
+  async registerWallet(
+    @CurrentUser() user: User,
+    @Body() dto: RegisterIssuerWalletDto,
+  ) {
+    return this.service.registerIssuerWallet(user.id, dto.signingAddress);
+  }
+
+  @Post('batch/prepare')
+  @RequireActions('credential.issue')
+  @ApiOperation({
+    summary: 'Prepare a credential batch (returns EIP-712 typed data to sign)',
+  })
+  @ApiCreatedResponse({ description: 'Merkle root + per-credential typed data' })
+  async prepareBatch(
+    @CurrentUser() user: User,
+    @Body() dto: PrepareBatchDto,
+  ) {
+    return this.service.prepareBatch(user.id, dto);
+  }
+
+  @Post('batch/anchor')
+  @RequireActions('credential.issue')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Anchor a signed batch (verify issuer signatures + on-chain root)',
+  })
+  @ApiOkResponse({ description: 'Number of credentials anchored/issued' })
+  async anchorBatch(@CurrentUser() user: User, @Body() dto: AnchorBatchDto) {
+    return this.service.anchorBatch(user.id, dto);
+  }
+
+  @Post('batch/anchor-bulk')
+  @RequireActions('credential.issue')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Anchor a bulk batch signed once over the Merkle root',
+  })
+  @ApiOkResponse({ description: 'Number of credentials anchored/issued' })
+  async anchorBatchBulk(
+    @CurrentUser() user: User,
+    @Body() dto: AnchorBulkDto,
+  ) {
+    return this.service.anchorBatchBulk(user.id, dto);
   }
 
   @Get()

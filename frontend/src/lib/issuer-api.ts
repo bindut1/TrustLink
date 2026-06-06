@@ -5,6 +5,7 @@
 
 import { API_BASE_URL, apiRequest, networkError, parseUploadError } from "./api";
 import { getAccessToken } from "./auth-storage";
+import type { CredentialTypedData } from "./eip712";
 import type {
   BatchImport,
   CandidateLookupResult,
@@ -67,6 +68,45 @@ export async function issueCredential(
   payload: IssueCredentialPayload,
 ): Promise<Credential> {
   return apiRequest("/credentials", {
+    method: "POST",
+    body: payload as unknown as Record<string, unknown>,
+    ...authOpts(),
+  });
+}
+
+// ───────────── Non-custodial batch issuance (MetaMask) ─────────────
+
+export function registerIssuerWallet(
+  signingAddress: string,
+): Promise<{ signingAddress: string; authorized: boolean }> {
+  return apiRequest("/credentials/issuer/wallet", {
+    method: "POST",
+    body: { signingAddress },
+    ...authOpts(),
+  });
+}
+
+export interface PreparedBatch {
+  merkleRoot: string;
+  items: { credentialId: string; typedData: CredentialTypedData }[];
+}
+
+export function prepareBatch(
+  items: IssueCredentialPayload[],
+): Promise<PreparedBatch> {
+  return apiRequest("/credentials/batch/prepare", {
+    method: "POST",
+    body: { items } as unknown as Record<string, unknown>,
+    ...authOpts(),
+  });
+}
+
+export function anchorBatch(payload: {
+  merkleRoot: string;
+  txHash: string;
+  signatures: { credentialId: string; signature: string }[];
+}): Promise<{ anchored: number }> {
+  return apiRequest("/credentials/batch/anchor", {
     method: "POST",
     body: payload as unknown as Record<string, unknown>,
     ...authOpts(),

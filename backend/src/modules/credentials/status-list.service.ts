@@ -42,22 +42,33 @@ export class StatusListService {
     const existing = await this.repo.findOne({ where: { credentialId } });
     if (existing) return existing;
 
-    return this.dataSource.transaction(async (manager) => {
-      const row = await manager
-        .createQueryBuilder(StatusListEntry, 'e')
+    // Next index = MAX + 1. Postgres forbids FOR UPDATE with aggregates, so we
+    // don't lock; instead we retry on the unique-slot constraint to absorb the
+    // rare concurrent collision.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const row = await this.repo
+        .createQueryBuilder('e')
         .select('COALESCE(MAX(e.status_list_index), -1)', 'max')
         .where('e.status_list_id = :id', { id: statusListId })
-        .setLock('pessimistic_write')
         .getRawOne<{ max: string }>();
       const nextIndex = parseInt(row?.max ?? '-1', 10) + 1;
-      const entry = manager.create(StatusListEntry, {
-        credentialId,
-        statusListId,
-        statusListIndex: nextIndex,
-        revoked: false,
-      });
-      return manager.save(entry);
-    });
+      try {
+        return await this.repo.save(
+          this.repo.create({
+            credentialId,
+            statusListId,
+            statusListIndex: nextIndex,
+            revoked: false,
+          }),
+        );
+      } catch (err) {
+        if ((err as { code?: string }).code === '23505' && attempt < 4) {
+          continue; // slot taken concurrently — recompute and retry
+        }
+        throw err;
+      }
+    }
+    throw new Error('Could not assign a status-list slot');
   }
 
   async revokeByCredential(credentialId: string): Promise<void> {
