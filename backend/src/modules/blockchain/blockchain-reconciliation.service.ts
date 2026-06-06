@@ -59,6 +59,62 @@ export class BlockchainReconciliationService {
     }
   }
 
+  /**
+   * T1.3 — every 5 minutes, find credentials revoked in our DB whose on-chain
+   * revoke never landed (worker crash / permanently-failed tx). Verification
+   * already refuses to return VALID for these (DB-revoked guard), but the chain
+   * should still converge: re-queue the revoke when there is no active revoke tx.
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async reconcileRevocations(): Promise<void> {
+    if (!this.blockchain.isReady()) return;
+
+    const revoked = await this.credRepo.find({
+      where: { status: CredentialStatus.REVOKED },
+      take: 100,
+    });
+
+    for (const credential of revoked) {
+      if (!credential.credentialHash) continue;
+      try {
+        const onChain = await this.blockchain.verifyCredentialOnChain(
+          credential.credentialHash,
+        );
+        // Already revoked on-chain (or never anchored) → nothing to converge.
+        if (!onChain.exists || onChain.isRevoked) continue;
+
+        // Reuse the original revoker; initiated_by is a non-null FK to users.
+        const lastRevoke = await this.txRepo.findOne({
+          where: {
+            credentialId: credential.id,
+            transactionType: TxType.REVOKE_CREDENTIAL,
+          },
+          order: { createdAt: 'DESC' },
+        });
+        if (!lastRevoke) continue; // no revoke tx to attribute / converge from
+        if (
+          [TxStatus.QUEUED, TxStatus.SUBMITTED, TxStatus.RETRYING].includes(
+            lastRevoke.status,
+          )
+        ) {
+          continue; // a revoke is already in flight
+        }
+
+        this.logger.warn(
+          `Revocation divergence for credential ${credential.id}: DB revoked but on-chain active — re-queueing revoke`,
+        );
+        await this.blockchain.revokeCredentialOnChain({
+          credentialId: credential.id,
+          initiatedBy: lastRevoke.initiatedBy,
+        });
+      } catch (err) {
+        this.logger.error(
+          `Revocation reconcile failed for credential ${credential.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+  }
+
   private async reconcileOne(credential: Credential): Promise<void> {
     if (!credential.credentialHash) return;
 

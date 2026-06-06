@@ -47,6 +47,11 @@ export class VerificationCache {
   @Column({ name: 'issuer_authorized', type: 'boolean', default: false })
   issuerAuthorized: boolean;
 
+  // True when the hash recomputed from the credential's current content matches
+  // the hash anchored on-chain — i.e. the content has not been tampered with.
+  @Column({ name: 'content_integrity_valid', type: 'boolean', default: false })
+  contentIntegrityValid: boolean;
+
   @Column({
     name: 'verification_details',
     type: 'jsonb',

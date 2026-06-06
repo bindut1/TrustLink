@@ -7,9 +7,10 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 
 type VerificationOutcome = {
   result: string;
-  on_chain_verified: boolean;
-  vc_signature_valid: boolean;
-  issuer_authorized: boolean;
+  onChainVerified: boolean;
+  vcSignatureValid: boolean;
+  issuerAuthorized: boolean;
+  contentIntegrityValid: boolean;
   cached: boolean;
 };
 
@@ -38,27 +39,33 @@ type PublicVerifyResponse = {
 
 function StatusBadge({ outcome }: { outcome: VerificationOutcome }) {
   const { t } = useLanguage();
+  const isError = outcome.result === "error";
   const allGood =
-    outcome.on_chain_verified &&
-    outcome.vc_signature_valid &&
-    outcome.issuer_authorized &&
+    outcome.onChainVerified &&
+    outcome.vcSignatureValid &&
+    outcome.issuerAuthorized &&
+    outcome.contentIntegrityValid &&
     outcome.result === "valid";
-  const color = allGood
-    ? "bg-green-100 text-green-800 border-green-300"
-    : outcome.result === "revoked"
-      ? "bg-orange-100 text-orange-800 border-orange-300"
-      : "bg-red-100 text-red-800 border-red-300";
-  const labelKey: TranslationKey = allGood
-    ? "publicVerify.statusVerified"
-    : outcome.result === "revoked"
-      ? "publicVerify.statusRevoked"
-      : "publicVerify.statusInvalid";
+  const color = isError
+    ? "bg-gray-100 text-gray-700 border-gray-300"
+    : allGood
+      ? "bg-green-100 text-green-800 border-green-300"
+      : outcome.result === "revoked"
+        ? "bg-orange-100 text-orange-800 border-orange-300"
+        : "bg-red-100 text-red-800 border-red-300";
+  const labelKey: TranslationKey = isError
+    ? "publicVerify.statusError"
+    : allGood
+      ? "publicVerify.statusVerified"
+      : outcome.result === "revoked"
+        ? "publicVerify.statusRevoked"
+        : "publicVerify.statusInvalid";
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold ${color}`}
     >
       <span className="text-lg">
-        {allGood ? "✓" : outcome.result === "revoked" ? "⊘" : "✗"}
+        {isError ? "!" : allGood ? "✓" : outcome.result === "revoked" ? "⊘" : "✗"}
       </span>
       {t(labelKey)}
     </span>
@@ -183,20 +190,30 @@ export default function PublicVerifyPage({
           <h2 className="text-lg font-semibold text-gray-900">
             {t("publicVerify.verificationDetails")}
           </h2>
-          <div className="mt-3">
-            <CheckRow
-              label={t("publicVerify.checkOnChain")}
-              ok={verification.on_chain_verified}
-            />
-            <CheckRow
-              label={t("publicVerify.checkSignature")}
-              ok={verification.vc_signature_valid}
-            />
-            <CheckRow
-              label={t("publicVerify.checkIssuer")}
-              ok={verification.issuer_authorized}
-            />
-          </div>
+          {verification.result === "error" ? (
+            <p className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              {t("publicVerify.cannotVerifyNow")}
+            </p>
+          ) : (
+            <div className="mt-3">
+              <CheckRow
+                label={t("publicVerify.checkOnChain")}
+                ok={verification.onChainVerified}
+              />
+              <CheckRow
+                label={t("publicVerify.checkContentIntegrity")}
+                ok={verification.contentIntegrityValid}
+              />
+              <CheckRow
+                label={t("publicVerify.checkSignature")}
+                ok={verification.vcSignatureValid}
+              />
+              <CheckRow
+                label={t("publicVerify.checkIssuer")}
+                ok={verification.issuerAuthorized}
+              />
+            </div>
+          )}
         </div>
 
         {credential.blockchainTxHash && (

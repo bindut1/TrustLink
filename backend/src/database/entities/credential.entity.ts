@@ -102,6 +102,12 @@ export class Credential {
   })
   credentialHash: string | null;
 
+  // Which hashing scheme produced `credential_hash`. Lets verification stay
+  // backward-compatible: legacy rows (null) use plain JSON.stringify, new rows
+  // use canonical JCS-style serialization. See BlockchainService.computeCredentialHash.
+  @Column({ name: 'hash_version', type: 'varchar', length: 16, nullable: true })
+  hashVersion: string | null;
+
   @Column({
     name: 'blockchain_tx_hash',
     type: 'varchar',

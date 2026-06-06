@@ -39,6 +39,7 @@ export interface VerificationOutcome {
   onChainVerified: boolean;
   vcSignatureValid: boolean;
   issuerAuthorized: boolean;
+  contentIntegrityValid: boolean;
   details: Record<string, unknown>;
   cached: boolean;
 }
@@ -320,6 +321,7 @@ export class CredentialsService {
         onChainVerified: cached.onChainVerified,
         vcSignatureValid: cached.vcSignatureValid,
         issuerAuthorized: cached.issuerAuthorized,
+        contentIntegrityValid: cached.contentIntegrityValid,
         details: cached.verificationDetails,
         cached: true,
       };
@@ -343,6 +345,7 @@ export class CredentialsService {
         onChainVerified: outcome.onChainVerified,
         vcSignatureValid: outcome.vcSignatureValid,
         issuerAuthorized: outcome.issuerAuthorized,
+        contentIntegrityValid: outcome.contentIntegrityValid,
         verificationDetails: outcome.details,
         verifiedBy: verifierUserId ?? null,
         verifiedAt: new Date(),
@@ -358,14 +361,27 @@ export class CredentialsService {
   ): Promise<Omit<VerificationOutcome, 'cached'>> {
     const details: Record<string, unknown> = {};
 
+    // T1.1 — content integrity: recompute the hash from the credential's CURRENT
+    // content and compare it to the hash that was stored/anchored. If the content
+    // was tampered with (and the stored hash left intact), they diverge. We then
+    // query the chain by the RECOMPUTED hash so that even a tampered row whose
+    // stored hash was also rewritten resolves to NOT_FOUND on-chain.
+    const recomputedHash = this.blockchain.computeCredentialHash(credential);
+    const contentIntegrityValid = recomputedHash === credential.credentialHash;
+    details.contentIntegrity = {
+      valid: contentIntegrityValid,
+      recomputedHash,
+      storedHash: credential.credentialHash,
+      hashVersion: credential.hashVersion ?? 'legacy',
+    };
+
     let onChainVerified = false;
     let onChainIssuer: string | null = null;
     let onChainRevoked = false;
     let onChainExists = false;
     try {
-      const onChain = await this.blockchain.verifyCredentialOnChain(
-        credential.credentialHash!,
-      );
+      const onChain =
+        await this.blockchain.verifyCredentialOnChain(recomputedHash);
       onChainExists = onChain.exists;
       onChainIssuer = onChain.issuer;
       onChainRevoked = onChain.isRevoked;
@@ -377,12 +393,16 @@ export class CredentialsService {
         isRevoked: onChain.isRevoked,
       };
     } catch (err) {
+      // T1.4 — infrastructure failure (RPC down) is ERROR, distinct from a
+      // data-level INVALID. Callers/UI must surface "cannot verify right now"
+      // rather than "not authentic".
       details.onChainError = (err as Error).message;
       return {
         result: VerificationResult.ERROR,
         onChainVerified: false,
         vcSignatureValid: false,
         issuerAuthorized: false,
+        contentIntegrityValid,
         details,
       };
     }
@@ -410,12 +430,25 @@ export class CredentialsService {
       };
     }
 
+    // T1.3 — a credential revoked in our DB must never verify as VALID, even if
+    // the on-chain revoke tx hasn't landed (or failed). Treat the divergence as
+    // REVOKED and record it for reconciliation.
+    const dbRevoked = credential.status === CredentialStatus.REVOKED;
+    if (dbRevoked !== onChainRevoked) {
+      details.revocationDivergence = { dbRevoked, onChainRevoked };
+    }
+
     let result: VerificationResult;
     if (!onChainExists) {
       result = VerificationResult.NOT_FOUND;
-    } else if (onChainRevoked) {
+    } else if (onChainRevoked || dbRevoked) {
       result = VerificationResult.REVOKED;
-    } else if (onChainVerified && vcSignatureValid && issuerAuthorized) {
+    } else if (
+      onChainVerified &&
+      vcSignatureValid &&
+      issuerAuthorized &&
+      contentIntegrityValid
+    ) {
       result = VerificationResult.VALID;
     } else {
       result = VerificationResult.INVALID;
@@ -426,6 +459,7 @@ export class CredentialsService {
       onChainVerified,
       vcSignatureValid,
       issuerAuthorized,
+      contentIntegrityValid,
       details,
     };
   }

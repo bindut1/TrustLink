@@ -37,6 +37,31 @@ export interface OnChainVerification {
   isRevoked: boolean;
 }
 
+/** Current canonical hashing scheme. Stored on `credential.hash_version`. */
+export const HASH_VERSION_CANONICAL = 'v2-jcs';
+
+/**
+ * Deterministic, key-sorted JSON serialization (JCS / RFC 8785 style). Unlike
+ * JSON.stringify, object key order is normalized recursively so the same
+ * logical content always produces the same string — and therefore the same
+ * keccak256 hash — regardless of how Postgres returns jsonb keys.
+ */
+export function canonicalJsonStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return '[' + value.map(canonicalJsonStringify).join(',') + ']';
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return (
+    '{' +
+    keys
+      .map((k) => JSON.stringify(k) + ':' + canonicalJsonStringify(obj[k]))
+      .join(',') +
+    '}'
+  );
+}
+
 @Injectable()
 export class BlockchainService implements OnModuleInit {
   private readonly logger = new Logger(BlockchainService.name);
@@ -122,7 +147,14 @@ export class BlockchainService implements OnModuleInit {
         : null,
       metadata: credential.metadata ?? {},
     };
-    return ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(payload)));
+    // Version-aware so legacy credentials (hashVersion null) keep verifying with
+    // the original non-canonical serialization, while new credentials use the
+    // canonical scheme that is stable against jsonb key reordering.
+    const serialized =
+      credential.hashVersion === HASH_VERSION_CANONICAL
+        ? canonicalJsonStringify(payload)
+        : JSON.stringify(payload);
+    return ethers.keccak256(ethers.toUtf8Bytes(serialized));
   }
 
   /**
@@ -142,6 +174,12 @@ export class BlockchainService implements OnModuleInit {
       );
     }
 
+    // New credentials adopt the canonical hashing scheme. Set the version
+    // before computing so computeCredentialHash serializes canonically; the
+    // version is what verification later uses to recompute identically.
+    if (!credential.credentialHash && !credential.hashVersion) {
+      credential.hashVersion = HASH_VERSION_CANONICAL;
+    }
     const hash = credential.credentialHash ?? this.computeCredentialHash(credential);
     if (credential.credentialHash !== hash) {
       credential.credentialHash = hash;

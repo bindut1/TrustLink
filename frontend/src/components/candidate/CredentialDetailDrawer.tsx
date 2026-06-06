@@ -227,33 +227,40 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
         {/* Verification */}
         <Section title={t("candidate.credentials.verification")}>
           {result ? (
-            <div
-              className={`rounded-ctl border px-3.5 py-3 ${
-                result.result === "valid"
-                  ? "border-teal/30 bg-teal-050"
-                  : "border-danger/30 bg-danger/[0.06]"
-              }`}
-            >
+            result.result === "error" ? (
+              <div className="rounded-ctl border border-navy/20 bg-navy/[0.04] px-3.5 py-3 text-[12.5px] leading-snug text-fg-muted">
+                {t("candidate.credentials.cannotVerify")}
+              </div>
+            ) : (
               <div
-                className={`flex items-center gap-2 text-[13px] font-semibold mb-2.5 ${
-                  result.result === "valid" ? "text-teal" : "text-danger"
+                className={`rounded-ctl border px-3.5 py-3 ${
+                  result.result === "valid"
+                    ? "border-teal/30 bg-teal-050"
+                    : "border-danger/30 bg-danger/[0.06]"
                 }`}
               >
-                {result.result === "valid" ? (
-                  <CheckCircle2 size={16} />
-                ) : (
-                  <XCircle size={16} />
-                )}
-                {result.result === "valid"
-                  ? t("candidate.credentials.authentic")
-                  : t("candidate.credentials.verifyResult").replace("{result}", result.result)}
+                <div
+                  className={`flex items-center gap-2 text-[13px] font-semibold mb-2.5 ${
+                    result.result === "valid" ? "text-teal" : "text-danger"
+                  }`}
+                >
+                  {result.result === "valid" ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <XCircle size={16} />
+                  )}
+                  {result.result === "valid"
+                    ? t("candidate.credentials.authentic")
+                    : t("candidate.credentials.verifyResult").replace("{result}", result.result)}
+                </div>
+                <ul className="flex flex-col gap-2">
+                  <CheckRow ok={result.onChainVerified} label={t("candidate.credentials.onChain")} />
+                  <CheckRow ok={result.contentIntegrityValid} label={t("candidate.credentials.contentIntegrity")} />
+                  <CheckRow ok={result.vcSignatureValid} label={t("candidate.credentials.vcSignature")} />
+                  <CheckRow ok={result.issuerAuthorized} label={t("candidate.credentials.issuerAuthorized")} />
+                </ul>
               </div>
-              <ul className="flex flex-col gap-2">
-                <CheckRow ok={result.onChainVerified} label={t("candidate.credentials.onChain")} />
-                <CheckRow ok={result.vcSignatureValid} label={t("candidate.credentials.vcSignature")} />
-                <CheckRow ok={result.issuerAuthorized} label={t("candidate.credentials.issuerAuthorized")} />
-              </ul>
-            </div>
+            )
           ) : (
             <div className="flex items-center justify-between gap-3">
               <p className="text-[12.5px] text-fg-subtle leading-snug">

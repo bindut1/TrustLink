@@ -57,6 +57,7 @@ export type VerificationResult = {
   onChainVerified: boolean;
   vcSignatureValid: boolean;
   issuerAuthorized: boolean;
+  contentIntegrityValid: boolean;
   verifiedAt?: string;
 };
 
