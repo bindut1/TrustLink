@@ -9,20 +9,19 @@
  *   - 5 credential types
  *   - 5 recruiters + companies
  *   - 10 jobs
- *   - 20 candidates
- *   - ~40 credentials (issued, with mock vc_jwt / blockchain tx_hash)
- *   - candidate_skills inferred from issued credentials
+ *   - 20 candidates + self-declared candidate_skills (for matching demo)
+ *
+ * Credentials are NOT seeded — they are issued non-custodially via the issuer
+ * flow (MetaMask + on-chain anchor), which is what verifies a candidate's skill.
  *
  * Usage:  npm run seed
  */
 import 'reflect-metadata';
 import * as bcrypt from 'bcryptjs';
-import { randomUUID, createHash } from 'crypto';
 import AppDataSource from '../data-source';
 import { CandidateProfile } from '../entities/candidate-profile.entity';
 import { CandidateSkill } from '../entities/candidate-skill.entity';
 import { CredentialType } from '../entities/credential-type.entity';
-import { Credential } from '../entities/credential.entity';
 import { Institution } from '../entities/institution.entity';
 import { Job } from '../entities/job.entity';
 import { RecruiterProfile } from '../entities/recruiter-profile.entity';
@@ -31,7 +30,6 @@ import {
   AccountStatus,
   ApprovalStatus,
   CredentialCategory,
-  CredentialStatus,
   JobStatus,
   UserRole,
 } from '../enums';
@@ -346,18 +344,6 @@ function pickSkillPool(idx: number) {
   return SKILL_POOLS[idx % SKILL_POOLS.length];
 }
 
-function mockBlockchain(id: string) {
-  const hash = createHash('sha256').update(id).digest('hex');
-  return {
-    credentialHash: '0x' + hash.slice(0, 64),
-    blockchainTxHash: '0x' + hash.slice(0, 64),
-    blockchainBlockNumber: String(
-      5000000 + (parseInt(hash.slice(0, 6), 16) % 100000),
-    ),
-    blockchainTimestamp: new Date(),
-  };
-}
-
 // ─────────────────────────── Main ───────────────────────────
 
 async function seed() {
@@ -519,93 +505,28 @@ async function seed() {
     }
     console.log(`  candidates: ${candidates.length}`);
 
-    // 7. Issue credentials to candidates
-    const typeMap = new Map(credentialTypes.map((ct) => [ct.name, ct]));
-    let credentialCount = 0;
+    // 7. Seed candidate skills (self-declared). Credentials are NOT mock-seeded
+    //    anymore — they are issued non-custodially via the issuer flow (MetaMask
+    //    + on-chain anchor), which is what flips a skill to verified.
+    let skillCount = 0;
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
       const pool = pickSkillPool(i);
-      const credentialType = typeMap.get(
-        pool.verifyTitle === 'Bachelor of Engineering'
-          ? 'Bằng Cử nhân Kỹ thuật'
-          : 'AWS Certified Solutions Architect',
-      )!;
-      const institution = institutions[i % institutions.length];
-
-      const credentialId = randomUUID();
-      const blockchain = mockBlockchain(credentialId);
-      const credential = await manager.save(
-        manager.create(Credential, {
-          id: credentialId,
-          credentialNumber: `${institution.abbreviation}-${2026}-${1000 + i}`,
-          credentialTypeId: credentialType.id,
-          institutionId: institution.id,
-          candidateId: candidate.id,
-          title: `${credentialType.name} (${pool.skills[0]})`,
-          issuedDate: new Date(2024, 0, 1),
-          metadata: { major: pool.skills[0], gpa: 3.0 + (i % 9) / 10 },
-          extractedSkills: pool.skills,
-          status: CredentialStatus.ISSUED,
-          credentialHash: blockchain.credentialHash,
-          blockchainTxHash: blockchain.blockchainTxHash,
-          blockchainBlockNumber: blockchain.blockchainBlockNumber,
-          blockchainTimestamp: blockchain.blockchainTimestamp,
-          issuerDid: institution.didIdentifier,
-        }),
-      );
-      credentialCount++;
-
-      // 8. Candidate skills (verified from credential)
-      for (const skill of pool.skills) {
+      const skills = [...pool.skills, ...(i % 2 === 0 ? ['english'] : [])];
+      for (const skill of skills) {
         await manager.save(
           manager.create(CandidateSkill, {
             candidateId: candidate.id,
             skillName: skill,
             skillNameNormalized: skill.toLowerCase().trim(),
             proficiencyLevel: 'intermediate',
-            isVerified: true,
-            sourceCredentialId: credential.id,
+            isVerified: false,
           }),
         );
-      }
-
-      // Second credential — IELTS for half of candidates
-      if (i % 2 === 0) {
-        const ielts = typeMap.get('IELTS')!;
-        const id2 = randomUUID();
-        const bc2 = mockBlockchain(id2);
-        await manager.save(
-          manager.create(Credential, {
-            id: id2,
-            credentialNumber: `BCA-IELTS-${2026}-${2000 + i}`,
-            credentialTypeId: ielts.id,
-            institutionId: institutions[2].id,
-            candidateId: candidate.id,
-            title: 'IELTS Academic',
-            issuedDate: new Date(2024, 5, 15),
-            metadata: { overall: 6.5 + (i % 4) * 0.5 },
-            extractedSkills: ['english'],
-            status: CredentialStatus.ISSUED,
-            credentialHash: bc2.credentialHash,
-            blockchainTxHash: bc2.blockchainTxHash,
-            blockchainBlockNumber: bc2.blockchainBlockNumber,
-            blockchainTimestamp: bc2.blockchainTimestamp,
-            issuerDid: institutions[2].didIdentifier,
-          }),
-        );
-        credentialCount++;
-        await manager.save(
-          manager.create(CandidateSkill, {
-            candidateId: candidate.id,
-            skillName: 'English',
-            skillNameNormalized: 'english',
-            proficiencyLevel: 'advanced',
-            isVerified: true,
-          }),
-        );
+        skillCount++;
       }
     }
-    console.log(`  credentials issued: ${credentialCount}`);
+    console.log(`  candidate skills seeded (self-declared): ${skillCount}`);
   });
 
   console.log('\n✓ Seed completed.');

@@ -14,7 +14,6 @@ export { UserActionOverride } from './user-action-override.entity';
 // Group 3: Credential Management
 export { CredentialType } from './credential-type.entity';
 export { Credential } from './credential.entity';
-export { BatchImport } from './batch-import.entity';
 export { VerificationCache } from './verification-cache.entity';
 
 // Group 4: Blockchain

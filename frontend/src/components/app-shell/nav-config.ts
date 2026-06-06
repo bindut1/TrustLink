@@ -10,7 +10,6 @@ import {
   Link2,
   ScrollText,
   Search,
-  ShieldCheck,
   Sparkles,
   UserCircle,
   Users,
@@ -101,8 +100,7 @@ const ISSUER_NAV: NavSection[] = [
     items: [
       { labelKey: "nav.allCredentials", href: "/issuer/credentials", icon: Award },
       { labelKey: "nav.issueOnchain", href: "/issuer/issue-onchain", icon: Link2 },
-      { labelKey: "nav.issue", href: "/issuer/issue", icon: ShieldCheck },
-      { labelKey: "nav.batch", href: "/issuer/batch", icon: ClipboardList },
+      { labelKey: "nav.issueBulk", href: "/issuer/issue-bulk", icon: ClipboardList },
     ],
   },
   settingsSection("issuer", Building2),

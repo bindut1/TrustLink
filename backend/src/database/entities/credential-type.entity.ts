@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 import { CredentialCategory } from '../enums';
 import { Credential } from './credential.entity';
-import { BatchImport } from './batch-import.entity';
 
 @Entity({ name: 'credential_types' })
 export class CredentialType {
@@ -45,7 +44,4 @@ export class CredentialType {
 
   @OneToMany(() => Credential, (credential) => credential.credentialType)
   credentials?: Credential[];
-
-  @OneToMany(() => BatchImport, (batch) => batch.credentialType)
-  batchImports?: BatchImport[];
 }

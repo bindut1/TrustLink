@@ -17,7 +17,6 @@ import { CredentialsModule } from './modules/credentials/credentials.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
-import { BatchImportsModule } from './modules/batch-imports/batch-imports.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -65,7 +64,6 @@ import { PublicStatsModule } from './modules/public-stats/public-stats.module';
     InstitutionsModule,
     CredentialTypesModule,
     CredentialsModule,
-    BatchImportsModule,
     NotificationsModule,
     MatchingModule,
     JobsModule,

@@ -15,7 +15,6 @@ import { CredentialStatus } from '../enums';
 import { CredentialType } from './credential-type.entity';
 import { Institution } from './institution.entity';
 import { User } from './user.entity';
-import { BatchImport } from './batch-import.entity';
 import { VerificationCache } from './verification-cache.entity';
 import { BlockchainTransaction } from './blockchain-transaction.entity';
 import { CandidateSkill } from './candidate-skill.entity';
@@ -182,16 +181,6 @@ export class Credential {
   @OneToOne(() => Credential, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reissued_to_id' })
   reissuedTo?: Credential | null;
-
-  @Column({ name: 'batch_import_id', type: 'uuid', nullable: true })
-  batchImportId: string | null;
-
-  @ManyToOne(() => BatchImport, (batch) => batch.credentials, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'batch_import_id' })
-  batchImport?: BatchImport | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

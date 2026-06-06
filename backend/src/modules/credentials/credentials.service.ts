@@ -42,7 +42,6 @@ import {
   AnchorBulkDto,
   PrepareBatchDto,
 } from './dto/batch.dto';
-import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
 import { StatusListService } from './status-list.service';
@@ -87,125 +86,6 @@ export class CredentialsService {
     private readonly auditLogs: AuditLogsService,
     private readonly statusList: StatusListService,
   ) {}
-
-  async create(
-    issuerUserId: string,
-    dto: CreateCredentialDto,
-  ): Promise<Credential> {
-    // 1. Issuer must have an approved institution.
-    const institution = await this.institutionRepo.findOne({
-      where: { userId: issuerUserId },
-    });
-    if (!institution) {
-      throw new ForbiddenException('Issuer has no registered institution');
-    }
-    if (institution.approvalStatus !== ApprovalStatus.APPROVED) {
-      throw new ForbiddenException('Institution is not approved');
-    }
-
-    // 2. Credential type must exist and be active.
-    const credentialType = await this.typeRepo.findOne({
-      where: { id: dto.credentialTypeId },
-    });
-    if (!credentialType) {
-      throw new NotFoundException('Credential type not found');
-    }
-    if (!credentialType.isActive) {
-      throw new BadRequestException('Credential type is inactive');
-    }
-
-    // 3. Candidate must exist and be a candidate role.
-    const candidate = await this.userRepo.findOne({
-      where: { id: dto.candidateId },
-    });
-    if (!candidate) {
-      throw new NotFoundException('Candidate not found');
-    }
-    if (candidate.role !== UserRole.CANDIDATE) {
-      throw new BadRequestException('Target user is not a candidate');
-    }
-
-    // 4. Validate metadata against the credential type's field_schema.
-    validateCredentialMetadata(dto.metadata, credentialType.fieldSchema);
-
-    // 5. Extract skills from metadata.
-    const skills = extractSkillsFromMetadata(
-      dto.metadata,
-      credentialType.fieldSchema,
-    );
-
-    // 5b. Check if a previous credential of the same type exists for this
-    // candidate — determines whether to send ISSUED or REISSUED notification.
-    const existingCredential = await this.credRepo.findOne({
-      where: {
-        candidateId: candidate.id,
-        credentialTypeId: credentialType.id,
-      },
-    });
-
-    // 6. Persist credential + candidate skills in a single transaction.
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const credential = manager.create(Credential, {
-        credentialNumber: dto.credentialNumber,
-        credentialTypeId: credentialType.id,
-        institutionId: institution.id,
-        candidateId: candidate.id,
-        title: dto.title,
-        issuedDate: new Date(dto.issuedDate),
-        expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
-        metadata: dto.metadata,
-        extractedSkills: skills.map((s) => s.name),
-        status: CredentialStatus.PENDING,
-      });
-      const persisted = await manager.save(credential);
-
-      await this.upsertCandidateSkills(
-        manager,
-        candidate.id,
-        persisted.id,
-        skills,
-      );
-
-      return persisted;
-    });
-
-    // Assign a StatusList2021 slot so this credential can later be revoked
-    // individually (bitstring check), independent of on-chain batch revocation.
-    await this.statusList.assignEntry(saved.id);
-
-    await this.blockchain.issueCredentialOnChain({
-      credentialId: saved.id,
-      initiatedBy: issuerUserId,
-    });
-
-    await this.notifications.create({
-      userId: candidate.id,
-      type: existingCredential
-        ? NotificationType.CREDENTIAL_REISSUED
-        : NotificationType.CREDENTIAL_ISSUED,
-      title: existingCredential ? 'Cấp lại văn bằng' : 'Văn bằng mới',
-      message: existingCredential
-        ? `${institution.name} đã cấp lại văn bằng "${saved.title}" cho bạn.`
-        : `${institution.name} đã cấp văn bằng "${saved.title}" cho bạn.`,
-      referenceType: 'credential',
-      referenceId: saved.id,
-    });
-
-    await this.auditLogs.record({
-      userId: issuerUserId,
-      action: 'credential.issue',
-      entityType: 'credential',
-      entityId: saved.id,
-      newValues: {
-        credentialNumber: saved.credentialNumber,
-        title: saved.title,
-        candidateId: saved.candidateId,
-        institutionId: saved.institutionId,
-      },
-    });
-
-    return saved;
-  }
 
   /**
    * Register the issuer institution's non-custodial MetaMask address. Used as
@@ -859,16 +739,6 @@ export class CredentialsService {
         valid: v.valid,
         signerAddress: v.signerAddress,
         issuerDid: v.issuerDid,
-        ...(v.error ? { error: v.error } : {}),
-      };
-    } else if (credential.vcJwt) {
-      const v = await this.vcService.verifyJwt(credential.vcJwt);
-      vcSignatureValid = v.valid;
-      details.vc = {
-        type: 'jwt',
-        valid: v.valid,
-        issuerDid: v.issuerDid,
-        signerAddress: v.signerAddress,
         ...(v.error ? { error: v.error } : {}),
       };
     } else {

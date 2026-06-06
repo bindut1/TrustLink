@@ -28,7 +28,6 @@ import {
   PrepareBatchDto,
   RegisterIssuerWalletDto,
 } from './dto/batch.dto';
-import { CreateCredentialDto } from './dto/create-credential.dto';
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
 
@@ -38,17 +37,6 @@ import { RevokeCredentialDto } from './dto/revoke-credential.dto';
 @Controller('credentials')
 export class CredentialsController {
   constructor(private readonly service: CredentialsService) {}
-
-  @Post()
-  @RequireActions('credential.issue')
-  @ApiOperation({ summary: 'Issue a new credential (issuer)' })
-  @ApiCreatedResponse({ description: 'Credential created in pending status' })
-  async create(
-    @CurrentUser() user: User,
-    @Body() dto: CreateCredentialDto,
-  ) {
-    return this.service.create(user.id, dto);
-  }
 
   @Post('issuer/wallet')
   @RequireActions('credential.issue')

@@ -157,56 +157,6 @@ export class BlockchainService implements OnModuleInit {
     return ethers.keccak256(ethers.toUtf8Bytes(serialized));
   }
 
-  /**
-   * Persist credential hash, create a queued blockchain_transactions row, and
-   * enqueue a Bull job that the worker will pick up.
-   */
-  async issueCredentialOnChain(args: {
-    credentialId: string;
-    initiatedBy: string;
-  }): Promise<BlockchainTransaction> {
-    const credential = await this.credRepo.findOne({
-      where: { id: args.credentialId },
-    });
-    if (!credential) {
-      throw new InternalServerErrorException(
-        `Credential ${args.credentialId} not found while queueing issuance`,
-      );
-    }
-
-    // New credentials adopt the canonical hashing scheme. Set the version
-    // before computing so computeCredentialHash serializes canonically; the
-    // version is what verification later uses to recompute identically.
-    if (!credential.credentialHash && !credential.hashVersion) {
-      credential.hashVersion = HASH_VERSION_CANONICAL;
-    }
-    const hash = credential.credentialHash ?? this.computeCredentialHash(credential);
-    if (credential.credentialHash !== hash) {
-      credential.credentialHash = hash;
-      await this.credRepo.save(credential);
-    }
-
-    const tx = await this.txRepo.save(
-      this.txRepo.create({
-        transactionType: TxType.ISSUE_CREDENTIAL,
-        status: TxStatus.QUEUED,
-        credentialId: credential.id,
-        institutionId: credential.institutionId,
-        initiatedBy: args.initiatedBy,
-        contractMethod: 'issueCredential',
-        contractParams: { credentialHash: hash },
-      }),
-    );
-
-    await this.queue.add(
-      BLOCKCHAIN_JOB_ISSUE,
-      { transactionId: tx.id },
-      { attempts: 1, removeOnComplete: true, removeOnFail: false },
-    );
-
-    return tx;
-  }
-
   async revokeCredentialOnChain(args: {
     credentialId: string;
     initiatedBy: string;
@@ -407,11 +357,7 @@ export class BlockchainService implements OnModuleInit {
     );
 
     let sentTx: ethers.TransactionResponse;
-    if (tx.transactionType === TxType.ISSUE_CREDENTIAL) {
-      const hash = (tx.contractParams as { credentialHash: string })
-        .credentialHash;
-      sentTx = await this.contract.issueCredential(hash, { nonce });
-    } else if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
+    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
       const hash = (tx.contractParams as { credentialHash: string })
         .credentialHash;
       sentTx = await this.contract.revokeCredential(hash, { nonce });
@@ -456,17 +402,6 @@ export class BlockchainService implements OnModuleInit {
       ? new Date(block.timestamp * 1000)
       : new Date();
 
-    if (tx.transactionType === TxType.ISSUE_CREDENTIAL) {
-      credential.status = CredentialStatus.ISSUED;
-      credential.blockchainTxHash = tx.txHash;
-      credential.blockchainBlockNumber = tx.blockNumber;
-      credential.blockchainTimestamp = blockTimestamp;
-      await this.credRepo.save(credential);
-      await this.signAndSaveVc(credential);
-      await this.setSkillsVerified(credential.id, true);
-      await this.refreshCandidateEmbedding(credential.candidateId);
-      return;
-    }
     if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
       credential.status = CredentialStatus.REVOKED;
       if (!credential.revokedAt) credential.revokedAt = blockTimestamp;
@@ -510,52 +445,6 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-  /**
-   * Generate a W3C VC JWT once a credential is confirmed on-chain. Failures
-   * are logged but don't block — credential remains issued; we can re-sign
-   * later via reconciliation if needed.
-   */
-  private async signAndSaveVc(credential: Credential): Promise<void> {
-    if (credential.vcJwt) return;
-
-    if (!credential.institutionId || !credential.candidateId) {
-      this.logger.warn(
-        `VC signing skipped for credential ${credential.id}: missing institutionId or candidateId`,
-      );
-      return;
-    }
-
-    try {
-      const [institution, candidate] = await Promise.all([
-        this.institutionRepo.findOne({
-          where: { id: credential.institutionId },
-        }),
-        this.userRepo.findOne({ where: { id: credential.candidateId } }),
-      ]);
-      if (!institution || !candidate) {
-        this.logger.warn(
-          `VC signing skipped for credential ${credential.id}: institution or candidate not found`,
-        );
-        return;
-      }
-
-      const signed = await this.vcService.signCredential({
-        credential,
-        institution,
-        candidate,
-      });
-
-      credential.vcJwt = signed.vcJwt;
-      credential.vcJson = signed.vcJson;
-      credential.issuerDid = signed.issuerDid;
-      credential.digitalSignature = signed.vcJwt;
-      await this.credRepo.save(credential);
-    } catch (err) {
-      this.logger.error(
-        `Failed to sign VC for credential ${credential.id}: ${(err as Error).message}`,
-      );
-    }
-  }
 
   private async handleFailure(
     tx: BlockchainTransaction,

@@ -3,11 +3,10 @@
  * with the current Bearer token.
  */
 
-import { API_BASE_URL, apiRequest, networkError, parseUploadError } from "./api";
+import { apiRequest } from "./api";
 import { getAccessToken } from "./auth-storage";
-import type { CredentialTypedData } from "./eip712";
+import type { BatchTypedData, CredentialTypedData } from "./eip712";
 import type {
-  BatchImport,
   CandidateLookupResult,
   Credential,
   CredentialType,
@@ -64,16 +63,6 @@ export function searchCandidates(
   );
 }
 
-export async function issueCredential(
-  payload: IssueCredentialPayload,
-): Promise<Credential> {
-  return apiRequest("/credentials", {
-    method: "POST",
-    body: payload as unknown as Record<string, unknown>,
-    ...authOpts(),
-  });
-}
-
 // ───────────── Non-custodial batch issuance (MetaMask) ─────────────
 
 export function registerIssuerWallet(
@@ -89,6 +78,7 @@ export function registerIssuerWallet(
 export interface PreparedBatch {
   merkleRoot: string;
   items: { credentialId: string; typedData: CredentialTypedData }[];
+  batchTypedData: BatchTypedData;
 }
 
 export function prepareBatch(
@@ -107,6 +97,20 @@ export function anchorBatch(payload: {
   signatures: { credentialId: string; signature: string }[];
 }): Promise<{ anchored: number }> {
   return apiRequest("/credentials/batch/anchor", {
+    method: "POST",
+    body: payload as unknown as Record<string, unknown>,
+    ...authOpts(),
+  });
+}
+
+/** Bulk anchor: one signature over the Merkle root for the whole batch. */
+export function anchorBatchBulk(payload: {
+  merkleRoot: string;
+  txHash: string;
+  batchSignature: string;
+  issuedAt: string;
+}): Promise<{ anchored: number }> {
+  return apiRequest("/credentials/batch/anchor-bulk", {
     method: "POST",
     body: payload as unknown as Record<string, unknown>,
     ...authOpts(),
@@ -137,41 +141,3 @@ export async function revokeCredential(
   });
 }
 
-// ───────────── Batch import ─────────────
-
-export function fetchMyBatches(): Promise<BatchImport[]> {
-  return apiRequest("/batch-imports", authOpts());
-}
-
-export function fetchBatch(id: string): Promise<BatchImport> {
-  return apiRequest(`/batch-imports/${id}`, authOpts());
-}
-
-/**
- * Multipart upload — `apiRequest` is JSON-only so we hit fetch directly here.
- */
-export async function uploadBatchExcel(
-  credentialTypeId: string,
-  file: File,
-): Promise<BatchImport> {
-  const form = new FormData();
-  form.append("credentialTypeId", credentialTypeId);
-  form.append("file", file);
-
-  const token = getAccessToken();
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE_URL}/credentials/batch`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
-  } catch {
-    throw networkError();
-  }
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { message?: unknown };
-    throw parseUploadError(res, data);
-  }
-  return (await res.json()) as BatchImport;
-}

@@ -9,7 +9,7 @@
  * pure ABI encoding.
  */
 import { Interface, type Eip1193Provider } from "ethers";
-import type { CredentialTypedData } from "./eip712";
+import type { BatchTypedData, CredentialTypedData } from "./eip712";
 
 declare global {
   interface Window {
@@ -106,6 +106,31 @@ export async function signCredentialTypedData(
     },
     domain: typedData.domain,
     primaryType: "Credential",
+    message: typedData.message,
+  });
+  return (await eth().request({
+    method: "eth_signTypedData_v4",
+    params: [from, payload],
+  })) as string;
+}
+
+/** Sign the whole batch ONCE (EthereumEip712Signature2021 over the Batch root). */
+export async function signBatchTypedData(
+  typedData: BatchTypedData,
+): Promise<string> {
+  await ensureChain();
+  const from = await getActiveAccount();
+  const payload = JSON.stringify({
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+      ],
+      Batch: typedData.types.Batch,
+    },
+    domain: typedData.domain,
+    primaryType: "Batch",
     message: typedData.message,
   });
   return (await eth().request({

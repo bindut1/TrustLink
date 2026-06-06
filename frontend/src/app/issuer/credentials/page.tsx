@@ -136,7 +136,7 @@ export default function IssuerCredentialsPage() {
           ariaLabel={t("common.status")}
           className="sm:w-[200px]"
         />
-        <Link href="/issuer/issue">
+        <Link href="/issuer/issue-onchain">
           <Button variant="verified" leftIcon={<Plus size={16} />} className="w-full sm:w-auto">
             {t("issuer.credentials.issueCta")}
           </Button>

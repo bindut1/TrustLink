@@ -13,7 +13,6 @@ import {
 import { ApprovalStatus } from '../enums';
 import { User } from './user.entity';
 import { Credential } from './credential.entity';
-import { BatchImport } from './batch-import.entity';
 import { BlockchainTransaction } from './blockchain-transaction.entity';
 
 @Entity({ name: 'institutions' })
@@ -125,9 +124,6 @@ export class Institution {
 
   @OneToMany(() => Credential, (credential) => credential.institution)
   credentials?: Credential[];
-
-  @OneToMany(() => BatchImport, (batch) => batch.institution)
-  batchImports?: BatchImport[];
 
   @OneToMany(() => BlockchainTransaction, (tx) => tx.institution)
   blockchainTransactions?: BlockchainTransaction[];
