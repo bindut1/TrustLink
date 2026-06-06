@@ -6,26 +6,38 @@ import type { Transporter } from 'nodemailer';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: Transporter | null = null;
+  private readonly transporter: Transporter;
+  private readonly from: string;
 
   constructor(private readonly config: ConfigService) {
     const host = this.config.get<string>('SMTP_HOST');
+    const port = parseInt(this.config.get<string>('SMTP_PORT') ?? '587', 10);
     const user = this.config.get<string>('SMTP_USER');
     const pass = this.config.get<string>('SMTP_PASS');
 
-    if (!host || !user || !pass || pass === 'your_app_password') {
-      this.logger.warn(
-        'SMTP not fully configured (SMTP_HOST/SMTP_USER/SMTP_PASS missing). Email service falls back to console logging.',
+    if (!host || !user || !pass) {
+      // Real delivery is required — fail loudly instead of silently mocking.
+      throw new Error(
+        'SMTP is not configured: set SMTP_HOST, SMTP_USER and SMTP_PASS in your environment.',
       );
-      return;
     }
 
+    this.from = this.config.get<string>('SMTP_FROM') || `TrustLink <${user}>`;
     this.transporter = nodemailer.createTransport({
       host,
-      port: parseInt(this.config.get<string>('SMTP_PORT') ?? '587', 10),
-      secure: false,
+      port,
+      secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
       auth: { user, pass },
     });
+
+    // Verify the SMTP connection on boot so bad credentials surface immediately
+    // (e.g. a mistyped Gmail App Password → "535 ... not accepted").
+    this.transporter
+      .verify()
+      .then(() => this.logger.log(`SMTP ready (${host}:${port})`))
+      .catch((err) =>
+        this.logger.error(`SMTP verify failed: ${(err as Error).message}`),
+      );
   }
 
   async sendPasswordReset(to: string, resetUrl: string): Promise<void> {
@@ -51,17 +63,12 @@ export class EmailService {
   }
 
   private async send(to: string, subject: string, html: string): Promise<void> {
-    if (!this.transporter) {
-      this.logger.log(`[MOCK EMAIL] to=${to} subject="${subject}"`);
-      return;
-    }
     try {
-      const from =
-        this.config.get<string>('SMTP_FROM') ||
-        `TrustLink <${this.config.get<string>('SMTP_USER')}>`;
-      await this.transporter.sendMail({ from, to, subject, html });
+      await this.transporter.sendMail({ from: this.from, to, subject, html });
       this.logger.log(`Email sent to ${to}: ${subject}`);
     } catch (err) {
+      // Logged, not re-thrown: the forgot-password flow must always respond
+      // 200 to avoid leaking which emails are registered (email enumeration).
       this.logger.error(
         `Failed to send email to ${to}: ${(err as Error).message}`,
       );
