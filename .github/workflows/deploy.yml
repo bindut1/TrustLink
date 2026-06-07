@@ -40,6 +40,8 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=/api
+            NEXT_PUBLIC_CONTRACT_ADDRESS=${{ vars.NEXT_PUBLIC_CONTRACT_ADDRESS }}
+            NEXT_PUBLIC_POLYGON_CHAIN_ID=${{ vars.NEXT_PUBLIC_POLYGON_CHAIN_ID }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/trustlink-frontend:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/trustlink-frontend:latest

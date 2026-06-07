@@ -59,6 +59,9 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CONTRACT_ADDRESS: ${NEXT_PUBLIC_CONTRACT_ADDRESS}
+        NEXT_PUBLIC_POLYGON_CHAIN_ID: ${NEXT_PUBLIC_POLYGON_CHAIN_ID:-80002}
     container_name: trustlink-frontend
     restart: unless-stopped
     env_file:
