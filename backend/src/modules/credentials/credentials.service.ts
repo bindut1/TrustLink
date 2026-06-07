@@ -595,25 +595,30 @@ export class CredentialsService {
   }
 
   /**
-   * Return the W3C VC payload for download. Both the JWT and the JSON form
-   * are included; the JWT is the authoritative signed artifact.
+   * Return the W3C Verifiable Credential as standalone JSON-LD for download.
+   * Non-custodial credentials carry an EthereumEip712Signature2021 proof inside
+   * `vcJson` (there is no JWS/`vcJwt`), so the JSON-LD document itself is the
+   * authoritative, independently-verifiable artifact — we return it raw, with no
+   * wrapper envelope, plus a suggested filename.
    */
   async getVc(id: string): Promise<{
-    vc_jwt: string;
-    vc_json: Record<string, unknown>;
-    issuer_did: string;
+    vc: Record<string, unknown>;
+    filename: string;
   }> {
     const credential = await this.credRepo.findOne({ where: { id } });
     if (!credential) throw new NotFoundException('Credential not found');
-    if (!credential.vcJwt || !credential.vcJson || !credential.issuerDid) {
+    if (!credential.vcJson || !credential.issuerDid) {
       throw new BadRequestException(
         'VC has not been issued for this credential yet',
       );
     }
+    const safeNumber = (credential.credentialNumber || credential.id).replace(
+      /[^a-zA-Z0-9._-]+/g,
+      '-',
+    );
     return {
-      vc_jwt: credential.vcJwt,
-      vc_json: credential.vcJson,
-      issuer_did: credential.issuerDid,
+      vc: credential.vcJson,
+      filename: `${safeNumber}.vc.jsonld`,
     };
   }
 

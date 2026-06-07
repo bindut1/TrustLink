@@ -3,7 +3,6 @@
 import {
   Award,
   BadgeCheck,
-  CheckCircle2,
   Cpu,
   Download,
   ExternalLink,
@@ -11,7 +10,6 @@ import {
   Languages,
   ShieldCheck,
   Trophy,
-  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -19,11 +17,13 @@ import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
 import { SkillTag } from "@/components/ui/SkillTag";
 import { StatusPill, type StatusTone } from "@/components/ui/StatusPill";
+import { ShareCredential } from "@/components/verify/ShareCredential";
+import { VerificationResult } from "@/components/verify/VerificationResult";
 import { ApiError } from "@/lib/api";
 import {
   downloadVc,
   verifyCredential,
-  type VerificationResult,
+  type VerificationResult as VerifyApiResult,
 } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -72,7 +72,7 @@ type Props = {
 export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
   const { t } = useLanguage();
   const [verifying, setVerifying] = useState(false);
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [result, setResult] = useState<VerifyApiResult | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,7 +111,7 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
     setDownloading(true);
     setError(null);
     try {
-      await downloadVc(c.id, `${c.credentialNumber || c.id}.vc.json`);
+      await downloadVc(c.id, `${c.credentialNumber || c.id}.vc.jsonld`);
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 403
@@ -227,40 +227,7 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
         {/* Verification */}
         <Section title={t("candidate.credentials.verification")}>
           {result ? (
-            result.result === "error" ? (
-              <div className="rounded-ctl border border-navy/20 bg-navy/[0.04] px-3.5 py-3 text-[12.5px] leading-snug text-fg-muted">
-                {t("candidate.credentials.cannotVerify")}
-              </div>
-            ) : (
-              <div
-                className={`rounded-ctl border px-3.5 py-3 ${
-                  result.result === "valid"
-                    ? "border-teal/30 bg-teal-050"
-                    : "border-danger/30 bg-danger/[0.06]"
-                }`}
-              >
-                <div
-                  className={`flex items-center gap-2 text-[13px] font-semibold mb-2.5 ${
-                    result.result === "valid" ? "text-teal" : "text-danger"
-                  }`}
-                >
-                  {result.result === "valid" ? (
-                    <CheckCircle2 size={16} />
-                  ) : (
-                    <XCircle size={16} />
-                  )}
-                  {result.result === "valid"
-                    ? t("candidate.credentials.authentic")
-                    : t("candidate.credentials.verifyResult").replace("{result}", result.result)}
-                </div>
-                <ul className="flex flex-col gap-2">
-                  <CheckRow ok={result.onChainVerified} label={t("candidate.credentials.onChain")} />
-                  <CheckRow ok={result.contentIntegrityValid} label={t("candidate.credentials.contentIntegrity")} />
-                  <CheckRow ok={result.vcSignatureValid} label={t("candidate.credentials.vcSignature")} />
-                  <CheckRow ok={result.issuerAuthorized} label={t("candidate.credentials.issuerAuthorized")} />
-                </ul>
-              </div>
-            )
+            <VerificationResult outcome={result} />
           ) : (
             <div className="flex items-center justify-between gap-3">
               <p className="text-[12.5px] text-fg-subtle leading-snug">
@@ -279,6 +246,13 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
             </div>
           )}
         </Section>
+
+        {/* Share — public verify link + QR */}
+        {isFinal && (
+          <Section title={t("verify.shareTitle")}>
+            <ShareCredential credentialId={c.id} />
+          </Section>
+        )}
       </div>
     </Drawer>
   );
@@ -311,19 +285,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
       {children}
     </section>
-  );
-}
-
-function CheckRow({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <li className="flex items-center gap-2 text-[13px]">
-      {ok ? (
-        <CheckCircle2 size={14} className="text-teal shrink-0" />
-      ) : (
-        <XCircle size={14} className="text-danger shrink-0" />
-      )}
-      <span className="text-fg-muted">{label}</span>
-    </li>
   );
 }
 

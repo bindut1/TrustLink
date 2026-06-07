@@ -1,18 +1,16 @@
 "use client";
 
+import { AlertTriangle, Download } from "lucide-react";
 import { use, useEffect, useState } from "react";
-import { apiRequest, ApiError } from "@/lib/api";
+import {
+  VerificationResult,
+  VerifyBadge,
+  type VerifyOutcome,
+} from "@/components/verify/VerificationResult";
+import { ShareCredential } from "@/components/verify/ShareCredential";
+import { ApiError, apiRequest } from "@/lib/api";
+import { downloadPublicVc } from "@/lib/vc-download";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { TranslationKey } from "@/lib/i18n/translations";
-
-type VerificationOutcome = {
-  result: string;
-  onChainVerified: boolean;
-  vcSignatureValid: boolean;
-  issuerAuthorized: boolean;
-  contentIntegrityValid: boolean;
-  cached: boolean;
-};
 
 type PublicVerifyResponse = {
   credential: {
@@ -34,55 +32,8 @@ type PublicVerifyResponse = {
     blockchainBlockNumber: number | null;
     issuerDid: string | null;
   };
-  verification: VerificationOutcome;
+  verification: VerifyOutcome & { cached: boolean };
 };
-
-function StatusBadge({ outcome }: { outcome: VerificationOutcome }) {
-  const { t } = useLanguage();
-  const isError = outcome.result === "error";
-  const allGood =
-    outcome.onChainVerified &&
-    outcome.vcSignatureValid &&
-    outcome.issuerAuthorized &&
-    outcome.contentIntegrityValid &&
-    outcome.result === "valid";
-  const color = isError
-    ? "bg-gray-100 text-gray-700 border-gray-300"
-    : allGood
-      ? "bg-green-100 text-green-800 border-green-300"
-      : outcome.result === "revoked"
-        ? "bg-orange-100 text-orange-800 border-orange-300"
-        : "bg-red-100 text-red-800 border-red-300";
-  const labelKey: TranslationKey = isError
-    ? "publicVerify.statusError"
-    : allGood
-      ? "publicVerify.statusVerified"
-      : outcome.result === "revoked"
-        ? "publicVerify.statusRevoked"
-        : "publicVerify.statusInvalid";
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold ${color}`}
-    >
-      <span className="text-lg">
-        {isError ? "!" : allGood ? "✓" : outcome.result === "revoked" ? "⊘" : "✗"}
-      </span>
-      {t(labelKey)}
-    </span>
-  );
-}
-
-function CheckRow({ label, ok }: { label: string; ok: boolean }) {
-  const { t } = useLanguage();
-  return (
-    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
-      <span className="text-gray-700">{label}</span>
-      <span className={ok ? "text-green-600" : "text-red-600"}>
-        {ok ? t("publicVerify.passed") : t("publicVerify.failedCheck")}
-      </span>
-    </div>
-  );
-}
 
 export default function PublicVerifyPage({
   params,
@@ -94,6 +45,7 @@ export default function PublicVerifyPage({
   const [data, setData] = useState<PublicVerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,9 +70,20 @@ export default function PublicVerifyPage({
     };
   }, [id, t]);
 
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadPublicVc(id, data?.credential.credentialNumber || id);
+    } catch {
+      /* download failed silently — page still shows verification */
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-16 text-center text-gray-500">
+      <div className="container mx-auto max-w-3xl px-4 py-16 text-center text-fg-muted">
         {t("publicVerify.verifying")}
       </div>
     );
@@ -129,11 +92,11 @@ export default function PublicVerifyPage({
   if (error || !data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-16">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-          <h1 className="text-2xl font-bold text-red-800">
+        <div className="rounded-xl border border-danger/30 bg-danger/[0.06] p-6 text-center">
+          <h1 className="text-2xl font-bold text-danger">
             {t("publicVerify.notFoundTitle")}
           </h1>
-          <p className="mt-2 text-sm text-red-700">
+          <p className="mt-2 text-sm text-fg-muted">
             {error ?? t("publicVerify.notFoundDesc")}
           </p>
         </div>
@@ -142,29 +105,32 @@ export default function PublicVerifyPage({
   }
 
   const { credential, verification } = data;
+  const canDownload =
+    credential.status === "issued" || credential.status === "reissued";
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-12">
-      <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface-1 p-8 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-wide text-gray-500">
+            <p className="text-sm uppercase tracking-wide text-fg-subtle">
               {credential.credentialType?.name ?? "—"}
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">
+            <h1 className="mt-1 text-2xl font-bold text-fg">
               {credential.title}
             </h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm text-fg-muted">
               {t("publicVerify.issuedTo")}{" "}
-              <span className="font-medium">
+              <span className="font-medium text-fg">
                 {credential.candidate?.fullName ?? "—"}
               </span>{" "}
               {t("publicVerify.by")}{" "}
-              <span className="font-medium">
+              <span className="font-medium text-fg">
                 {credential.institution?.name ?? "—"}
               </span>
             </p>
           </div>
-          <StatusBadge outcome={verification} />
+          <VerifyBadge outcome={verification} />
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -180,67 +146,62 @@ export default function PublicVerifyPage({
             label={t("publicVerify.fldExpiryDate")}
             value={credential.expiryDate ?? "—"}
           />
-          <Field
-            label={t("publicVerify.fldStatus")}
-            value={credential.status}
-          />
+          <Field label={t("publicVerify.fldStatus")} value={credential.status} />
         </div>
 
-        <div className="mt-8 border-t border-gray-200 pt-6">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="mt-8 border-t border-border pt-6">
+          <h2 className="mb-3 text-lg font-semibold text-fg">
             {t("publicVerify.verificationDetails")}
           </h2>
-          {verification.result === "error" ? (
-            <p className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              {t("publicVerify.cannotVerifyNow")}
-            </p>
-          ) : (
-            <div className="mt-3">
-              <CheckRow
-                label={t("publicVerify.checkOnChain")}
-                ok={verification.onChainVerified}
-              />
-              <CheckRow
-                label={t("publicVerify.checkContentIntegrity")}
-                ok={verification.contentIntegrityValid}
-              />
-              <CheckRow
-                label={t("publicVerify.checkSignature")}
-                ok={verification.vcSignatureValid}
-              />
-              <CheckRow
-                label={t("publicVerify.checkIssuer")}
-                ok={verification.issuerAuthorized}
-              />
-            </div>
-          )}
+          <VerificationResult outcome={verification} />
         </div>
 
         {credential.blockchainTxHash && (
-          <div className="mt-6 border-t border-gray-200 pt-6">
-            <h2 className="text-sm font-semibold text-gray-700">
+          <div className="mt-6 border-t border-border pt-6">
+            <h2 className="text-sm font-semibold text-fg">
               {t("publicVerify.blockchainProof")}
             </h2>
-            <p className="mt-2 break-all font-mono text-xs text-gray-600">
+            {!verification.onChainVerified && verification.result !== "error" && (
+              <p className="mt-2 flex items-start gap-2 rounded-ctl border border-warn/30 bg-warn/[0.06] px-3 py-2 text-[12px] leading-snug text-warn">
+                <AlertTriangle size={14} className="mt-px shrink-0" />
+                {t("verify.txNotRecognized")}
+              </p>
+            )}
+            <p className="mt-2 break-all font-mono text-xs text-fg-muted">
               Tx:{" "}
               <a
                 href={`https://amoy.polygonscan.com/tx/${credential.blockchainTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
+                className="text-navy hover:underline"
               >
                 {credential.blockchainTxHash}
               </a>
             </p>
             {credential.blockchainBlockNumber && (
-              <p className="mt-1 font-mono text-xs text-gray-600">
+              <p className="mt-1 font-mono text-xs text-fg-muted">
                 {t("publicVerify.block")}: {credential.blockchainBlockNumber}
               </p>
             )}
           </div>
         )}
 
-        <p className="mt-8 text-center text-xs text-gray-400">
+        {canDownload && (
+          <div className="mt-6 border-t border-border pt-6">
+            <ShareCredential credentialId={credential.id} />
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border px-3.5 py-2 text-[13px] font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-60"
+            >
+              <Download size={14} />
+              {t("verify.downloadVc")}
+            </button>
+          </div>
+        )}
+
+        <p className="mt-8 text-center text-xs text-fg-subtle">
           {t("publicVerify.footer")}
         </p>
       </div>
@@ -251,8 +212,8 @@ export default function PublicVerifyPage({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-gray-900">{value}</p>
+      <p className="text-xs uppercase tracking-wide text-fg-subtle">{label}</p>
+      <p className="mt-1 text-sm font-medium text-fg">{value}</p>
     </div>
   );
 }

@@ -1,4 +1,12 @@
-import { Controller, Get, NotFoundException, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CredentialsService } from './credentials.service';
 
@@ -55,5 +63,25 @@ export class PublicCredentialsController {
       },
       verification,
     };
+  }
+
+  @Get(':id/vc')
+  @ApiOperation({
+    summary: 'Download a credential as W3C VC JSON-LD (no auth required)',
+    description:
+      'Returns the standalone, independently-verifiable VC JSON-LD document ' +
+      '(EthereumEip712Signature2021 proof). Lets anyone holding a verify link ' +
+      'download the credential for offline / third-party verification.',
+  })
+  @ApiOkResponse({ description: 'W3C VC JSON-LD document' })
+  async downloadPublic(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { vc, filename } = await this.service.getVc(id);
+    res
+      .header('Content-Type', 'application/ld+json; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .json(vc);
   }
 }

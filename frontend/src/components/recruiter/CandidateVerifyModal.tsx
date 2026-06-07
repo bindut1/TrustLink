@@ -1,15 +1,28 @@
 "use client";
 
-import { CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import {
+  VerifyChecks,
+  verifyKind,
+  type VerifyKind,
+} from "@/components/verify/VerificationResult";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
   type CandidateVerificationItem,
   verifyAllCredentialsForCandidate,
 } from "@/lib/recruiter-api";
+import { downloadPublicVc } from "@/lib/vc-download";
 
 type CandidateVerifyModalProps = {
   candidate: { id: string; fullName: string } | null;
@@ -52,8 +65,8 @@ export function CandidateVerifyModal({
   const stats = useMemo(() => {
     if (!results) return null;
     const total = results.length;
-    const valid = results.filter((r) => r.result === "valid").length;
-    const revoked = results.filter((r) => r.result === "revoked").length;
+    const valid = results.filter((r) => verifyKind(r) === "valid").length;
+    const revoked = results.filter((r) => verifyKind(r) === "revoked").length;
     const invalid = total - valid - revoked;
     return { total, valid, revoked, invalid };
   }, [results]);
@@ -124,37 +137,7 @@ export function CandidateVerifyModal({
       {results && results.length > 0 && (
         <ul className="flex flex-col divide-y divide-border rounded-xl border border-border overflow-hidden">
           {results.map((r) => (
-            <li key={r.credentialId} className="px-4 py-3.5">
-              <div className="flex items-center gap-3">
-                {r.result === "valid" ? (
-                  <CheckCircle2 size={18} className="text-success shrink-0" />
-                ) : (
-                  <XCircle size={18} className="text-danger shrink-0" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold text-fg truncate">
-                    {r.title}
-                  </div>
-                  <div className="text-[12px] text-fg-subtle font-mono mt-0.5">
-                    {resultLabel(r.result, t)}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 pl-7">
-                <Tick
-                  ok={r.onChainVerified}
-                  label={t("candidate.credentials.onChain")}
-                />
-                <Tick
-                  ok={r.vcSignatureValid}
-                  label={t("candidate.credentials.vcSignature")}
-                />
-                <Tick
-                  ok={r.issuerAuthorized}
-                  label={t("candidate.credentials.issuerAuthorized")}
-                />
-              </div>
-            </li>
+            <CredentialRow key={r.credentialId} item={r} />
           ))}
         </ul>
       )}
@@ -162,31 +145,95 @@ export function CandidateVerifyModal({
   );
 }
 
-function Tick({ ok, label }: { ok: boolean; label: string }) {
+const STATUS_ICON: Record<VerifyKind, React.ReactNode> = {
+  valid: <CheckCircle2 size={18} className="text-teal shrink-0" />,
+  revoked: <AlertCircle size={18} className="text-warn shrink-0" />,
+  invalid: <XCircle size={18} className="text-danger shrink-0" />,
+  not_found: <AlertCircle size={18} className="text-fg-muted shrink-0" />,
+  error: <AlertCircle size={18} className="text-fg-muted shrink-0" />,
+};
+
+function CredentialRow({ item }: { item: CandidateVerificationItem }) {
+  const { t } = useLanguage();
+  const [downloading, setDownloading] = useState(false);
+  const kind = verifyKind(item);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadPublicVc(item.credentialId, item.title || item.credentialId);
+    } catch {
+      /* silent — verification is the primary action here */
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
-    <div className="flex items-center gap-1.5 text-[12px]">
-      {ok ? (
-        <CheckCircle2 size={12} className="text-success shrink-0" />
-      ) : (
-        <XCircle size={12} className="text-danger shrink-0" />
+    <li className="px-4 py-3.5">
+      <div className="flex items-center gap-3">
+        {STATUS_ICON[kind]}
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold text-fg truncate">
+            {item.title}
+          </div>
+          <div className="text-[12px] text-fg-subtle font-mono mt-0.5">
+            {resultLabel(kind, t)}
+          </div>
+        </div>
+      </div>
+
+      {kind !== "error" && (
+        <div className="mt-2.5 pl-7">
+          <VerifyChecks outcome={item} />
+        </div>
       )}
-      <span className="text-fg-muted truncate">{label}</span>
-    </div>
+
+      <div className="mt-2.5 flex items-center gap-2 pl-7">
+        <a
+          href={`/verify/${item.credentialId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[12px] font-medium text-navy transition-colors hover:bg-surface-2"
+        >
+          <ExternalLink size={13} />
+          {t("verify.openPage")}
+        </a>
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[12px] font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-60"
+        >
+          <Download size={13} />
+          {t("verify.downloadVc")}
+        </button>
+      </div>
+    </li>
   );
 }
 
 function resultLabel(
-  result: string,
+  kind: VerifyKind,
   t: (
-    key: "status.cred.issued" | "status.cred.revoked" | "status.cred.pending",
+    key:
+      | "verify.statusValid"
+      | "verify.statusRevoked"
+      | "verify.statusInvalid"
+      | "verify.statusNotFound"
+      | "verify.statusError",
   ) => string,
 ): string {
-  switch (result) {
+  switch (kind) {
     case "valid":
-      return t("status.cred.issued");
+      return t("verify.statusValid");
     case "revoked":
-      return t("status.cred.revoked");
+      return t("verify.statusRevoked");
+    case "not_found":
+      return t("verify.statusNotFound");
+    case "error":
+      return t("verify.statusError");
     default:
-      return result;
+      return t("verify.statusInvalid");
   }
 }

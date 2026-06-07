@@ -129,6 +129,7 @@ export type CandidateVerificationItem = {
   onChainVerified: boolean;
   vcSignatureValid: boolean;
   issuerAuthorized: boolean;
+  contentIntegrityValid: boolean;
 };
 
 /**
@@ -160,6 +161,7 @@ export async function verifyAllCredentialsForCandidate(
           onChainVerified: r.onChainVerified,
           vcSignatureValid: r.vcSignatureValid,
           issuerAuthorized: r.issuerAuthorized,
+          contentIntegrityValid: r.contentIntegrityValid,
         };
       } catch {
         return {
@@ -169,6 +171,7 @@ export async function verifyAllCredentialsForCandidate(
           onChainVerified: false,
           vcSignatureValid: false,
           issuerAuthorized: false,
+          contentIntegrityValid: false,
         };
       }
     }),

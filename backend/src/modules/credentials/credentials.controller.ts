@@ -7,8 +7,10 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -129,10 +131,14 @@ export class CredentialsController {
 
   @Get(':id/vc')
   @RequireActions('credential.download')
-  @ApiOperation({ summary: 'Download W3C Verifiable Credential (JWT + JSON)' })
-  @ApiOkResponse({ description: 'VC payload' })
-  async getVc(@Param('id') id: string) {
-    return this.service.getVc(id);
+  @ApiOperation({ summary: 'Download W3C Verifiable Credential (JSON-LD)' })
+  @ApiOkResponse({ description: 'W3C VC JSON-LD document' })
+  async getVc(@Param('id') id: string, @Res() res: Response) {
+    const { vc, filename } = await this.service.getVc(id);
+    res
+      .header('Content-Type', 'application/ld+json; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .json(vc);
   }
 
   @Get(':id/verify')

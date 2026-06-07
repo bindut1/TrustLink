@@ -1076,6 +1076,31 @@ export const TRANSLATIONS = {
     "publicVerify.footer": "Xác minh bởi TrustLink • Được hỗ trợ bởi Polygon",
     "publicVerify.unableToVerify": "Không thể xác minh văn bằng",
 
+    // ───────────── Verify — shared result + share block ─────────────
+    "verify.statusValid": "ĐÃ XÁC THỰC",
+    "verify.statusRevoked": "ĐÃ THU HỒI",
+    "verify.statusInvalid": "KHÔNG HỢP LỆ",
+    "verify.statusError": "CHƯA XÁC MINH ĐƯỢC",
+    "verify.authentic": "Văn bằng xác thực",
+    "verify.notAuthentic": "Văn bằng không hợp lệ",
+    "verify.cannotVerifyNow":
+      "Không thể xác minh lúc này (lỗi kết nối blockchain). Vui lòng thử lại sau.",
+    "verify.checkOnChain": "Hash được ghi trên blockchain",
+    "verify.checkContentIntegrity": "Nội dung khớp hash on-chain",
+    "verify.checkSignature": "Chữ ký W3C VC hợp lệ",
+    "verify.checkIssuer": "Tổ chức cấp được uỷ quyền",
+    "verify.shareTitle": "Liên kết xác minh công khai",
+    "verify.copyLink": "Sao chép link",
+    "verify.copied": "Đã sao chép",
+    "verify.openPage": "Mở trang xác minh",
+    "verify.downloadVc": "Tải VC (JSON-LD)",
+    "verify.statusNotFound": "KHÔNG TÌM THẤY",
+    "verify.notFoundTitle": "Không tìm thấy trên blockchain",
+    "verify.notFoundExplain":
+      "Văn bằng này không tồn tại trên smart contract registry hiện tại. Có thể đây là dữ liệu cũ được cấp trước khi nâng cấp hệ thống (chữ ký/anchor theo chuẩn cũ), hoặc chưa được anchor lên blockchain.",
+    "verify.txNotRecognized":
+      "Giao dịch dưới đây không được registry hiện tại công nhận — có thể thuộc hợp đồng cũ trước khi nâng cấp. Không dùng làm bằng chứng xác thực.",
+
     // ───────────── Landing — Hero ─────────────
     "landing.hero.eyebrow": "Nền tảng văn bằng số",
     "landing.hero.titlePartA": "Tuyển dụng dựa trên",
@@ -2308,6 +2333,31 @@ export const TRANSLATIONS = {
     "publicVerify.block": "Block",
     "publicVerify.footer": "Verified by TrustLink • Powered by Polygon",
     "publicVerify.unableToVerify": "Unable to verify credential",
+
+    // Verify — shared result + share block
+    "verify.statusValid": "VERIFIED",
+    "verify.statusRevoked": "REVOKED",
+    "verify.statusInvalid": "INVALID",
+    "verify.statusError": "CANNOT VERIFY",
+    "verify.authentic": "Authentic credential",
+    "verify.notAuthentic": "Credential is not valid",
+    "verify.cannotVerifyNow":
+      "Can't verify right now (blockchain connection error). Please try again later.",
+    "verify.checkOnChain": "Hash exists on blockchain",
+    "verify.checkContentIntegrity": "Content matches on-chain hash",
+    "verify.checkSignature": "W3C VC signature valid",
+    "verify.checkIssuer": "Issuer is authorized",
+    "verify.shareTitle": "Public verification link",
+    "verify.copyLink": "Copy link",
+    "verify.copied": "Copied",
+    "verify.openPage": "Open verify page",
+    "verify.downloadVc": "Download VC (JSON-LD)",
+    "verify.statusNotFound": "NOT FOUND",
+    "verify.notFoundTitle": "Not found on blockchain",
+    "verify.notFoundExplain":
+      "This credential does not exist on the current smart-contract registry. It may be legacy data issued before a system upgrade (old-format signature/anchor), or it was never anchored on-chain.",
+    "verify.txNotRecognized":
+      "The transaction below is not recognized by the current registry — it may belong to an old contract from before an upgrade. Do not treat it as proof of authenticity.",
 
     // Landing — Hero
     "landing.hero.eyebrow": "Verifiable Credentials Platform",
