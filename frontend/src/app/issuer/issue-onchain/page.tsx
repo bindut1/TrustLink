@@ -13,7 +13,9 @@ import { SelectMenu } from "@/components/ui/SelectMenu";
 import { ApiError } from "@/lib/api";
 import {
   anchorBatch,
+  disconnectIssuerWallet,
   fetchCredentialTypes,
+  fetchMyInstitution,
   prepareBatch,
   registerIssuerWallet,
 } from "@/lib/issuer-api";
@@ -64,27 +66,20 @@ export default function IssueOnChainPage() {
   useEffect(() => {
     fetchCredentialTypes().then(setTypes);
   }, []);
+  // Restore the REGISTERED issuer wallet on reload (the truth, not whatever
+  // account MetaMask happens to be on). To change it, the issuer clicks connect.
+  useEffect(() => {
+    fetchMyInstitution()
+      .then((inst) => {
+        if (inst.signingAddress) setWallet(inst.signingAddress);
+      })
+      .catch(() => {
+        /* no institution / not registered — leave null */
+      });
+  }, []);
   useEffect(() => {
     setMetadata({});
   }, [typeId]);
-
-  // If the user switches the active MetaMask account, force a reconnect so we
-  // never sign/anchor from a different (unauthorized) wallet than the one
-  // registered as issuer.
-  useEffect(() => {
-    const provider = window.ethereum;
-    if (!provider?.on) return;
-    const onAccountsChanged = () => {
-      setWallet(null);
-      setError("Ví trong MetaMask đã thay đổi — hãy kết nối lại ví issuer.");
-    };
-    provider.on("accountsChanged", onAccountsChanged);
-    return () => {
-      (
-        provider as { removeListener?: (e: string, cb: () => void) => void }
-      ).removeListener?.("accountsChanged", onAccountsChanged);
-    };
-  }, []);
 
   const selectedType = types?.find((t) => t.id === typeId) ?? null;
 
@@ -106,6 +101,19 @@ export default function IssueOnChainPage() {
           ? e.message
           : "Không kết nối được ví.",
       );
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    setWalletBusy(true);
+    setError(null);
+    try {
+      await disconnectIssuerWallet();
+      setWallet(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Không ngắt kết nối được.");
     } finally {
       setWalletBusy(false);
     }
@@ -236,10 +244,21 @@ export default function IssueOnChainPage() {
 
       <Section step="00" title="Ví issuer (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
         {wallet ? (
-          <p className="text-[13px] text-fg">
-            Đã kết nối:{" "}
-            <span className="font-mono text-[12.5px]">{wallet}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[13px] text-fg">
+              Đã kết nối:{" "}
+              <span className="font-mono text-[12.5px]">{wallet}</span>
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void disconnect()}
+              loading={walletBusy}
+            >
+              Ngắt kết nối
+            </Button>
+          </div>
         ) : (
           <Button
             type="button"

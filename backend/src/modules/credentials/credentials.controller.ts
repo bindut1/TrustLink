@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -50,6 +51,15 @@ export class CredentialsController {
     @Body() dto: RegisterIssuerWalletDto,
   ) {
     return this.service.registerIssuerWallet(user.id, dto.signingAddress);
+  }
+
+  @Delete('issuer/wallet')
+  @RequireActions('credential.issue')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Disconnect the issuer's signing wallet (clears it in DB)" })
+  @ApiOkResponse({ description: 'Signing wallet cleared' })
+  async disconnectWallet(@CurrentUser() user: User) {
+    return this.service.disconnectIssuerWallet(user.id);
   }
 
   @Post('batch/prepare')

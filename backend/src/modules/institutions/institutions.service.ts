@@ -2,7 +2,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,7 +14,6 @@ import {
   NotificationType,
 } from '../../database/enums';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApproveInstitutionDto } from './dto/approve-institution.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
@@ -47,15 +45,12 @@ export interface IssuerDashboard {
 
 @Injectable()
 export class InstitutionsService {
-  private readonly logger = new Logger(InstitutionsService.name);
-
   constructor(
     @InjectRepository(Institution)
     private readonly repo: Repository<Institution>,
     @InjectRepository(Credential)
     private readonly credentialRepo: Repository<Credential>,
     private readonly notifications: NotificationsService,
-    private readonly blockchain: BlockchainService,
     private readonly auditLogs: AuditLogsService,
   ) {}
 
@@ -220,44 +215,9 @@ export class InstitutionsService {
     const saved = await this.repo.save(institution);
 
     if (dto.approvalStatus === ApprovalStatus.APPROVED) {
-      // Auto-assign an on-chain issuer identity so issuers never have to manage
-      // an Ethereum wallet. In the MVP the platform's deployer wallet signs
-      // every credential, so it is also the authorized issuer — aligning the
-      // institution address with it lets VC signature recovery and the on-chain
-      // isIssuer check both pass during verification.
-      if (!saved.blockchainAddress) {
-        const signerAddress = this.blockchain.getSignerAddress();
-        if (signerAddress) {
-          saved.blockchainAddress = signerAddress;
-          await this.repo.save(saved);
-        }
-      }
-
-      if (saved.blockchainAddress) {
-        try {
-          // The platform signer only needs to be registered once; skip the
-          // redundant (and gas-costing) addIssuer tx if it already is.
-          const alreadyAuthorized = await this.blockchain.isIssuerAuthorized(
-            saved.blockchainAddress,
-          );
-          if (!alreadyAuthorized) {
-            await this.blockchain.addIssuerOnChain({
-              institutionId: saved.id,
-              address: saved.blockchainAddress,
-              initiatedBy: adminId,
-            });
-          }
-        } catch (err) {
-          this.logger.error(
-            `addIssuer on-chain failed for institution ${saved.id}: ${(err as Error).message}`,
-          );
-        }
-      } else {
-        this.logger.warn(
-          `Institution ${saved.id} approved but blockchain signer is not configured; skipping addIssuer.`,
-        );
-      }
-
+      // On-chain issuer identity is NOT assigned here. Each issuer gets its own
+      // distinct identity by connecting their MetaMask wallet (registerIssuerWallet),
+      // which authorizes that wallet on-chain (one addIssuer tx per issuer).
       await this.notifications.create({
         userId: saved.userId,
         type: NotificationType.INSTITUTION_APPROVED,

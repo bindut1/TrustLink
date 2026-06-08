@@ -51,6 +51,7 @@ export type Institution = {
   approvalStatus: ApprovalStatus;
   rejectionReason?: string | null;
   blockchainAddress?: string | null;
+  signingAddress?: string | null;
   createdAt: string;
 };
 

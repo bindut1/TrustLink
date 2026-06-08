@@ -4,7 +4,6 @@ import { Institution } from '../../database/entities/institution.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
-import { BlockchainModule } from '../blockchain/blockchain.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InstitutionsController } from './institutions.controller';
 import { InstitutionsService } from './institutions.service';
@@ -14,7 +13,6 @@ import { InstitutionsService } from './institutions.service';
     TypeOrmModule.forFeature([Institution, Credential]),
     AuthModule,
     NotificationsModule,
-    BlockchainModule,
     AuditLogsModule,
   ],
   controllers: [InstitutionsController],

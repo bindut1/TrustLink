@@ -104,6 +104,9 @@ export class CredentialsService {
       throw new ForbiddenException('Issuer has no registered institution');
     }
     institution.signingAddress = signingAddress.toLowerCase();
+    // The issuer's own wallet IS its on-chain identity (shown on the profile and
+    // public verify page). Each issuer thus has a distinct address.
+    institution.blockchainAddress = signingAddress.toLowerCase();
     await this.institutionRepo.save(institution);
 
     // Authorize this wallet on-chain so it can broadcast `issueBatch`. addIssuer
@@ -130,6 +133,26 @@ export class CredentialsService {
       }
     }
     return { signingAddress: institution.signingAddress, authorized };
+  }
+
+  /**
+   * Disconnect the issuer's wallet: clear it in the DB so the UI no longer shows
+   * a stale address after reload. On-chain authorization (addIssuer) is left as-is
+   * — disconnecting is an app-level action, not an on-chain revoke.
+   */
+  async disconnectIssuerWallet(
+    issuerUserId: string,
+  ): Promise<{ disconnected: boolean }> {
+    const institution = await this.institutionRepo.findOne({
+      where: { userId: issuerUserId },
+    });
+    if (!institution) {
+      throw new ForbiddenException('Issuer has no registered institution');
+    }
+    institution.signingAddress = null;
+    institution.blockchainAddress = null;
+    await this.institutionRepo.save(institution);
+    return { disconnected: true };
   }
 
   /**

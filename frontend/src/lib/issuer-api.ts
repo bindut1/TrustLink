@@ -75,6 +75,13 @@ export function registerIssuerWallet(
   });
 }
 
+export function disconnectIssuerWallet(): Promise<{ disconnected: boolean }> {
+  return apiRequest("/credentials/issuer/wallet", {
+    method: "DELETE",
+    ...authOpts(),
+  });
+}
+
 export interface PreparedBatch {
   merkleRoot: string;
   items: { credentialId: string; typedData: CredentialTypedData }[];

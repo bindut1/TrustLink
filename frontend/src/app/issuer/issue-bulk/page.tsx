@@ -15,7 +15,11 @@ import {
   lookupCandidate,
   prepareBatch,
 } from "@/lib/issuer-api";
-import { registerIssuerWallet } from "@/lib/issuer-api";
+import {
+  disconnectIssuerWallet,
+  fetchMyInstitution,
+  registerIssuerWallet,
+} from "@/lib/issuer-api";
 import {
   WalletError,
   anchorBatchOnChain,
@@ -61,22 +65,15 @@ export default function IssueBulkPage() {
   useEffect(() => {
     fetchCredentialTypes().then(setTypes);
   }, []);
-
-  // Re-connect if the active MetaMask account changes (never sign from a
-  // different wallet than the registered issuer).
+  // Restore the REGISTERED issuer wallet on reload (not the active MM account).
   useEffect(() => {
-    const provider = window.ethereum;
-    if (!provider?.on) return;
-    const onChanged = () => {
-      setWallet(null);
-      setError("Ví trong MetaMask đã thay đổi — hãy kết nối lại ví issuer.");
-    };
-    provider.on("accountsChanged", onChanged);
-    return () => {
-      (
-        provider as { removeListener?: (e: string, cb: () => void) => void }
-      ).removeListener?.("accountsChanged", onChanged);
-    };
+    fetchMyInstitution()
+      .then((inst) => {
+        if (inst.signingAddress) setWallet(inst.signingAddress);
+      })
+      .catch(() => {
+        /* not registered */
+      });
   }, []);
 
   const selectedType = types?.find((t) => t.id === typeId) ?? null;
@@ -101,6 +98,19 @@ export default function IssueBulkPage() {
           ? e.message
           : "Không kết nối được ví.",
       );
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    setWalletBusy(true);
+    setError(null);
+    try {
+      await disconnectIssuerWallet();
+      setWallet(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Không ngắt kết nối được.");
     } finally {
       setWalletBusy(false);
     }
@@ -257,9 +267,14 @@ export default function IssueBulkPage() {
 
       <Section step="00" title="Ví issuer (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
         {wallet ? (
-          <p className="text-[13px] text-fg">
-            Đã kết nối: <span className="font-mono text-[12.5px]">{wallet}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[13px] text-fg">
+              Đã kết nối: <span className="font-mono text-[12.5px]">{wallet}</span>
+            </p>
+            <Button type="button" variant="secondary" size="sm" onClick={() => void disconnect()} loading={walletBusy}>
+              Ngắt kết nối
+            </Button>
+          </div>
         ) : (
           <Button type="button" variant="primary" onClick={() => void connect()} loading={walletBusy} leftIcon={<Wallet size={16} />}>
             Kết nối MetaMask
