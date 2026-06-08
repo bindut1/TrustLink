@@ -109,7 +109,9 @@ export default function IssuerProfilePage() {
     setSuccess(false);
     try {
       const patch: Partial<Institution> = {};
-      for (const { key } of FIELDS) {
+      // description is rendered separately (textarea) so include it explicitly
+      const keys: EditableFields[] = [...FIELDS.map((f) => f.key), "description"];
+      for (const key of keys) {
         const value = draft[key];
         if (value !== inst[key]) {
           (patch as Record<string, unknown>)[key] = value;
@@ -194,7 +196,7 @@ export default function IssuerProfilePage() {
             {t("issuer.profile.sectionBasic")}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FIELDS.slice(0, FIELDS.length - 1).map((f) => (
+            {FIELDS.map((f) => (
               <div
                 key={f.key}
                 className={f.full ? "sm:col-span-2" : undefined}
