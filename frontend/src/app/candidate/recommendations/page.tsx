@@ -36,7 +36,7 @@ export default function RecommendationsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchRecommendedJobs(10)
+    fetchRecommendedJobs(5)
       .then((r) => !cancelled && setItems(r))
       .catch((e: unknown) => {
         if (!cancelled)

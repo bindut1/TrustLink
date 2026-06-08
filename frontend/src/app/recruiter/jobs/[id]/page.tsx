@@ -237,7 +237,7 @@ function CandidatesTab({ jobId }: { jobId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchRecommendedCandidates(jobId, 10)
+    fetchRecommendedCandidates(jobId, 5)
       .then((r) => {
         if (!cancelled) setItems(r);
       })
