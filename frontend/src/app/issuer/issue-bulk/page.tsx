@@ -45,7 +45,7 @@ function cell(v: unknown): string {
  */
 export default function IssueBulkPage() {
   useSetPageMeta(
-    "Cấp hàng loạt (on-chain, MetaMask)",
+    "Cấp hàng loạt",
     "Upload Excel → 1 chữ ký + 1 giao dịch cho cả lô. Non-custodial.",
   );
 
@@ -57,6 +57,8 @@ export default function IssueBulkPage() {
 
   const [wallet, setWallet] = useState<string | null>(null);
   const [walletBusy, setWalletBusy] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [hasMetaMask, setHasMetaMask] = useState<boolean | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ tx: string; count: number } | null>(null);
@@ -64,6 +66,7 @@ export default function IssueBulkPage() {
 
   useEffect(() => {
     fetchCredentialTypes().then(setTypes);
+    setHasMetaMask(Boolean(window.ethereum));
   }, []);
   // Restore the REGISTERED issuer wallet on reload (not the active MM account).
   useEffect(() => {
@@ -73,7 +76,8 @@ export default function IssueBulkPage() {
       })
       .catch(() => {
         /* not registered */
-      });
+      })
+      .finally(() => setWalletLoading(false));
   }, []);
 
   const selectedType = types?.find((t) => t.id === typeId) ?? null;
@@ -266,7 +270,9 @@ export default function IssueBulkPage() {
       {error && <Alert variant="error">{error}</Alert>}
 
       <Section step="00" title="Ví issuer (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
-        {wallet ? (
+        {walletLoading ? (
+          <p className="text-[13px] text-fg-subtle">Đang kiểm tra ví…</p>
+        ) : wallet ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-[13px] text-fg">
               Đã kết nối: <span className="font-mono text-[12.5px]">{wallet}</span>
@@ -275,10 +281,33 @@ export default function IssueBulkPage() {
               Ngắt kết nối
             </Button>
           </div>
+        ) : hasMetaMask === false ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-[13px] text-fg-muted">
+              Chưa phát hiện ví MetaMask trong trình duyệt. Hãy cài tiện ích
+              MetaMask để kết nối ví và ký cấp văn bằng on-chain.
+            </p>
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-fit items-center gap-1.5 rounded-ctl bg-navy px-4 py-2 text-[13px] font-medium text-white hover:bg-navy/90 transition-colors"
+            >
+              <Wallet size={15} /> Cài đặt MetaMask →
+            </a>
+          </div>
         ) : (
-          <Button type="button" variant="primary" onClick={() => void connect()} loading={walletBusy} leftIcon={<Wallet size={16} />}>
-            Kết nối MetaMask
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button type="button" variant="primary" onClick={() => void connect()} loading={walletBusy} leftIcon={<Wallet size={16} />}>
+              Kết nối MetaMask
+            </Button>
+            <p className="text-[12px] text-fg-faint">
+              Chưa có ví?{" "}
+              <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-teal hover:underline">
+                Cài đặt MetaMask
+              </a>
+            </p>
+          </div>
         )}
       </Section>
 

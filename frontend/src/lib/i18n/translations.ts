@@ -91,8 +91,8 @@ export const TRANSLATIONS = {
 
     // ───────────── Sidebar — issuer ─────────────
     "nav.issue": "Cấp văn bằng",
-    "nav.issueOnchain": "Cấp on-chain (MetaMask)",
-    "nav.issueBulk": "Cấp hàng loạt on-chain",
+    "nav.issueOnchain": "Cấp văn bằng",
+    "nav.issueBulk": "Cấp hàng loạt",
     "nav.batch": "Cấp hàng loạt",
 
     // ───────────── Sidebar — recruiter ─────────────
@@ -1390,8 +1390,8 @@ export const TRANSLATIONS = {
 
     // Sidebar — issuer
     "nav.issue": "Issue credential",
-    "nav.issueOnchain": "Issue on-chain (MetaMask)",
-    "nav.issueBulk": "Bulk issue on-chain",
+    "nav.issueOnchain": "Issue credential",
+    "nav.issueBulk": "Bulk issue",
     "nav.batch": "Batch import",
 
     // Sidebar — recruiter
