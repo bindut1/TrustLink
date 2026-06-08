@@ -58,12 +58,21 @@ export type FieldSchema = {
   fields: Array<{
     key: string;
     label: string;
-    type: "text" | "number" | "date" | "select" | "textarea";
+    type: "text" | "number" | "date" | "select" | "textarea" | "skills";
     required?: boolean;
     options?: string[];
     placeholder?: string;
     helpText?: string;
   }>;
+};
+
+/** A canonical skill from GET /skills, used by the controlled-vocabulary picker. */
+export type SkillCatalogItem = {
+  id: string;
+  normalized: string;
+  name: string;
+  category: string | null;
+  aliases: string[];
 };
 
 export type CredentialType = {

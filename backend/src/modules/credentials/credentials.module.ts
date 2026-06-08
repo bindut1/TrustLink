@@ -11,6 +11,7 @@ import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SkillsModule } from '../skills/skills.module';
 import { CredentialsController } from './credentials.controller';
 import { CredentialsService } from './credentials.service';
 import { PublicCredentialsController } from './public-credentials.controller';
@@ -32,6 +33,7 @@ import { StatusListService } from './status-list.service';
     NotificationsModule,
     BlockchainModule,
     AuditLogsModule,
+    SkillsModule,
   ],
   controllers: [
     CredentialsController,

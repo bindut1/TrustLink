@@ -21,6 +21,7 @@ export { BlockchainTransaction } from './blockchain-transaction.entity';
 
 // Group 5: AI Matching
 export { CandidateSkill } from './candidate-skill.entity';
+export { SkillCatalog } from './skill-catalog.entity';
 export { CandidateEmbedding } from './candidate-embedding.entity';
 export { JobEmbedding } from './job-embedding.entity';
 

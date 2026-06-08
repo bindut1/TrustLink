@@ -71,6 +71,14 @@ export type PaginatedJobs = {
   limit: number;
 };
 
+/** Why a candidate matches, via the trust signal (mirrors backend MatchExplanation). */
+export type MatchExplanation = {
+  matchedVerified: string[];
+  matchedClaimedOnly: string[];
+  missing: string[];
+  contributions: { keyword: number; semantic: number; verified: number };
+};
+
 export type ScoreBreakdown = {
   candidateId?: string;
   jobId: string;
@@ -78,6 +86,7 @@ export type ScoreBreakdown = {
   semanticScore: number;
   verifiedBonus: number;
   totalScore: number;
+  explanation?: MatchExplanation;
 };
 
 /** Real matching weights (mirror backend matching.service W_*). */
@@ -115,6 +124,19 @@ export type CandidateDashboard = {
 
 export type RankedJob = ScoreBreakdown & {
   job: Pick<JobItem, "id" | "title" | "city" | "isRemote" | "salaryMin" | "salaryMax">;
+};
+
+/** A credential suggestion to close one skill gap for a target job. */
+export type LearningRecommendation = {
+  skill: string;
+  status: "missing" | "unverified";
+  recommendedCredential: { id: string; name: string } | null;
+  similarity: number;
+};
+
+export type LearningPathResult = {
+  jobId: string;
+  recommendations: LearningRecommendation[];
 };
 
 export type ApplicationStatus =

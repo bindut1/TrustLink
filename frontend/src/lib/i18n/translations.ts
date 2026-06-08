@@ -56,6 +56,29 @@ export const TRANSLATIONS = {
     "nav.users": "Người dùng",
     "nav.institutions": "Tổ chức",
     "nav.credentialTypes": "Loại văn bằng",
+    "nav.skills": "Danh mục kỹ năng",
+    "admin.skills.title": "Danh mục kỹ năng",
+    "admin.skills.description": "Quản lý bộ từ vựng kỹ năng chuẩn dùng cho khớp ứng viên ↔ công việc.",
+    "admin.skills.newSkill": "Thêm kỹ năng",
+    "admin.skills.summaryOne": "{n} kỹ năng",
+    "admin.skills.summaryMany": "{n} kỹ năng",
+    "admin.skills.colName": "Tên hiển thị",
+    "admin.skills.colToken": "Token khớp",
+    "admin.skills.colCategory": "Nhóm",
+    "admin.skills.colAliases": "Tên gọi khác",
+    "admin.skills.empty": "Chưa có kỹ năng nào.",
+    "admin.skills.modalNewTitle": "Thêm kỹ năng",
+    "admin.skills.modalEditTitle": "Sửa kỹ năng",
+    "admin.skills.modalDescription": "Token khớp là khoá chuẩn hoá mà bộ khớp so sánh; tên gọi khác giúp các biến thể quy về cùng token.",
+    "admin.skills.fldName": "Tên hiển thị",
+    "admin.skills.fldToken": "Token khớp (normalized)",
+    "admin.skills.fldTokenHint": "Mặc định là tên viết thường. Không sửa được sau khi tạo để tránh làm hỏng dữ liệu đã tham chiếu.",
+    "admin.skills.fldCategory": "Nhóm",
+    "admin.skills.fldAliases": "Tên gọi khác",
+    "admin.skills.fldAliasesHint": "Cách nhau bởi dấu phẩy. Vd: node, node.js",
+    "admin.skills.fldActive": "Đang dùng",
+    "admin.skills.failedSave": "Lưu kỹ năng thất bại",
+    "admin.skills.confirmDelete": "Xoá kỹ năng \"{name}\" khỏi danh mục?",
     "nav.blockchain": "Blockchain",
     "nav.auditLogs": "Nhật ký hệ thống",
 
@@ -764,6 +787,14 @@ export const TRANSLATIONS = {
       "{n}/{total} kỹ năng yêu cầu đã được xác minh on-chain trên hồ sơ của bạn",
     "candidate.recs.applyVerified": "Ứng tuyển với hồ sơ đã xác minh",
     "candidate.recs.match": "phù hợp",
+    "candidate.recs.matchedVerified": "Khớp & đã xác thực on-chain",
+    "candidate.recs.matchedClaimed": "Khớp (chỉ tự khai)",
+    "candidate.recs.missingSkills": "Còn thiếu",
+    "candidate.recs.learningPath": "Gợi ý nâng cấp hồ sơ",
+    "candidate.recs.learningPathHint":
+      "Lấy/xác thực các văn bằng sau để tăng độ phù hợp với vị trí này",
+    "candidate.recs.statusMissing": "cần học",
+    "candidate.recs.statusUnverified": "cần xác thực",
 
     // ───────────── Candidate — jobs (Search) ─────────────
     "candidate.jobs.title": "Tìm việc làm",
@@ -1043,9 +1074,10 @@ export const TRANSLATIONS = {
 
     // ───────────── DynamicForm (Issuer) ─────────────
     "dynForm.selectPlaceholder": "Chọn…",
+    "dynForm.skillsPlaceholder": "Tìm kỹ năng trong danh mục…",
 
     // ───────────── SkillChipsInput (shared) ─────────────
-    "skillChips.placeholder": "Nhập kỹ năng và nhấn Enter…",
+    "skillChips.placeholder": "Tìm kỹ năng trong danh mục…",
     "skillChips.add": "Thêm",
 
     // ───────────── Public verify page ─────────────
@@ -1323,6 +1355,29 @@ export const TRANSLATIONS = {
     "nav.users": "Users",
     "nav.institutions": "Institutions",
     "nav.credentialTypes": "Credential types",
+    "nav.skills": "Skill catalog",
+    "admin.skills.title": "Skill catalog",
+    "admin.skills.description": "Manage the canonical skill vocabulary used to match candidates ↔ jobs.",
+    "admin.skills.newSkill": "Add skill",
+    "admin.skills.summaryOne": "{n} skill",
+    "admin.skills.summaryMany": "{n} skills",
+    "admin.skills.colName": "Display name",
+    "admin.skills.colToken": "Match token",
+    "admin.skills.colCategory": "Category",
+    "admin.skills.colAliases": "Aliases",
+    "admin.skills.empty": "No skills yet.",
+    "admin.skills.modalNewTitle": "Add skill",
+    "admin.skills.modalEditTitle": "Edit skill",
+    "admin.skills.modalDescription": "The match token is the normalized key the matcher compares; aliases let variants resolve to the same token.",
+    "admin.skills.fldName": "Display name",
+    "admin.skills.fldToken": "Match token (normalized)",
+    "admin.skills.fldTokenHint": "Defaults to the lowercased name. Immutable after creation to avoid orphaning referenced data.",
+    "admin.skills.fldCategory": "Category",
+    "admin.skills.fldAliases": "Aliases",
+    "admin.skills.fldAliasesHint": "Comma-separated. E.g. node, node.js",
+    "admin.skills.fldActive": "Active",
+    "admin.skills.failedSave": "Failed to save skill",
+    "admin.skills.confirmDelete": "Delete skill \"{name}\" from the catalog?",
     "nav.blockchain": "Blockchain",
     "nav.auditLogs": "Audit logs",
 
@@ -2025,6 +2080,14 @@ export const TRANSLATIONS = {
       "{n} of {total} required skills are blockchain-verified on your profile",
     "candidate.recs.applyVerified": "Apply with verified profile",
     "candidate.recs.match": "match",
+    "candidate.recs.matchedVerified": "Matched & verified on-chain",
+    "candidate.recs.matchedClaimed": "Matched (self-declared)",
+    "candidate.recs.missingSkills": "Missing",
+    "candidate.recs.learningPath": "Improve your profile",
+    "candidate.recs.learningPathHint":
+      "Earn or verify these credentials to fit this role better",
+    "candidate.recs.statusMissing": "to learn",
+    "candidate.recs.statusUnverified": "to verify",
 
     // Candidate — jobs (Search)
     "candidate.jobs.title": "Find jobs",
@@ -2301,9 +2364,10 @@ export const TRANSLATIONS = {
 
     // DynamicForm
     "dynForm.selectPlaceholder": "Select…",
+    "dynForm.skillsPlaceholder": "Search skills in the catalog…",
 
     // SkillChipsInput
-    "skillChips.placeholder": "Type a skill and press Enter…",
+    "skillChips.placeholder": "Search skills in the catalog…",
     "skillChips.add": "Add",
 
     // Public verify page

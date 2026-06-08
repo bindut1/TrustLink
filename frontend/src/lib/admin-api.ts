@@ -13,6 +13,7 @@ import type {
   AuditLog,
   BlockchainTx,
   CredentialType,
+  SkillCatalogEntry,
   UserActionOverride,
 } from "@/types/admin";
 
@@ -178,6 +179,42 @@ export function updateCredentialType(
     body: payload,
     ...authOpts(),
   });
+}
+
+// ───────────── Skill catalog ─────────────
+
+export function fetchAllSkills(): Promise<SkillCatalogEntry[]> {
+  return apiRequest("/skills/all", authOpts());
+}
+
+export function createSkill(payload: {
+  name: string;
+  normalized?: string;
+  category?: string;
+  aliases?: string[];
+  isActive?: boolean;
+}): Promise<SkillCatalogEntry> {
+  return apiRequest("/skills", { method: "POST", body: payload, ...authOpts() });
+}
+
+export function updateSkill(
+  id: string,
+  payload: Partial<{
+    name: string;
+    category: string;
+    aliases: string[];
+    isActive: boolean;
+  }>,
+): Promise<SkillCatalogEntry> {
+  return apiRequest(`/skills/${id}`, {
+    method: "PATCH",
+    body: payload,
+    ...authOpts(),
+  });
+}
+
+export function deleteSkill(id: string): Promise<{ deleted: boolean }> {
+  return apiRequest(`/skills/${id}`, { method: "DELETE", ...authOpts() });
 }
 
 // ───────────── Audit logs ─────────────

@@ -23,6 +23,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { EmailModule } from './modules/email/email.module';
 import { PublicStatsModule } from './modules/public-stats/public-stats.module';
+import { SkillsModule } from './modules/skills/skills.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { PublicStatsModule } from './modules/public-stats/public-stats.module';
     AuditLogsModule,
     EmailModule,
     PublicStatsModule,
+    SkillsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,23 +2,20 @@ import { MATCH_WEIGHTS } from "@/types/candidate";
 import { cn } from "@/lib/cn";
 
 /**
- * AI match-score visualization, backed by the real `ScoreBreakdown`
- * (keyword / semantic / verified) returned by the matching service.
- *
- * The backend sub-scores are raw 0–100; each contributes to the total weighted
- * by `MATCH_WEIGHTS` (40 / 50 / 10). The track is split into a NAVY segment
- * (keyword + semantic contribution) and a TEAL tail (the verified contribution
- * = verifiedScore × 0.1) — teal carries the verified/on-chain semantic, never
- * decoration. Widths are derived straight from the data, not fabricated.
- *
- * `compact` renders just the bar (rows/cards); `detailed` adds the score header
- * and the per-signal breakdown with weight labels (the match modal).
+ * AI match-score visualization from the backend `ScoreBreakdown`. The track
+ * splits into a NAVY segment (keyword + semantic) and a TEAL tail (verified/
+ * on-chain contribution). `detailed` adds the per-tier breakdown; the shown
+ * weight is recovered from points/score so it matches the backend's learned
+ * weight, with `MATCH_WEIGHTS` as fallback.
  */
 type ScoreLike = {
   keywordScore: number | string;
   semanticScore: number | string;
   verifiedBonus: number | string;
   totalScore: number | string;
+  explanation?: {
+    contributions?: { keyword: number; semantic: number; verified: number };
+  };
 };
 
 type Weights = { keyword: number; semantic: number; verified: number };
@@ -54,8 +51,12 @@ export function MatchScoreBar({
   className,
 }: MatchScoreBarProps) {
   const total = clampPct(num(breakdown.totalScore));
-  // Verified contribution in score points = raw verified score × its weight.
-  const verifiedContrib = clampPct(num(breakdown.verifiedBonus) * weights.verified);
+  // Verified contribution in score points. Prefer the backend's actual value
+  // (reflects the learned weight); fall back to raw × default weight.
+  const verifiedContrib = clampPct(
+    breakdown.explanation?.contributions?.verified ??
+      num(breakdown.verifiedBonus) * weights.verified,
+  );
   const tealW = Math.min(verifiedContrib, total);
   const navyW = Math.max(0, total - tealW);
 
@@ -85,10 +86,22 @@ export function MatchScoreBar({
     return <div className={cn("w-full", className)}>{Track}</div>;
   }
 
-  const cols: Array<{ key: keyof Weights; label: string; score: number }> = [
-    { key: "keyword", label: labels?.keyword ?? "Keyword", score: num(breakdown.keywordScore) },
-    { key: "semantic", label: labels?.semantic ?? "Semantic", score: num(breakdown.semanticScore) },
-    { key: "verified", label: labels?.verified ?? "Verified", score: num(breakdown.verifiedBonus) },
+  const contrib = breakdown.explanation?.contributions;
+  // Recover the weight from points/score so the label matches the actual
+  // (learned) contribution; fall back to the static weight when unavailable.
+  const effectiveWeight = (c: { key: keyof Weights; score: number; points?: number }) =>
+    typeof c.points === "number" && c.score > 0
+      ? c.points / c.score
+      : weights[c.key];
+  const cols: Array<{
+    key: keyof Weights;
+    label: string;
+    score: number;
+    points?: number;
+  }> = [
+    { key: "keyword", label: labels?.keyword ?? "Keyword", score: num(breakdown.keywordScore), points: contrib?.keyword },
+    { key: "semantic", label: labels?.semantic ?? "Semantic", score: num(breakdown.semanticScore), points: contrib?.semantic },
+    { key: "verified", label: labels?.verified ?? "Verified", score: num(breakdown.verifiedBonus), points: contrib?.verified },
   ];
 
   return (
@@ -132,7 +145,10 @@ export function MatchScoreBar({
                 </span>
               </div>
               <div className="mt-1 text-[11.5px] text-fg-faint">
-                {labels?.weight ?? "weight"} {Math.round(weights[c.key] * 100)}%
+                {labels?.weight ?? "weight"} {Math.round(effectiveWeight(c) * 100)}%
+                {typeof c.points === "number" && (
+                  <span className="text-fg-subtle"> · +{c.points.toFixed(1)}</span>
+                )}
               </div>
             </div>
           );

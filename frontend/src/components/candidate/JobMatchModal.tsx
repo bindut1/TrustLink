@@ -1,14 +1,20 @@
 "use client";
 
-import { Bookmark, Building2, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { Bookmark, Building2, GraduationCap, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
 import { Modal } from "@/components/ui/Modal";
 import { SkillTag } from "@/components/ui/SkillTag";
 import { RecruiterInfoModal } from "./RecruiterInfoModal";
+import { fetchLearningPath } from "@/lib/candidate-api";
+import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type { CandidateSkill, RankedJob } from "@/types/candidate";
+import type {
+  CandidateSkill,
+  LearningRecommendation,
+  RankedJob,
+} from "@/types/candidate";
 import type { JobItem } from "@/types/candidate";
 
 type Props = {
@@ -30,6 +36,23 @@ export function JobMatchModal({
 }: Props) {
   const { t } = useLanguage();
   const [showRecruiter, setShowRecruiter] = useState(false);
+  const [learning, setLearning] = useState<LearningRecommendation[]>([]);
+
+  useEffect(() => {
+    if (!job) return;
+    let active = true;
+    fetchLearningPath(job.id)
+      .then((res) => {
+        if (active) setLearning(res.recommendations);
+      })
+      .catch(() => {
+        if (active) setLearning([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [job]);
+
   if (!job || !ranked) return null;
 
   const verifiedSet = new Set(
@@ -41,6 +64,7 @@ export function JobMatchModal({
   const verifiedCount = required.filter((s) =>
     verifiedSet.has(s.trim().toLowerCase()),
   ).length;
+  const exp = ranked.explanation;
 
   const meta = [
     job.city || (job.isRemote ? t("common.remote") : null),
@@ -100,28 +124,91 @@ export function JobMatchModal({
           />
         </div>
 
-        {/* Required skills */}
+        {/* Why match — trust-aware breakdown from the backend explanation */}
         {required.length > 0 && (
           <div>
             <div className="text-[13px] font-semibold text-fg mb-2.5">
               {t("candidate.recs.requiredSkills")}
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {required.map((skill) => {
-                const isVerified = verifiedSet.has(skill.trim().toLowerCase());
-                return (
-                  <SkillTag key={skill} verified={isVerified}>
+            {exp ? (
+              <div className="flex flex-col gap-3">
+                {exp.matchedVerified.length > 0 && (
+                  <SkillGroup
+                    label={t("candidate.recs.matchedVerified")}
+                    tone="verified"
+                    skills={exp.matchedVerified}
+                  />
+                )}
+                {exp.matchedClaimedOnly.length > 0 && (
+                  <SkillGroup
+                    label={t("candidate.recs.matchedClaimed")}
+                    tone="claimed"
+                    skills={exp.matchedClaimedOnly}
+                  />
+                )}
+                {exp.missing.length > 0 && (
+                  <SkillGroup
+                    label={t("candidate.recs.missingSkills")}
+                    tone="missing"
+                    skills={exp.missing}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {required.map((skill) => (
+                  <SkillTag
+                    key={skill}
+                    verified={verifiedSet.has(skill.trim().toLowerCase())}
+                  >
                     {skill}
                   </SkillTag>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
             <p className="mt-3 flex items-center gap-1.5 text-[13px] text-teal font-medium">
               <ShieldCheck size={14} />
               {t("candidate.recs.skillsVerified")
-                .replace("{n}", String(verifiedCount))
+                .replace("{n}", String(exp ? exp.matchedVerified.length : verifiedCount))
                 .replace("{total}", String(required.length))}
             </p>
+          </div>
+        )}
+
+        {/* Learning path — close the gap (closes the verify ↔ match loop) */}
+        {learning.some((r) => r.recommendedCredential) && (
+          <div className="rounded-card border border-border bg-surface-2/40 px-5 py-4">
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
+              <GraduationCap size={15} className="text-navy" />
+              {t("candidate.recs.learningPath")}
+            </div>
+            <p className="mt-1 text-[12px] text-fg-faint">
+              {t("candidate.recs.learningPathHint")}
+            </p>
+            <ul className="mt-3 flex flex-col gap-2">
+              {learning
+                .filter((r) => r.recommendedCredential)
+                .map((r) => (
+                  <li
+                    key={`${r.status}-${r.skill}`}
+                    className="flex items-center gap-2 text-[13px]"
+                  >
+                    <SkillTag verified={false} size="sm">
+                      {r.skill}
+                    </SkillTag>
+                    <span className="text-[11px] text-fg-faint">
+                      {r.status === "missing"
+                        ? t("candidate.recs.statusMissing")
+                        : t("candidate.recs.statusUnverified")}
+                    </span>
+                    <span className="text-fg-faint">→</span>
+                    <span className="inline-flex items-center gap-1 font-medium text-navy">
+                      <GraduationCap size={13} />
+                      {r.recommendedCredential!.name}
+                    </span>
+                  </li>
+                ))}
+            </ul>
           </div>
         )}
       </div>
@@ -131,6 +218,45 @@ export function JobMatchModal({
       onClose={() => setShowRecruiter(false)}
     />
     </>
+  );
+}
+
+function SkillGroup({
+  label,
+  tone,
+  skills,
+}: {
+  label: string;
+  tone: "verified" | "claimed" | "missing";
+  skills: string[];
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
+        <span
+          aria-hidden
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            tone === "verified" && "bg-teal",
+            tone === "claimed" && "bg-navy",
+            tone === "missing" && "bg-fg-faint",
+          )}
+        />
+        {label}
+        <span className="text-fg-faint">· {skills.length}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {skills.map((skill) => (
+          <SkillTag
+            key={skill}
+            verified={tone === "verified"}
+            className={cn(tone === "missing" && "opacity-55 line-through")}
+          >
+            {skill}
+          </SkillTag>
+        ))}
+      </div>
+    </div>
   );
 }
 

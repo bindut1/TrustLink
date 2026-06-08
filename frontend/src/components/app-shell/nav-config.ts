@@ -11,6 +11,7 @@ import {
   ScrollText,
   Search,
   Sparkles,
+  Tags,
   UserCircle,
   Users,
   Wallet,
@@ -78,6 +79,7 @@ const ADMIN_NAV: NavSection[] = [
       { labelKey: "nav.users", href: "/admin/users", icon: Users },
       { labelKey: "nav.institutions", href: "/admin/institutions", icon: Building2 },
       { labelKey: "nav.credentialTypes", href: "/admin/credential-types", icon: FileText },
+      { labelKey: "nav.skills", href: "/admin/skills", icon: Tags },
     ],
   },
   {

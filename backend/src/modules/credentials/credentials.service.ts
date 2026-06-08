@@ -45,6 +45,7 @@ import {
 import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
 import { StatusListService } from './status-list.service';
+import { SkillsService } from '../skills/skills.service';
 import { validateCredentialMetadata } from './helpers/metadata-validator';
 import {
   ExtractedSkill,
@@ -85,6 +86,7 @@ export class CredentialsService {
     private readonly vcService: VcService,
     private readonly auditLogs: AuditLogsService,
     private readonly statusList: StatusListService,
+    private readonly skills: SkillsService,
   ) {}
 
   /**
@@ -185,10 +187,23 @@ export class CredentialsService {
           throw new BadRequestException('Target user is not a candidate');
         }
         validateCredentialMetadata(item.metadata, credentialType.fieldSchema);
-        const skills = extractSkillsFromMetadata(
+        const rawSkills = extractSkillsFromMetadata(
           item.metadata,
           credentialType.fieldSchema,
         );
+        // Constrain credential skills to the canonical catalog.
+        const { tokens, unknown } = await this.skills.resolve(
+          rawSkills.map((s) => s.name),
+        );
+        if (unknown.length > 0) {
+          throw new BadRequestException(
+            `Credential skills not in catalog: ${unknown.join(', ')}`,
+          );
+        }
+        const skills: ExtractedSkill[] = tokens.map((t) => ({
+          name: t,
+          normalized: t,
+        }));
 
         // Idempotent: if a credential with the same (number, institution) is
         // still PENDING (a prior prepare that was never anchored), reuse it

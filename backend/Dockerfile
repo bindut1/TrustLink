@@ -17,5 +17,8 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
+# Learned matching weights (MatchingWeightsService reads config/match-weights.json);
+# falls back to the baseline if absent.
+COPY --from=build /app/config ./config
 EXPOSE 4000
 CMD ["node", "dist/main"]

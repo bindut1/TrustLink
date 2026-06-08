@@ -159,7 +159,16 @@ export default function IssueBulkPage() {
         const metadata: Record<string, unknown> = {};
         for (const f of selectedType.fieldSchema?.fields ?? []) {
           const raw = cell(row[f.key]);
-          metadata[f.key] = f.type === "number" && raw !== "" ? Number(raw) : raw;
+          if (f.type === "skills") {
+            // catalog tokens, comma/semicolon separated; backend validates them
+            metadata[f.key] = raw
+              .split(/[,;]/)
+              .map((s) => s.trim().toLowerCase())
+              .filter(Boolean);
+          } else {
+            metadata[f.key] =
+              f.type === "number" && raw !== "" ? Number(raw) : raw;
+          }
         }
         items.push({
           credentialNumber: cell(row.credentialNumber),

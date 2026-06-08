@@ -1,26 +1,21 @@
 /**
- * Initial seed for demo / development.
+ * Initial seed. Idempotent — bails out if the admin account already exists.
  *
- * Idempotent — checks for the admin account before seeding; bails out if found.
+ * Default (production): accounts + reference data only —
+ *   1 admin, 5 credential types, 3 institutions + 3 issuers, 5 recruiters,
+ *   20 candidates. Jobs and credentials are created by hand (real, on-chain).
  *
- * Creates:
- *   - 1 admin
- *   - 3 institutions (approved, with mock blockchain_address)
- *   - 5 credential types
- *   - 5 recruiters + companies
- *   - 10 jobs
- *   - 20 candidates + self-declared candidate_skills (for matching demo)
+ * SEED_DEMO=true additionally seeds the matching demo / evaluation dataset:
+ *   10 jobs + candidate_skills + simulated ISSUED credentials.
  *
- * Credentials are NOT seeded — they are issued non-custodially via the issuer
- * flow (MetaMask + on-chain anchor), which is what verifies a candidate's skill.
- *
- * Usage:  npm run seed
+ * Usage:  npm run seed   (prod)   |   SEED_DEMO=true npm run seed   (dev/eval)
  */
 import 'reflect-metadata';
 import * as bcrypt from 'bcryptjs';
 import AppDataSource from '../data-source';
 import { CandidateProfile } from '../entities/candidate-profile.entity';
 import { CandidateSkill } from '../entities/candidate-skill.entity';
+import { Credential } from '../entities/credential.entity';
 import { CredentialType } from '../entities/credential-type.entity';
 import { Institution } from '../entities/institution.entity';
 import { Job } from '../entities/job.entity';
@@ -30,12 +25,22 @@ import {
   AccountStatus,
   ApprovalStatus,
   CredentialCategory,
+  CredentialStatus,
   JobStatus,
   UserRole,
 } from '../enums';
 
 const PASSWORD = 'Password@123';
 const BCRYPT_ROUNDS = 10;
+
+// Flags (see ai-service/evaluation/README.md):
+//   SEED_RESET=true          truncate data tables before seeding (keeps migrations/RBAC/catalog).
+//   SEED_DEMO=true           also seed the matching demo/eval set: jobs, candidate_skills,
+//                            simulated ISSUED credentials. Off by default (prod = accounts only).
+//   SEED_VERIFY_FRACTION=<f> (demo only) graded verified share per candidate so verifiedBonus varies.
+const SEED_RESET = process.env.SEED_RESET === 'true';
+const SEED_DEMO = process.env.SEED_DEMO === 'true';
+const SEED_VERIFY_FRACTION = parseFloat(process.env.SEED_VERIFY_FRACTION || '0');
 
 // ─────────────────────────── Data definitions ───────────────────────────
 
@@ -96,6 +101,12 @@ const CREDENTIAL_TYPES = [
           options: ['Xuất sắc', 'Giỏi', 'Khá', 'Trung bình'],
           required: true,
         },
+        {
+          key: 'skills',
+          label: 'Kỹ năng (từ danh mục)',
+          type: 'skills',
+          required: false,
+        },
       ],
     },
   },
@@ -107,6 +118,12 @@ const CREDENTIAL_TYPES = [
       fields: [
         { key: 'major', label: 'Ngành học', type: 'text', required: true },
         { key: 'thesis_title', label: 'Tên luận văn', type: 'text', required: false },
+        {
+          key: 'skills',
+          label: 'Kỹ năng (từ danh mục)',
+          type: 'skills',
+          required: false,
+        },
       ],
     },
   },
@@ -124,6 +141,12 @@ const CREDENTIAL_TYPES = [
           required: true,
         },
         { key: 'score', label: 'Score', type: 'number', required: false },
+        {
+          key: 'skills',
+          label: 'Kỹ năng (từ danh mục)',
+          type: 'skills',
+          required: false,
+        },
       ],
     },
   },
@@ -148,6 +171,12 @@ const CREDENTIAL_TYPES = [
     fieldSchema: {
       fields: [
         { key: 'score', label: 'Score', type: 'number', required: false },
+        {
+          key: 'skills',
+          label: 'Kỹ năng (từ danh mục)',
+          type: 'skills',
+          required: false,
+        },
       ],
     },
   },
@@ -275,7 +304,7 @@ const JOBS = [
     description: 'Build ML models for recommendation and ranking.',
     requirements: 'Python, PyTorch/TF, ML production experience.',
     requiredSkills: ['python', 'pytorch', 'machine learning'],
-    preferredSkills: ['nlp', 'aws sagemaker'],
+    preferredSkills: ['nlp', 'tensorflow'],
     salaryMin: 30000,
     salaryMax: 55000,
     isRemote: false,
@@ -349,6 +378,30 @@ function pickSkillPool(idx: number) {
 async function seed() {
   await AppDataSource.initialize();
   const passwordHash = await bcrypt.hash(PASSWORD, BCRYPT_ROUNDS);
+
+  if (SEED_RESET) {
+    // Preserve reference data seeded by MIGRATIONS (not by this script):
+    // 'actions' / 'role_actions' hold the RBAC permission map. Truncating them
+    // breaks authorization permanently, since the migration won't re-run.
+    const PRESERVE = [
+      'migrations',
+      'actions',
+      'role_actions',
+      'skill_catalog',
+    ];
+    const tables = await AppDataSource.query<{ tablename: string }[]>(
+      `SELECT tablename FROM pg_tables
+       WHERE schemaname = 'public' AND tablename <> ALL($1::text[])`,
+      [PRESERVE],
+    );
+    if (tables.length > 0) {
+      const names = tables.map((t) => `"${t.tablename}"`).join(', ');
+      await AppDataSource.query(
+        `TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`,
+      );
+      console.log(`Reset: truncated ${tables.length} tables`);
+    }
+  }
 
   const userRepo = AppDataSource.getRepository(User);
   const existing = await userRepo.findOne({ where: { email: ADMIN.email } });
@@ -450,29 +503,31 @@ async function seed() {
     }
     console.log(`  recruiters: ${recruiterUsers.length}`);
 
-    // 5. Jobs
-    const jobs: Job[] = [];
-    for (let i = 0; i < JOBS.length; i++) {
-      const job = await manager.save(
-        manager.create(Job, {
-          recruiterId: recruiterUsers[i % recruiterUsers.length].id,
-          title: JOBS[i].title,
-          description: JOBS[i].description,
-          requirements: JOBS[i].requirements,
-          jobType: 'full_time',
-          experienceLevel: JOBS[i].experienceLevel,
-          city: 'Hồ Chí Minh',
-          isRemote: JOBS[i].isRemote,
-          salaryMin: JOBS[i].salaryMin,
-          salaryMax: JOBS[i].salaryMax,
-          requiredSkills: JOBS[i].requiredSkills,
-          preferredSkills: JOBS[i].preferredSkills,
-          status: JobStatus.OPEN,
-        }),
-      );
-      jobs.push(job);
+    // 5. Jobs (demo/eval only — in prod recruiters post real jobs by hand)
+    if (SEED_DEMO) {
+      const jobs: Job[] = [];
+      for (let i = 0; i < JOBS.length; i++) {
+        const job = await manager.save(
+          manager.create(Job, {
+            recruiterId: recruiterUsers[i % recruiterUsers.length].id,
+            title: JOBS[i].title,
+            description: JOBS[i].description,
+            requirements: JOBS[i].requirements,
+            jobType: 'full_time',
+            experienceLevel: JOBS[i].experienceLevel,
+            city: 'Hồ Chí Minh',
+            isRemote: JOBS[i].isRemote,
+            salaryMin: JOBS[i].salaryMin,
+            salaryMax: JOBS[i].salaryMax,
+            requiredSkills: JOBS[i].requiredSkills,
+            preferredSkills: JOBS[i].preferredSkills,
+            status: JobStatus.OPEN,
+          }),
+        );
+        jobs.push(job);
+      }
+      console.log(`  jobs: ${jobs.length}`);
     }
-    console.log(`  jobs: ${jobs.length}`);
 
     // 6. Candidates + profiles
     const candidates: User[] = [];
@@ -505,28 +560,72 @@ async function seed() {
     }
     console.log(`  candidates: ${candidates.length}`);
 
-    // 7. Seed candidate skills (self-declared). Credentials are NOT mock-seeded
-    //    anymore — they are issued non-custodially via the issuer flow (MetaMask
-    //    + on-chain anchor), which is what flips a skill to verified.
-    let skillCount = 0;
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
-      const pool = pickSkillPool(i);
-      const skills = [...pool.skills, ...(i % 2 === 0 ? ['english'] : [])];
-      for (const skill of skills) {
-        await manager.save(
-          manager.create(CandidateSkill, {
-            candidateId: candidate.id,
-            skillName: skill,
-            skillNameNormalized: skill.toLowerCase().trim(),
-            proficiencyLevel: 'intermediate',
-            isVerified: false,
-          }),
-        );
-        skillCount++;
+    // 7. Candidate skills + simulated credentials — demo/eval only. In prod a
+    //    skill becomes verified only via a real on-chain issuance.
+    if (SEED_DEMO) {
+      let skillCount = 0;
+      let credentialCount = 0;
+      // Graded verified spread when SEED_VERIFY_FRACTION>0: 0/25/50/75/100%.
+      const verifyTiers = [0, 0.25, 0.5, 0.75, 1];
+      for (let i = 0; i < candidates.length; i++) {
+        const candidate = candidates[i];
+        const pool = pickSkillPool(i);
+        const skills = [...pool.skills, ...(i % 2 === 0 ? ['english'] : [])];
+        const verifyRatio =
+          SEED_VERIFY_FRACTION > 0 ? verifyTiers[i % verifyTiers.length] : 0;
+        const verifiedCount = Math.round(verifyRatio * pool.skills.length);
+
+        // Back verified skills with an ISSUED credential so the DB stays
+        // consistent (verified skill ⇔ a credential row); metadata.simulated.
+        let backingCredential: Credential | null = null;
+        if (verifiedCount > 0) {
+          const credType =
+            credentialTypes.find((ct) => ct.nameEn === pool.verifyTitle) ??
+            credentialTypes[0];
+          const institution = institutions[i % institutions.length];
+          backingCredential = await manager.save(
+            manager.create(Credential, {
+              credentialNumber: `SEED-${i + 1}-${institution.abbreviation}`,
+              credentialTypeId: credType?.id ?? null,
+              institutionId: institution.id,
+              candidateId: candidate.id,
+              title: pool.verifyTitle,
+              issuedDate: new Date(),
+              status: CredentialStatus.ISSUED,
+              extractedSkills: pool.skills.slice(0, verifiedCount),
+              metadata: {
+                simulated: true,
+                note: 'Seeded for evaluation; not anchored on-chain.',
+                skills: pool.skills.slice(0, verifiedCount),
+              },
+            }),
+          );
+          credentialCount++;
+        }
+
+        for (let s = 0; s < skills.length; s++) {
+          const skill = skills[s];
+          // verify only the first N pool skills (never the trailing 'english')
+          const isVerified = s < verifiedCount && s < pool.skills.length;
+          await manager.save(
+            manager.create(CandidateSkill, {
+              candidateId: candidate.id,
+              skillName: skill,
+              skillNameNormalized: skill.toLowerCase().trim(),
+              proficiencyLevel: 'intermediate',
+              isVerified,
+              sourceCredentialId: isVerified
+                ? (backingCredential?.id ?? null)
+                : null,
+            }),
+          );
+          skillCount++;
+        }
       }
+      console.log(
+        `  candidate skills: ${skillCount} (verified backed by ${credentialCount} credentials)`,
+      );
     }
-    console.log(`  candidate skills seeded (self-declared): ${skillCount}`);
   });
 
   console.log('\n✓ Seed completed.');

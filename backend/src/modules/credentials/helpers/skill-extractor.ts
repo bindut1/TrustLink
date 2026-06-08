@@ -13,16 +13,10 @@ export interface ExtractedSkill {
 }
 
 /**
- * Extract skill names from credential metadata.
- *
- * Strategy:
- * 1. If `metadata.skills` is an array of strings, use those.
- * 2. For any field in `field_schema` with type === 'skills' or whose key is
- *    'skills', collect array values from metadata.
- * 3. Also treat common single-value skill-like fields (`major`, `subject`,
- *    `specialization`) as skills so degrees still contribute to matching.
- *
- * All names are trimmed; duplicates are removed by normalized (lowercased) form.
+ * Extract skill names from credential metadata — ONLY from explicit skill fields:
+ * `metadata.skills` arrays and field_schema fields of type/key 'skills'.
+ * Free-text fields (major/subject) are intentionally NOT treated as skills (they
+ * produced coarse tokens that never matched a JD). Deduped by normalized form.
  */
 export function extractSkillsFromMetadata(
   metadata: Record<string, unknown>,
@@ -57,12 +51,6 @@ export function extractSkillsFromMetadata(
         for (const s of value) add(s);
       }
     }
-  }
-
-  // 3. Common single-value skill-like fields.
-  const SKILL_LIKE_KEYS = ['major', 'subject', 'specialization'];
-  for (const key of SKILL_LIKE_KEYS) {
-    add(metadata?.[key]);
   }
 
   return [...byNormalized.values()];

@@ -12,6 +12,7 @@ import { JobStatus, NotificationType } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
 import { MatchingService } from '../matching/matching.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SkillsService } from '../skills/skills.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { ListJobsQueryDto } from './dto/list-jobs.query.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -41,7 +42,22 @@ export class JobsService {
     private readonly embeddings: EmbeddingService,
     private readonly matching: MatchingService,
     private readonly notifications: NotificationsService,
+    private readonly skills: SkillsService,
   ) {}
+
+  /** Resolve skills to canonical catalog tokens; reject anything not in the catalog. */
+  private async resolveSkillsOrThrow(
+    skills: string[] | undefined,
+    label: string,
+  ): Promise<string[]> {
+    const { tokens, unknown } = await this.skills.resolve(skills);
+    if (unknown.length > 0) {
+      throw new BadRequestException(
+        `${label}: unknown skills not in catalog: ${unknown.join(', ')}`,
+      );
+    }
+    return tokens;
+  }
 
   async create(recruiterId: string, dto: CreateJobDto): Promise<Job> {
     if (
@@ -51,6 +67,15 @@ export class JobsService {
     ) {
       throw new BadRequestException('salaryMin must be <= salaryMax');
     }
+
+    const requiredSkills = await this.resolveSkillsOrThrow(
+      dto.requiredSkills,
+      'requiredSkills',
+    );
+    const preferredSkills = await this.resolveSkillsOrThrow(
+      dto.preferredSkills,
+      'preferredSkills',
+    );
 
     const job = this.repo.create({
       recruiterId,
@@ -67,8 +92,8 @@ export class JobsService {
       salaryMin: dto.salaryMin ?? null,
       salaryMax: dto.salaryMax ?? null,
       salaryVisible: dto.salaryVisible ?? true,
-      requiredSkills: dto.requiredSkills ?? [],
-      preferredSkills: dto.preferredSkills ?? [],
+      requiredSkills,
+      preferredSkills,
       requiredCredentialTypes: dto.requiredCredentialTypes ?? [],
       applicationDeadline: dto.applicationDeadline
         ? new Date(dto.applicationDeadline)
@@ -176,6 +201,20 @@ export class JobsService {
     const { status: _status, ...fields } = dto;
     void _status;
     Object.assign(job, fields);
+
+    // Re-resolve skills against the catalog whenever they're part of the patch.
+    if (dto.requiredSkills !== undefined) {
+      job.requiredSkills = await this.resolveSkillsOrThrow(
+        dto.requiredSkills,
+        'requiredSkills',
+      );
+    }
+    if (dto.preferredSkills !== undefined) {
+      job.preferredSkills = await this.resolveSkillsOrThrow(
+        dto.preferredSkills,
+        'preferredSkills',
+      );
+    }
 
     if (
       job.salaryMin != null &&

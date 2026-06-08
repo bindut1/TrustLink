@@ -1,0 +1,15 @@
+{
+  "keyword": 0.4845,
+  "semantic": 0.2903,
+  "verified": 0.2252,
+  "modelVersion": "logreg-v1",
+  "cvMetrics": {
+    "roc_auc_groupkfold": 0.9864
+  },
+  "rawCoefficients": [
+    3.4365,
+    2.0592,
+    1.5976
+  ],
+  "note": "Learned by ai-service/evaluation/train_weights.py (Logistic Regression)."
+}

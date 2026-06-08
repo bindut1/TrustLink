@@ -12,6 +12,7 @@ import { AiClientService } from './ai-client.service';
 import { EmbeddingService } from './embedding.service';
 import { MatchingController } from './matching.controller';
 import { MatchingService } from './matching.service';
+import { MatchingWeightsService } from './matching-weights.service';
 
 @Module({
   imports: [
@@ -27,7 +28,12 @@ import { MatchingService } from './matching.service';
     AuthModule,
   ],
   controllers: [MatchingController],
-  providers: [AiClientService, EmbeddingService, MatchingService],
+  providers: [
+    AiClientService,
+    EmbeddingService,
+    MatchingService,
+    MatchingWeightsService,
+  ],
   exports: [EmbeddingService, MatchingService],
 })
 export class MatchingModule {}

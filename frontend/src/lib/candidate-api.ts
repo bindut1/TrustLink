@@ -11,6 +11,7 @@ import type {
   CandidateProfile,
   CandidateSkill,
   JobItem,
+  LearningPathResult,
   PaginatedJobs,
   RankedJob,
   RecruiterPublicProfile,
@@ -123,6 +124,11 @@ export function trackJobView(id: string): Promise<void> {
 
 export function fetchRecommendedJobs(limit = 20): Promise<RankedJob[]> {
   return apiRequest(`/matching/recommend?limit=${limit}`, authOpts());
+}
+
+/** Credential suggestions to close the gap for a target job (learning path). */
+export function fetchLearningPath(jobId: string): Promise<LearningPathResult> {
+  return apiRequest(`/matching/learning-path/${jobId}`, authOpts());
 }
 
 // ───────────── Applications ─────────────

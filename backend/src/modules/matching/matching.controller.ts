@@ -48,6 +48,19 @@ export class MatchingController {
   ) {
     return this.service.recommendJobsForCandidate(user.id, clampLimit(limit));
   }
+
+  @Get('matching/learning-path/:jobId')
+  @RequireActions('matching.view')
+  @ApiOperation({
+    summary: 'Credential suggestions to close the gap for a target job',
+  })
+  @ApiOkResponse({ description: 'Missing/unverified skills + recommended credentials' })
+  async learningPath(
+    @CurrentUser() user: User,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.service.recommendLearningPath(user.id, jobId);
+  }
 }
 
 function clampLimit(n: number): number {

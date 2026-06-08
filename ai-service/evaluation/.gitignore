@@ -1,0 +1,5 @@
+# Generated evaluation artifacts (reproducible from the DB + scripts).
+__pycache__/
+data/scores.json
+report/
+# labels.csv (curated gold set) IS tracked on purpose.

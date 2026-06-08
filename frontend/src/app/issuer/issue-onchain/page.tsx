@@ -30,7 +30,7 @@ import type {
   IssueCredentialPayload,
 } from "@/types/issuer";
 
-type FieldValue = string | number | undefined;
+type FieldValue = string | number | string[] | undefined;
 
 /**
  * Non-custodial issuance: the issuer signs each VC (EIP-712) and broadcasts the

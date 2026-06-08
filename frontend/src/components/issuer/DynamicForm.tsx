@@ -4,11 +4,12 @@
 
 import { FormField } from "@/components/ui/FormField";
 import { Input, Select } from "@/components/ui/Input";
+import { SkillCatalogPicker } from "@/components/ui/SkillCatalogPicker";
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { FieldSchema } from "@/types/issuer";
 
-type FieldValue = string | number | undefined;
+type FieldValue = string | number | string[] | undefined;
 
 export type DynamicFormProps = {
   schema: FieldSchema;
@@ -44,7 +45,7 @@ export function DynamicForm({
       {schema.fields.map((field) => {
         const current = value[field.key];
         const err = errors?.[field.key];
-        const isFullWidth = field.type === "textarea";
+        const isFullWidth = field.type === "textarea" || field.type === "skills";
 
         return (
           <div
@@ -57,7 +58,13 @@ export function DynamicForm({
               hint={!err ? field.helpText : undefined}
               error={err}
             >
-              {field.type === "select" ? (
+              {field.type === "skills" ? (
+                <SkillCatalogPicker
+                  value={Array.isArray(current) ? (current as string[]) : []}
+                  onChange={(tokens) => set(field.key, tokens)}
+                  placeholder={field.placeholder ?? t("dynForm.skillsPlaceholder")}
+                />
+              ) : field.type === "select" ? (
                 <Select
                   value={(current as string) ?? ""}
                   onChange={(e) => set(field.key, e.target.value || undefined)}

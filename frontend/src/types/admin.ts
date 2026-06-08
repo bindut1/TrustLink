@@ -124,3 +124,15 @@ export type AuditLog = {
   userAgent: string | null;
   createdAt: string;
 };
+
+/** A canonical skill catalog entry (admin management view). */
+export type SkillCatalogEntry = {
+  id: string;
+  normalized: string;
+  name: string;
+  category: string | null;
+  aliases: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
