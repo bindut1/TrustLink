@@ -16,6 +16,7 @@ import {
   fetchMyRecruiterProfile,
   updateMyRecruiterProfile,
 } from "@/lib/recruiter-api";
+import { VIETNAM_PROVINCE_OPTIONS } from "@/lib/vietnam-provinces";
 import type {
   RecruiterProfile,
   UpdateRecruiterProfilePayload,
@@ -222,9 +223,12 @@ export default function RecruiterProfilePage() {
         <Card title={t("recruiter.profile.sectionLocation")}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={t("recruiter.profile.fldCity")}>
-              <Input
+              <SelectMenu
                 value={(draft.city as string | undefined) ?? ""}
-                onChange={(e) => set("city", e.target.value)}
+                onChange={(v) => set("city", v || null)}
+                ariaLabel={t("recruiter.profile.fldCity")}
+                placeholder={t("recruiter.profile.fldCityPlaceholder")}
+                options={VIETNAM_PROVINCE_OPTIONS}
               />
             </FormField>
             <FormField label={t("recruiter.profile.fldCountry")}>

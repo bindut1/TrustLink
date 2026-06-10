@@ -18,6 +18,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { SkillTag } from "@/components/ui/SkillTag";
 import { StatusPill, type StatusTone } from "@/components/ui/StatusPill";
 import { ShareCredential } from "@/components/verify/ShareCredential";
+import { VcOfflineVerifyNote } from "@/components/verify/VcOfflineVerifyNote";
 import { VerificationResult } from "@/components/verify/VerificationResult";
 import { ApiError } from "@/lib/api";
 import {
@@ -253,6 +254,9 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
             <ShareCredential credentialId={c.id} />
           </Section>
         )}
+
+        {/* How to verify the downloaded file if TrustLink is unavailable */}
+        <VcOfflineVerifyNote />
       </div>
     </Drawer>
   );

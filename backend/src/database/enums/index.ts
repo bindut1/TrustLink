@@ -83,6 +83,11 @@ export enum VerificationResult {
   ERROR = 'error',
 }
 
+export enum JobInvitationStatus {
+  PENDING = 'pending',
+  DECLINED = 'declined',
+}
+
 export enum NotificationType {
   CREDENTIAL_ISSUED = 'credential_issued',
   CREDENTIAL_REVOKED = 'credential_revoked',

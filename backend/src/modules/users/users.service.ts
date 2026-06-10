@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { UserRole } from '../../database/enums';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
@@ -65,15 +65,31 @@ export class UsersService {
     q: string,
     limit = 10,
   ): Promise<Pick<User, 'id' | 'email' | 'fullName' | 'avatarUrl'>[]> {
-    const term = `%${q.trim()}%`;
-    const users = await this.userRepo.find({
-      where: [
-        { role: UserRole.CANDIDATE, email: ILike(term) },
-        { role: UserRole.CANDIDATE, fullName: ILike(term) },
-      ],
-      order: { fullName: 'ASC' },
-      take: limit,
-    });
+    const raw = q.trim();
+    if (!raw) return [];
+    const contains = `%${raw}%`;
+    const prefix = `${raw}%`;
+
+    // Rank by relevance so the closest matches surface first:
+    //   0 — email/name starts with the query (strongest signal)
+    //   1 — email/name contains the query anywhere
+    // Within each tier, sort alphabetically by name for stable ordering.
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .where('u.role = :role', { role: UserRole.CANDIDATE })
+      .andWhere('(u.email ILIKE :contains OR u.full_name ILIKE :contains)', {
+        contains,
+      })
+      .addSelect(
+        `CASE WHEN u.email ILIKE :prefix OR u.full_name ILIKE :prefix THEN 0 ELSE 1 END`,
+        'relevance',
+      )
+      .setParameter('prefix', prefix)
+      .orderBy('relevance', 'ASC')
+      .addOrderBy('u.full_name', 'ASC')
+      .take(limit)
+      .getMany();
+
     return users.map(({ id, email, fullName, avatarUrl }) => ({
       id,
       email,

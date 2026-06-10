@@ -113,3 +113,21 @@ export type ApplicationWithCandidate = ApplicationItem & {
     candidateProfile?: CandidateProfile | null;
   };
 };
+
+/** An invitation a recruiter sent for a job (recruiter-side "Lời mời" tab). */
+export type SentInvitationItem = {
+  id: string;
+  message: string | null;
+  status: "pending" | "declined";
+  declineReason: string | null;
+  hasApplied: boolean;
+  createdAt: string;
+  candidate: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+    candidateProfile?: CandidateProfile | null;
+  };
+};

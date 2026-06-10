@@ -20,6 +20,7 @@ import {
 } from "@/lib/candidate-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { VIETNAM_PROVINCE_OPTIONS } from "@/lib/vietnam-provinces";
 import type {
   CandidateProfile,
   CandidateSkill,
@@ -61,7 +62,6 @@ export default function CandidateProfilePage() {
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [draft, setDraft] = useState<UpdateCandidateProfilePayload>({});
   const [skills, setSkills] = useState<CandidateSkill[]>([]);
-  const [locationInput, setLocationInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,13 +98,12 @@ export default function CandidateProfilePage() {
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  function addLocation() {
-    const trimmed = locationInput.trim();
+  function addLocation(value: string) {
+    const trimmed = value.trim();
     if (!trimmed) return;
     const current = draft.preferredLocations ?? [];
     if (current.includes(trimmed)) return;
     update("preferredLocations", [...current, trimmed]);
-    setLocationInput("");
   }
 
   function removeLocation(loc: string) {
@@ -337,27 +336,16 @@ export default function CandidateProfilePage() {
 
           <div className="mt-4">
             <FormField label={t("candidate.profile.fldLocations")}>
-              <div className="flex gap-2">
-                <Input
-                  value={locationInput}
-                  onChange={(e) => setLocationInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addLocation();
-                    }
-                  }}
-                  placeholder={t("candidate.profile.fldLocationPlaceholder")}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={addLocation}
-                  disabled={!locationInput.trim()}
-                >
-                  {t("candidate.profile.fldLocationAdd")}
-                </Button>
-              </div>
+              <SelectMenu
+                value=""
+                onChange={(v) => addLocation(v)}
+                ariaLabel={t("candidate.profile.fldLocations")}
+                placeholder={t("candidate.profile.fldLocationPlaceholder")}
+                options={VIETNAM_PROVINCE_OPTIONS.filter(
+                  (o) =>
+                    !(draft.preferredLocations ?? []).includes(o.value),
+                )}
+              />
             </FormField>
             {(draft.preferredLocations ?? []).length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">

@@ -17,6 +17,7 @@ import {
   verifyKind,
   type VerifyKind,
 } from "@/components/verify/VerificationResult";
+import { VcOfflineVerifyNote } from "@/components/verify/VcOfflineVerifyNote";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
   type CandidateVerificationItem,
@@ -135,11 +136,16 @@ export function CandidateVerifyModal({
       )}
 
       {results && results.length > 0 && (
-        <ul className="flex flex-col divide-y divide-border rounded-xl border border-border overflow-hidden">
-          {results.map((r) => (
-            <CredentialRow key={r.credentialId} item={r} />
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col divide-y divide-border rounded-xl border border-border overflow-hidden">
+            {results.map((r) => (
+              <CredentialRow key={r.credentialId} item={r} />
+            ))}
+          </ul>
+          <div className="mt-4">
+            <VcOfflineVerifyNote />
+          </div>
+        </>
       )}
     </Modal>
   );

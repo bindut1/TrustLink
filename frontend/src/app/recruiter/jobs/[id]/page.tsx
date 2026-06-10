@@ -1,6 +1,16 @@
 "use client";
 
-import { Briefcase, Edit2, MapPin, ShieldCheck, User, Users } from "lucide-react";
+import {
+  Briefcase,
+  CheckCircle2,
+  Edit2,
+  Mail,
+  MapPin,
+  Send,
+  ShieldCheck,
+  User,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +23,8 @@ import {
 } from "@/components/recruiter/CandidateInfoModal";
 import { CandidateVerifyModal } from "@/components/recruiter/CandidateVerifyModal";
 import { JobStatusBadge } from "@/components/recruiter/JobStatusBadge";
+import { OfferModal } from "@/components/recruiter/OfferModal";
+import { SentOfferDetailModal } from "@/components/recruiter/SentOfferDetailModal";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +37,7 @@ import { cn } from "@/lib/cn";
 import {
   fetchJob,
   fetchJobApplications,
+  fetchJobInvitations,
   fetchRecommendedCandidates,
   updateJob,
 } from "@/lib/recruiter-api";
@@ -35,14 +48,16 @@ import type {
   ApplicationWithCandidate,
   JobStatus,
   RankedCandidate,
+  SentInvitationItem,
 } from "@/types/recruiter-app";
 
-type Tab = "overview" | "candidates" | "applications";
+type Tab = "overview" | "candidates" | "applications" | "invitations";
 
 const TABS: { key: Tab; labelKey: TranslationKey }[] = [
   { key: "overview", labelKey: "recruiter.jobDetail.tabOverview" },
   { key: "candidates", labelKey: "recruiter.jobDetail.tabCandidates" },
   { key: "applications", labelKey: "recruiter.jobDetail.tabApplications" },
+  { key: "invitations", labelKey: "recruiter.jobDetail.tabInvitations" },
 ];
 
 export default function RecruiterJobDetailPage() {
@@ -168,6 +183,7 @@ export default function RecruiterJobDetailPage() {
       {tab === "overview" && <OverviewTab job={job} />}
       {tab === "candidates" && <CandidatesTab jobId={job.id} />}
       {tab === "applications" && <ApplicationsTab jobId={job.id} />}
+      {tab === "invitations" && <InvitationsTab jobId={job.id} />}
     </>
   );
 }
@@ -234,6 +250,15 @@ function CandidatesTab({ jobId }: { jobId: string }) {
     id: string;
     fullName: string;
   } | null>(null);
+  // Candidate currently being offered (compose-message modal target).
+  const [offerTarget, setOfferTarget] = useState<{
+    jobId: string;
+    candidateId: string;
+    fullName: string;
+  } | null>(null);
+  // Candidates already invited (seeded from the server so the "Đã gửi lời mời"
+  // state survives reload/logout, then updated optimistically on new sends).
+  const [invited, setInvited] = useState<Record<string, true>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +273,17 @@ function CandidatesTab({ jobId }: { jobId: string }) {
             ? e.message
             : t("recruiter.jobDetail.candidatesFailedLoad"),
         );
+      });
+    // Seed already-invited candidates so their button stays "Đã gửi lời mời".
+    fetchJobInvitations(jobId)
+      .then((list) => {
+        if (cancelled) return;
+        const seeded: Record<string, true> = {};
+        for (const inv of list) seeded[inv.candidate.id] = true;
+        setInvited(seeded);
+      })
+      .catch(() => {
+        /* non-fatal — buttons just won't be pre-marked */
       });
     return () => {
       cancelled = true;
@@ -350,6 +386,33 @@ function CandidatesTab({ jobId }: { jobId: string }) {
                 >
                   {t("recruiter.jobDetail.verifyClick")}
                 </Button>
+                {invited[r.candidate.id] ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    block
+                    disabled
+                    leftIcon={<CheckCircle2 size={14} />}
+                  >
+                    {t("recruiter.jobDetail.invited")}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    block
+                    leftIcon={<Send size={13} />}
+                    onClick={() =>
+                      setOfferTarget({
+                        jobId,
+                        candidateId: r.candidate.id,
+                        fullName: r.candidate.fullName,
+                      })
+                    }
+                  >
+                    {t("recruiter.jobDetail.invite")}
+                  </Button>
+                )}
               </div>
             </div>
           </article>
@@ -362,6 +425,13 @@ function CandidatesTab({ jobId }: { jobId: string }) {
       <CandidateVerifyModal
         candidate={verifyTarget}
         onClose={() => setVerifyTarget(null)}
+      />
+      <OfferModal
+        target={offerTarget}
+        onClose={() => setOfferTarget(null)}
+        onSent={(candidateId) =>
+          setInvited((s) => ({ ...s, [candidateId]: true }))
+        }
       />
     </>
   );
@@ -549,6 +619,133 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
       <CandidateVerifyModal
         candidate={verifyTarget}
         onClose={() => setVerifyTarget(null)}
+      />
+    </>
+  );
+}
+
+function InvitationsTab({ jobId }: { jobId: string }) {
+  const { t } = useLanguage();
+  const [items, setItems] = useState<SentInvitationItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<SentInvitationItem | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchJobInvitations(jobId)
+      .then((r) => !cancelled && setItems(r))
+      .catch((e: unknown) => {
+        if (!cancelled)
+          setError(
+            e instanceof Error
+              ? e.message
+              : t("recruiter.jobDetail.invitationsFailedLoad"),
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, t]);
+
+  if (error) return <Alert variant="error">{error}</Alert>;
+  if (!items)
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} height={96} className="rounded-card" />
+        ))}
+      </div>
+    );
+  if (items.length === 0)
+    return (
+      <EmptyState
+        icon={Mail}
+        title={t("recruiter.jobDetail.invitationsEmpty")}
+      />
+    );
+
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        {items.map((inv) => {
+          const badge = inv.hasApplied
+            ? {
+                label: t("recruiter.jobDetail.invStatusApplied"),
+                cls: "bg-success/12 text-success",
+              }
+            : inv.status === "declined"
+              ? {
+                  label: t("recruiter.jobDetail.invStatusDeclined"),
+                  cls: "bg-danger/10 text-danger",
+                }
+              : {
+                  label: t("recruiter.jobDetail.invStatusPending"),
+                  cls: "bg-navy/8 text-navy",
+                };
+          return (
+            <article
+              key={inv.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailTarget(inv)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setDetailTarget(inv);
+                }
+              }}
+              className="rounded-card border border-border bg-canvas p-5 shadow-[var(--shadow-card)] cursor-pointer tl-card-interactive"
+            >
+              <div className="flex items-start gap-3">
+                <Avatar
+                  name={inv.candidate.fullName}
+                  src={inv.candidate.avatarUrl}
+                  size={40}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[15px] font-semibold text-fg leading-tight">
+                      {inv.candidate.fullName}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-medium",
+                        badge.cls,
+                      )}
+                    >
+                      {badge.label}
+                    </span>
+                    <span className="text-[12px] text-fg-subtle font-mono">
+                      {new Date(inv.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="text-[12.5px] text-fg-subtle font-mono mt-0.5 truncate">
+                    {inv.candidate.email}
+                  </div>
+                  {inv.message && (
+                    <p className="text-[13px] text-fg-muted leading-relaxed border-l-2 border-border pl-3 mt-2 line-clamp-2">
+                      {inv.message}
+                    </p>
+                  )}
+                  {inv.status === "declined" && inv.declineReason && (
+                    <p className="text-[13px] text-danger leading-relaxed border-l-2 border-danger/30 pl-3 mt-2">
+                      <span className="font-semibold">
+                        {t("recruiter.jobDetail.invDeclineReason")}{" "}
+                      </span>
+                      {inv.declineReason}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <SentOfferDetailModal
+        invitation={detailTarget}
+        onClose={() => setDetailTarget(null)}
       />
     </>
   );

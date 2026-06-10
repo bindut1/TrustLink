@@ -87,6 +87,7 @@ export const TRANSLATIONS = {
     "nav.credentials": "Văn bằng của tôi",
     "nav.jobs": "Việc làm",
     "nav.applications": "Đơn ứng tuyển",
+    "nav.offers": "Lời mời",
     "nav.recommendations": "Gợi ý phù hợp",
 
     // ───────────── Sidebar — issuer ─────────────
@@ -492,12 +493,25 @@ export const TRANSLATIONS = {
     "candidate.applications.appliedTime": "đã ứng tuyển {time}",
     "candidate.applications.recruiterNote": "Lời nhắn từ nhà tuyển dụng:",
 
+    // ───────────── Candidate — offers (invitations) ─────────────
+    "candidate.offers.title": "Lời mời ứng tuyển",
+    "candidate.offers.description":
+      "Những vị trí mà nhà tuyển dụng đã chủ động mời bạn ứng tuyển. Nhấn vào từng lời mời để xem chi tiết và nộp hồ sơ.",
+    "candidate.offers.failed": "Không tải được danh sách lời mời",
+    "candidate.offers.emptyTitle": "Chưa có lời mời nào",
+    "candidate.offers.emptyDesc":
+      "Khi nhà tuyển dụng mời bạn ứng tuyển cho một vị trí, lời mời sẽ xuất hiện ở đây.",
+    "candidate.offers.fromCompany": "Từ {name}",
+    "candidate.offers.statusNew": "Lời mời mới",
+    "candidate.offers.statusApplied": "Đã ứng tuyển",
+    "candidate.offers.statusDeclined": "Đã từ chối",
+
     // ───────────── Candidate — dashboard ─────────────
     "candidate.dashboard.title": "Tổng quan",
     "candidate.dashboard.description":
       "Văn bằng đã xác thực, đơn ứng tuyển và gợi ý việc làm bằng AI.",
     "candidate.dashboard.roadmap":
-      "Module ứng viên đang trong kế hoạch phát triển.",
+      "Khu vực dành cho ứng viên đang được hoàn thiện thêm.",
     "candidate.dashboard.pipeline": "Tiến trình ứng tuyển",
     "candidate.dashboard.topMatches": "Việc làm phù hợp nhất",
     "candidate.dashboard.credentialsTitle": "Văn bằng",
@@ -515,7 +529,7 @@ export const TRANSLATIONS = {
     "issuer.dashboard.description":
       "Văn bằng đã cấp, tình trạng on-chain và tổ chức của bạn.",
     "issuer.dashboard.roadmap":
-      "Module tổ chức cấp đang trong kế hoạch phát triển.",
+      "Khu vực dành cho tổ chức cấp đang được hoàn thiện thêm.",
     "issuer.dashboard.issuanceTrend": "Văn bằng cấp theo tháng",
     "issuer.dashboard.statusBreakdown": "Trạng thái văn bằng",
     "issuer.dashboard.recent": "Cấp gần đây",
@@ -566,7 +580,7 @@ export const TRANSLATIONS = {
       "Tìm theo tiêu đề hoặc số văn bằng…",
     "issuer.credentials.colCredential": "Văn bằng",
     "issuer.credentials.colCandidate": "Ứng viên",
-    "issuer.credentials.colTxHash": "Tx hash",
+    "issuer.credentials.colTxHash": "Mã giao dịch",
     "issuer.credentials.colIssued": "Đã cấp",
     "issuer.credentials.revoke": "Thu hồi",
     "issuer.credentials.issueCta": "Cấp văn bằng",
@@ -582,34 +596,34 @@ export const TRANSLATIONS = {
     // ───────────── Issuer — batch import ─────────────
     "issuer.batch.title": "Cấp hàng loạt",
     "issuer.batch.description":
-      "Upload file Excel để cấp nhiều văn bằng cùng lúc. Mỗi dòng là một văn bằng — các dòng lỗi sẽ được report lại để bạn fix và upload lại.",
-    "issuer.batch.newUpload": "Upload mới",
+      "Tải lên tệp Excel để cấp nhiều văn bằng cùng lúc. Mỗi dòng là một văn bằng — những dòng bị lỗi sẽ được liệt kê để bạn sửa rồi tải lên lại.",
+    "issuer.batch.newUpload": "Tải lên mới",
     "issuer.batch.credentialType": "Loại văn bằng",
-    "issuer.batch.dropFile": "Kéo thả file Excel vào đây, hoặc click để chọn",
+    "issuer.batch.dropFile": "Kéo thả tệp Excel vào đây, hoặc nhấn để chọn",
     "issuer.batch.fileNote":
-      ".xlsx hoặc .xls — dòng đầu phải khớp với mẫu cấu trúc của loại văn bằng",
-    "issuer.batch.readyToUpload": "{size} KB · sẵn sàng upload",
+      ".xlsx hoặc .xls — dòng đầu tiên phải khớp với mẫu của loại văn bằng",
+    "issuer.batch.readyToUpload": "{size} KB · sẵn sàng tải lên",
     "issuer.batch.selectType": "Chọn loại văn bằng…",
-    "issuer.batch.loadingTypes": "Đang tải loại…",
-    "issuer.batch.removeFile": "Xoá file",
+    "issuer.batch.loadingTypes": "Đang tải danh sách loại…",
+    "issuer.batch.removeFile": "Xoá tệp",
     "issuer.batch.uploadQueue": "Tải lên & xử lý",
-    "issuer.batch.currentBatch": "Batch hiện tại",
-    "issuer.batch.history": "Lịch sử batch",
-    "issuer.batch.colFile": "File",
+    "issuer.batch.currentBatch": "Đợt hiện tại",
+    "issuer.batch.history": "Lịch sử các đợt",
+    "issuer.batch.colFile": "Tệp",
     "issuer.batch.colTotal": "Tổng",
     "issuer.batch.colSuccess": "Thành công",
     "issuer.batch.colErrors": "Lỗi",
     "issuer.batch.colCreated": "Tạo lúc",
-    "issuer.batch.emptyHistory": "Chưa có batch import nào.",
-    "issuer.batch.invalidFile": "Chỉ chấp nhận file .xlsx hoặc .xls.",
-    "issuer.batch.uploadFailed": "Upload thất bại",
+    "issuer.batch.emptyHistory": "Chưa có đợt cấp nào.",
+    "issuer.batch.invalidFile": "Chỉ chấp nhận tệp .xlsx hoặc .xls.",
+    "issuer.batch.uploadFailed": "Tải lên thất bại",
 
     // ───────────── Recruiter — dashboard ─────────────
     "recruiter.dashboard.title": "Tổng quan",
     "recruiter.dashboard.description":
       "Tin tuyển dụng, ứng viên và tiến trình tuyển dụng của bạn.",
     "recruiter.dashboard.roadmap":
-      "Module nhà tuyển dụng đang trong kế hoạch phát triển.",
+      "Khu vực dành cho nhà tuyển dụng đang được hoàn thiện thêm.",
     "recruiter.dashboard.applicationsTrend": "Đơn ứng tuyển theo tháng",
     "recruiter.dashboard.funnel": "Phân loại đơn ứng tuyển",
     "recruiter.dashboard.recent": "Ứng viên gần đây",
@@ -736,7 +750,7 @@ export const TRANSLATIONS = {
     "action.admin.institutions.desc": "Duyệt / từ chối tổ chức đăng ký",
     "action.admin.blockchain.name": "Theo dõi blockchain",
     "action.admin.blockchain.desc": "Xem hàng đợi giao dịch blockchain",
-    "action.admin.dashboard.name": "Dashboard admin",
+    "action.admin.dashboard.name": "Bảng điều khiển quản trị",
     "action.admin.dashboard.desc": "Truy cập thống kê hệ thống và nhật ký kiểm toán",
 
     // ───────────── Modals — TxFailureModal ─────────────
@@ -803,9 +817,9 @@ export const TRANSLATIONS = {
     "candidate.jobs.searchPlaceholder": "Tìm theo tiêu đề…",
     "candidate.jobs.cityPlaceholder": "Thành phố",
     "candidate.jobs.anyType": "Mọi hình thức",
-    "candidate.jobs.minSalaryPlaceholder": "Lương tối thiểu (k VND)",
+    "candidate.jobs.minSalaryPlaceholder": "Lương tối thiểu (nghìn VND)",
     "candidate.jobs.anyLocation": "Mọi địa điểm",
-    "candidate.jobs.remoteOnly": "Chỉ remote",
+    "candidate.jobs.remoteOnly": "Chỉ làm từ xa",
     "candidate.jobs.onsiteOnly": "Chỉ tại văn phòng",
     "candidate.jobs.matchCount": "{n} việc làm phù hợp với bộ lọc",
     "candidate.jobs.loading": "Đang tải việc làm…",
@@ -819,7 +833,7 @@ export const TRANSLATIONS = {
     // ───────────── Candidate — profile ─────────────
     "candidate.profile.title": "Hồ sơ",
     "candidate.profile.description":
-      "Bio, liên kết và mong muốn của bạn sẽ ảnh hưởng đến cách nhà tuyển dụng và AI nhìn nhận bạn.",
+      "Phần giới thiệu, liên kết và nguyện vọng của bạn ảnh hưởng đến cách nhà tuyển dụng và AI đánh giá bạn.",
     "candidate.profile.openToWork": "Sẵn sàng nhận việc",
     "candidate.profile.closedToOffers": "Tạm dừng nhận việc",
     "candidate.profile.loading": "Đang tải hồ sơ…",
@@ -847,7 +861,7 @@ export const TRANSLATIONS = {
       "Vài câu — dùng cho cả AI gợi ý việc làm theo ngữ nghĩa.",
     "candidate.profile.fldBioPlaceholder":
       "Mô tả ngắn về kinh nghiệm, định hướng và công việc bạn đang tìm.",
-    "candidate.profile.fldResume": "Link CV",
+    "candidate.profile.fldResume": "Liên kết CV",
     "candidate.profile.fldLinkedIn": "LinkedIn",
     "candidate.profile.fldGithub": "GitHub",
     "candidate.profile.fldPortfolio": "Portfolio",
@@ -859,7 +873,7 @@ export const TRANSLATIONS = {
     "candidate.profile.fldSalaryMax": "Lương mong muốn (tối đa)",
     "candidate.profile.fldSalaryUnit": "Nghìn VNĐ / tháng",
     "candidate.profile.fldLocations": "Khu vực ưu tiên",
-    "candidate.profile.fldLocationPlaceholder": "VD: Hà Nội",
+    "candidate.profile.fldLocationPlaceholder": "Chọn tỉnh/thành phố",
     "candidate.profile.fldLocationAdd": "Thêm",
     "candidate.profile.openToWorkLabel": "Tôi đang sẵn sàng nhận cơ hội mới",
     "candidate.profile.openToWorkHint":
@@ -938,6 +952,52 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.verifyClick": "Xác thực văn bằng",
     "recruiter.jobDetail.anonymousCandidate": "Ứng viên ẩn danh",
     "recruiter.jobDetail.viewProfile": "Xem hồ sơ",
+    "recruiter.jobDetail.invite": "Mời ứng tuyển",
+    "recruiter.jobDetail.invited": "Đã gửi lời mời",
+    "recruiter.jobDetail.inviteFailed": "Không gửi được lời mời. Vui lòng thử lại.",
+    "recruiter.jobDetail.tabInvitations": "Lời mời đã gửi",
+    "recruiter.jobDetail.invitationsFailedLoad": "Không tải được danh sách lời mời",
+    "recruiter.jobDetail.invitationsEmpty": "Chưa gửi lời mời nào cho vị trí này.",
+    "recruiter.jobDetail.invStatusPending": "Đang chờ phản hồi",
+    "recruiter.jobDetail.invStatusApplied": "Đã ứng tuyển",
+    "recruiter.jobDetail.invStatusDeclined": "Đã từ chối",
+    "recruiter.jobDetail.invDeclineReason": "Lý do từ chối:",
+
+    // ───────────── SentOfferDetailModal (recruiter xem lời mời đã gửi) ─────────────
+    "sentOffer.title": "Chi tiết lời mời",
+    "sentOffer.sentAt": "Đã gửi",
+    "sentOffer.messageTitle": "Lời nhắn đã gửi",
+    "sentOffer.noMessage": "Bạn không kèm lời nhắn nào.",
+    "sentOffer.noReason": "Ứng viên không để lại lý do.",
+    "sentOffer.appliedNote": "Ứng viên đã ứng tuyển vị trí này.",
+
+    // ───────────── OfferModal (recruiter gửi lời mời) ─────────────
+    "offerModal.title": "Mời ứng tuyển",
+    "offerModal.description": "Gửi lời mời ứng tuyển tới {name}.",
+    "offerModal.message": "Lời nhắn",
+    "offerModal.messagePlaceholder":
+      "VD: Hồ sơ của bạn rất phù hợp với vị trí này, rất mong bạn ứng tuyển…",
+    "offerModal.hint": "Lời nhắn này sẽ hiển thị cho ứng viên cùng với lời mời.",
+    "offerModal.submit": "Gửi lời mời",
+    "offerModal.submitting": "Đang gửi…",
+
+    // ───────────── OfferDetailModal (candidate xem lời mời) ─────────────
+    "offerDetail.from": "Lời mời từ {name}",
+    "offerDetail.messageTitle": "Lời nhắn từ nhà tuyển dụng",
+    "offerDetail.recruiterTitle": "Nhà tuyển dụng",
+    "offerDetail.jobTitle": "Vị trí tuyển dụng",
+    "offerDetail.decline": "Từ chối",
+    "offerDetail.declined": "Bạn đã từ chối lời mời này",
+
+    // ───────────── DeclineOfferModal (candidate từ chối lời mời) ─────────────
+    "declineModal.title": "Từ chối lời mời",
+    "declineModal.description": 'Từ chối lời mời ứng tuyển vị trí "{title}"?',
+    "declineModal.reason": "Lý do từ chối",
+    "declineModal.reasonPlaceholder":
+      "VD: Hiện mình chưa tìm việc, hoặc mức lương/địa điểm chưa phù hợp…",
+    "declineModal.submit": "Từ chối lời mời",
+    "declineModal.submitting": "Đang gửi…",
+    "declineModal.failed": "Không từ chối được lời mời. Vui lòng thử lại.",
     "candInfo.title": "Hồ sơ ứng viên",
     "candInfo.phone": "Số điện thoại",
     "candInfo.bio": "Giới thiệu",
@@ -984,8 +1044,9 @@ export const TRANSLATIONS = {
     "recruiter.profile.fldEmployees": "{size} nhân viên",
     "recruiter.profile.fldTaxCode": "Mã số thuế",
     "recruiter.profile.fldWebsite": "Website",
-    "recruiter.profile.fldLogoUrl": "Link logo",
-    "recruiter.profile.fldCity": "Thành phố",
+    "recruiter.profile.fldLogoUrl": "Liên kết logo",
+    "recruiter.profile.fldCity": "Tỉnh/Thành phố",
+    "recruiter.profile.fldCityPlaceholder": "Chọn tỉnh/thành phố",
     "recruiter.profile.fldCountry": "Quốc gia",
     "recruiter.profile.fldAddress": "Địa chỉ",
     "recruiter.profile.fldDescription": "Mô tả công ty",
@@ -998,7 +1059,7 @@ export const TRANSLATIONS = {
     "candLookup.label": "Tìm ứng viên",
     "candLookup.placeholder": "Nhập tên hoặc email ứng viên…",
     "candLookup.find": "Tìm",
-    "candLookup.hint": "Gõ ít nhất 2 ký tự để tìm theo tên hoặc email.",
+    "candLookup.hint": "Nhập tên hoặc email để tìm ứng viên.",
     "candLookup.notFound": "Không tìm thấy ứng viên phù hợp.",
     "candLookup.failed": "Tìm kiếm thất bại.",
     "candLookup.remove": "Xoá",
@@ -1028,7 +1089,8 @@ export const TRANSLATIONS = {
       "đại học / cao đẳng / trung tâm đào tạo",
     "issuer.profile.fldTaxCode": "Mã số thuế",
     "issuer.profile.fldWebsite": "Website",
-    "issuer.profile.fldCity": "Thành phố",
+    "issuer.profile.fldCity": "Tỉnh/Thành phố",
+    "issuer.profile.fldCityPlaceholder": "Chọn tỉnh/thành phố",
     "issuer.profile.fldCountry": "Quốc gia",
     "issuer.profile.fldAddress": "Địa chỉ",
     "issuer.profile.fldDescription": "Mô tả",
@@ -1062,7 +1124,7 @@ export const TRANSLATIONS = {
     "appStatus.updateFailed": "Cập nhật thất bại",
 
     // ───────────── BatchProgress (Issuer) ─────────────
-    "batchProgress.loading": "Đang tải tiến độ batch…",
+    "batchProgress.loading": "Đang tải tiến độ…",
     "batchProgress.rows": "{processed} / {total} dòng",
     "batchProgress.tileTotal": "Tổng",
     "batchProgress.tileSuccess": "Thành công",
@@ -1121,6 +1183,9 @@ export const TRANSLATIONS = {
     "verify.checkContentIntegrity": "Nội dung khớp hash on-chain",
     "verify.checkSignature": "Chữ ký W3C VC hợp lệ",
     "verify.checkIssuer": "Tổ chức cấp được uỷ quyền",
+    "vc.offlineVerify.title": "Nếu TrustLink ngừng hoạt động thì sao?",
+    "vc.offlineVerify.body":
+      "Văn bằng trong file là Verifiable Credential chuẩn W3C, được tổ chức cấp ký số và neo trên blockchain Polygon — nên tính xác thực không phụ thuộc vào TrustLink. Khi không truy cập được hệ thống, bạn vẫn kiểm chứng được bằng cách: tra mã giao dịch trên trình duyệt blockchain PolygonScan, hoặc nạp file vào bất kỳ công cụ xác thực Verifiable Credential nào của bên thứ ba.",
     "verify.shareTitle": "Liên kết xác minh công khai",
     "verify.copyLink": "Sao chép link",
     "verify.copied": "Đã sao chép",
@@ -1129,9 +1194,9 @@ export const TRANSLATIONS = {
     "verify.statusNotFound": "KHÔNG TÌM THẤY",
     "verify.notFoundTitle": "Không tìm thấy trên blockchain",
     "verify.notFoundExplain":
-      "Văn bằng này không tồn tại trên smart contract registry hiện tại. Có thể đây là dữ liệu cũ được cấp trước khi nâng cấp hệ thống (chữ ký/anchor theo chuẩn cũ), hoặc chưa được anchor lên blockchain.",
+      "Không tìm thấy văn bằng này trong sổ đăng ký trên blockchain hiện tại. Có thể đây là dữ liệu cũ được cấp trước khi hệ thống nâng cấp (theo chuẩn cũ), hoặc chưa được ghi lên blockchain.",
     "verify.txNotRecognized":
-      "Giao dịch dưới đây không được registry hiện tại công nhận — có thể thuộc hợp đồng cũ trước khi nâng cấp. Không dùng làm bằng chứng xác thực.",
+      "Giao dịch dưới đây không được sổ đăng ký trên blockchain hiện tại công nhận — có thể thuộc phiên bản hợp đồng cũ trước khi nâng cấp. Không nên dùng làm bằng chứng xác thực.",
 
     // ───────────── Landing — Hero ─────────────
     "landing.hero.eyebrow": "Nền tảng văn bằng số",
@@ -1156,11 +1221,11 @@ export const TRANSLATIONS = {
     "landing.role.candidates.title":
       "Sở hữu văn bằng đã xác thực. Toả sáng đúng nơi quan trọng.",
     "landing.role.candidates.description":
-      "Lưu trữ mọi bằng cấp, chứng chỉ và thành tựu trong một ví duy nhất. Tổ chức ghi nhận on-chain — nhà tuyển dụng tin tưởng ngay, không cần xác minh lại.",
+      "Lưu trữ mọi bằng cấp, chứng chỉ và thành tựu trong một ví duy nhất. Được tổ chức ghi nhận trên blockchain — nhà tuyển dụng tin tưởng ngay, không cần xác minh lại.",
     "landing.role.candidates.bullet1":
       "Nhận văn bằng trực tiếp từ trường hoặc công ty",
     "landing.role.candidates.bullet2":
-      "Chia sẻ một link duy nhất để chứng minh tính xác thực ngay lập tức",
+      "Chia sẻ một liên kết duy nhất để chứng minh tính xác thực ngay lập tức",
     "landing.role.candidates.bullet3":
       "Được gợi ý việc làm phù hợp với kỹ năng thật, đã được xác thực",
     "landing.role.candidates.cta": "Khởi tạo ví của bạn",
@@ -1171,13 +1236,13 @@ export const TRANSLATIONS = {
     "landing.role.recruiters.title":
       "Tuyển dựa trên bằng chứng, không phải lời tự khai.",
     "landing.role.recruiters.description":
-      "Không còn phải lục tìm PDF hay liên hệ xác minh. TrustLink dùng AI xếp hạng ứng viên theo kỹ năng đã xác thực, đồng thời hiển thị bằng chứng on-chain cho mọi văn bằng trước khi bạn liên hệ.",
+      "Không còn phải lục tìm hồ sơ PDF hay gọi điện xác minh. TrustLink dùng AI xếp hạng ứng viên theo kỹ năng đã xác thực, đồng thời hiển thị bằng chứng trên blockchain cho mọi văn bằng trước khi bạn liên hệ.",
     "landing.role.recruiters.bullet1":
-      "AI xếp hạng 184 ứng viên cho vị trí của bạn trong 2,3 giây",
+      "AI xếp hạng hàng trăm ứng viên cho vị trí của bạn chỉ trong vài giây",
     "landing.role.recruiters.bullet2":
-      "Mỗi văn bằng đều có link tới giao dịch on-chain",
+      "Mỗi văn bằng đều kèm liên kết tới giao dịch trên blockchain",
     "landing.role.recruiters.bullet3":
-      "Gửi offer dựa trên bằng chứng xác thực, không chỉ CV",
+      "Mời ứng tuyển dựa trên bằng chứng xác thực, không chỉ là CV",
     "landing.role.recruiters.cta": "Đăng tin tuyển dụng",
     "landing.role.recruiters.imageAlt":
       "Đội ngũ tuyển dụng đang xem ứng viên được AI xếp hạng",
@@ -1186,13 +1251,13 @@ export const TRANSLATIONS = {
     "landing.role.issuers.title":
       "Cấp văn bằng mà sinh viên thực sự có thể sử dụng.",
     "landing.role.issuers.description":
-      "Thay vì giấy chứng nhận hay PDF dễ thất lạc, hãy ký và phát hành văn bằng on-chain chỉ với vài thao tác. Cựu sinh viên có bản ghi không thể giả mạo, tổ chức có dấu vết kiểm toán rõ ràng.",
+      "Thay vì giấy chứng nhận hay PDF dễ thất lạc, hãy ký và phát hành văn bằng lên blockchain chỉ với vài thao tác. Cựu sinh viên có bản ghi không thể làm giả, tổ chức có lịch sử minh bạch để đối soát.",
     "landing.role.issuers.bullet1":
-      "Cấp hàng loạt nghìn văn bằng từ một file Excel duy nhất",
+      "Cấp hàng loạt hàng nghìn văn bằng từ một tệp Excel duy nhất",
     "landing.role.issuers.bullet2":
-      "Thu hồi hoặc cấp lại với lịch sử kiểm toán minh bạch",
+      "Thu hồi hoặc cấp lại với lịch sử minh bạch, rõ ràng",
     "landing.role.issuers.bullet3":
-      "Tham gia mạng lưới mở được 184+ đối tác tin dùng",
+      "Tham gia mạng lưới mở với hàng trăm đối tác tin dùng",
     "landing.role.issuers.cta": "Trở thành tổ chức cấp",
     "landing.role.issuers.imageAlt":
       "Sinh viên đại học đang nhận văn bằng tốt nghiệp",
@@ -1210,7 +1275,7 @@ export const TRANSLATIONS = {
       "Văn bằng được gửi vào ví của ứng viên — không phải cơ sở dữ liệu của bên thứ ba. Họ quyết định nơi nó được chia sẻ.",
     "landing.how.step3.title": "Nhà tuyển dụng xác minh trong 1 cú nhấp",
     "landing.how.step3.description":
-      "Nhà tuyển dụng nhìn thấy bằng chứng on-chain ngay tại chỗ, trong khi AI gợi ý ứng viên cho đúng vị trí.",
+      "Nhà tuyển dụng nhìn thấy bằng chứng trên blockchain ngay tại chỗ, trong khi AI gợi ý đúng ứng viên cho từng vị trí.",
 
     // ───────────── Landing — Stats ─────────────
     "landing.stats.label1": "Văn bằng đã ghi trên blockchain",
@@ -1386,6 +1451,7 @@ export const TRANSLATIONS = {
     "nav.credentials": "My credentials",
     "nav.jobs": "Jobs",
     "nav.applications": "Applications",
+    "nav.offers": "Offers",
     "nav.recommendations": "Recommendations",
 
     // Sidebar — issuer
@@ -1788,6 +1854,19 @@ export const TRANSLATIONS = {
     "candidate.applications.appliedTime": "applied {time}",
     "candidate.applications.recruiterNote": "Recruiter note:",
 
+    // ───────────── Candidate — offers (invitations) ─────────────
+    "candidate.offers.title": "Offers",
+    "candidate.offers.description":
+      "Roles where a recruiter has invited you to apply. Open an offer to see the details and submit your application.",
+    "candidate.offers.failed": "Couldn't load your offers",
+    "candidate.offers.emptyTitle": "No offers yet",
+    "candidate.offers.emptyDesc":
+      "When a recruiter invites you to apply for a role, it will show up here.",
+    "candidate.offers.fromCompany": "From {name}",
+    "candidate.offers.statusNew": "New offer",
+    "candidate.offers.statusApplied": "Applied",
+    "candidate.offers.statusDeclined": "Declined",
+
     // Candidate — dashboard
     "candidate.dashboard.title": "Overview",
     "candidate.dashboard.description":
@@ -2151,7 +2230,7 @@ export const TRANSLATIONS = {
     "candidate.profile.fldSalaryMax": "Desired salary (max)",
     "candidate.profile.fldSalaryUnit": "Thousand VND / month",
     "candidate.profile.fldLocations": "Preferred locations",
-    "candidate.profile.fldLocationPlaceholder": "e.g. Hanoi",
+    "candidate.profile.fldLocationPlaceholder": "Select a province/city",
     "candidate.profile.fldLocationAdd": "Add",
     "candidate.profile.openToWorkLabel": "I'm open to new opportunities",
     "candidate.profile.openToWorkHint":
@@ -2230,6 +2309,52 @@ export const TRANSLATIONS = {
     "recruiter.jobDetail.verifyClick": "Verify credentials",
     "recruiter.jobDetail.anonymousCandidate": "Anonymous candidate",
     "recruiter.jobDetail.viewProfile": "View profile",
+    "recruiter.jobDetail.invite": "Invite to apply",
+    "recruiter.jobDetail.invited": "Invitation sent",
+    "recruiter.jobDetail.inviteFailed": "Couldn't send the invitation. Please try again.",
+    "recruiter.jobDetail.tabInvitations": "Invitations",
+    "recruiter.jobDetail.invitationsFailedLoad": "Couldn't load invitations",
+    "recruiter.jobDetail.invitationsEmpty": "No invitations sent for this role yet.",
+    "recruiter.jobDetail.invStatusPending": "Awaiting response",
+    "recruiter.jobDetail.invStatusApplied": "Applied",
+    "recruiter.jobDetail.invStatusDeclined": "Declined",
+    "recruiter.jobDetail.invDeclineReason": "Decline reason:",
+
+    // ───────────── SentOfferDetailModal (recruiter views a sent offer) ─────────────
+    "sentOffer.title": "Invitation details",
+    "sentOffer.sentAt": "Sent",
+    "sentOffer.messageTitle": "Message you sent",
+    "sentOffer.noMessage": "You didn't include a message.",
+    "sentOffer.noReason": "The candidate didn't leave a reason.",
+    "sentOffer.appliedNote": "This candidate has applied to the role.",
+
+    // ───────────── OfferModal (recruiter sends an offer) ─────────────
+    "offerModal.title": "Invite to apply",
+    "offerModal.description": "Send an invitation to apply to {name}.",
+    "offerModal.message": "Message",
+    "offerModal.messagePlaceholder":
+      "e.g. Your profile is a great fit for this role — we'd love for you to apply…",
+    "offerModal.hint": "This message is shown to the candidate with your invitation.",
+    "offerModal.submit": "Send invitation",
+    "offerModal.submitting": "Sending…",
+
+    // ───────────── OfferDetailModal (candidate views an offer) ─────────────
+    "offerDetail.from": "Invitation from {name}",
+    "offerDetail.messageTitle": "Message from the recruiter",
+    "offerDetail.recruiterTitle": "Recruiter",
+    "offerDetail.jobTitle": "Role",
+    "offerDetail.decline": "Decline",
+    "offerDetail.declined": "You declined this invitation",
+
+    // ───────────── DeclineOfferModal (candidate declines an offer) ─────────────
+    "declineModal.title": "Decline invitation",
+    "declineModal.description": 'Decline the invitation to apply for "{title}"?',
+    "declineModal.reason": "Reason for declining",
+    "declineModal.reasonPlaceholder":
+      "e.g. Not job-hunting right now, or the salary/location isn't a fit…",
+    "declineModal.submit": "Decline invitation",
+    "declineModal.submitting": "Submitting…",
+    "declineModal.failed": "Couldn't decline the invitation. Please try again.",
     "candInfo.title": "Candidate profile",
     "candInfo.phone": "Phone",
     "candInfo.bio": "About",
@@ -2277,7 +2402,8 @@ export const TRANSLATIONS = {
     "recruiter.profile.fldTaxCode": "Tax code",
     "recruiter.profile.fldWebsite": "Website",
     "recruiter.profile.fldLogoUrl": "Logo URL",
-    "recruiter.profile.fldCity": "City",
+    "recruiter.profile.fldCity": "Province/City",
+    "recruiter.profile.fldCityPlaceholder": "Select a province/city",
     "recruiter.profile.fldCountry": "Country",
     "recruiter.profile.fldAddress": "Address",
     "recruiter.profile.fldDescription": "Description",
@@ -2290,7 +2416,7 @@ export const TRANSLATIONS = {
     "candLookup.label": "Find candidate",
     "candLookup.placeholder": "Type name or email…",
     "candLookup.find": "Find",
-    "candLookup.hint": "Type at least 2 characters to search by name or email.",
+    "candLookup.hint": "Type a name or email to find a candidate.",
     "candLookup.notFound": "No matching candidate found.",
     "candLookup.failed": "Search failed.",
     "candLookup.remove": "Remove",
@@ -2319,7 +2445,8 @@ export const TRANSLATIONS = {
       "university / college / training_center",
     "issuer.profile.fldTaxCode": "Tax code",
     "issuer.profile.fldWebsite": "Website",
-    "issuer.profile.fldCity": "City",
+    "issuer.profile.fldCity": "Province/City",
+    "issuer.profile.fldCityPlaceholder": "Select a province/city",
     "issuer.profile.fldCountry": "Country",
     "issuer.profile.fldAddress": "Address",
     "issuer.profile.fldDescription": "Description",
@@ -2411,6 +2538,9 @@ export const TRANSLATIONS = {
     "verify.checkContentIntegrity": "Content matches on-chain hash",
     "verify.checkSignature": "W3C VC signature valid",
     "verify.checkIssuer": "Issuer is authorized",
+    "vc.offlineVerify.title": "What if TrustLink goes down?",
+    "vc.offlineVerify.body":
+      "The credential in this file is a W3C Verifiable Credential, signed by the issuer and anchored on the Polygon blockchain — so its authenticity does not depend on TrustLink. If our system is unavailable, you can still verify it: look up the transaction on the PolygonScan blockchain explorer, or load the file into any third-party Verifiable Credential verifier.",
     "verify.shareTitle": "Public verification link",
     "verify.copyLink": "Copy link",
     "verify.copied": "Copied",

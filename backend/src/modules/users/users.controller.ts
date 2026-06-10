@@ -117,7 +117,7 @@ export class UsersController {
   @ApiQuery({ name: 'q', required: true })
   @ApiOkResponse({ description: 'Up to 10 matching candidates' })
   async searchCandidates(@Query('q') q: string) {
-    if (!q || q.trim().length < 2) return [];
+    if (!q || q.trim().length < 1) return [];
     return this.usersService.searchCandidates(q);
   }
 }

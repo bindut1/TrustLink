@@ -47,6 +47,19 @@ export type JobItem = {
   createdAt: string;
 };
 
+/** A recruiter's invitation ("offer") shown in the candidate's inbox. */
+export type JobInvitationItem = {
+  id: string;
+  message: string | null;
+  status: "pending" | "declined";
+  declineReason: string | null;
+  hasApplied: boolean;
+  createdAt: string;
+  recruiterId: string;
+  recruiterName: string;
+  job: JobItem;
+};
+
 /** Sanitized public company profile (GET /recruiter-profiles/by-user/:userId). */
 export type RecruiterPublicProfile = {
   id: string;

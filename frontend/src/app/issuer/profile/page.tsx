@@ -9,10 +9,12 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { fetchMyInstitution, updateInstitution } from "@/lib/issuer-api";
+import { VIETNAM_PROVINCE_OPTIONS } from "@/lib/vietnam-provinces";
 import type { Institution } from "@/types/issuer";
 
 type EditableFields =
@@ -34,6 +36,7 @@ const FIELDS: {
   placeholderKey?: TranslationKey;
   placeholder?: string;
   type?: string;
+  select?: boolean;
 }[] = [
   {
     key: "name",
@@ -55,7 +58,12 @@ const FIELDS: {
   },
   { key: "taxCode", labelKey: "issuer.profile.fldTaxCode" },
   { key: "website", labelKey: "issuer.profile.fldWebsite", type: "url", placeholder: "https://" },
-  { key: "city", labelKey: "issuer.profile.fldCity" },
+  {
+    key: "city",
+    labelKey: "issuer.profile.fldCity",
+    select: true,
+    placeholderKey: "issuer.profile.fldCityPlaceholder",
+  },
   { key: "country", labelKey: "issuer.profile.fldCountry" },
   { key: "address", labelKey: "issuer.profile.fldAddress", full: true },
 ];
@@ -202,14 +210,28 @@ export default function IssuerProfilePage() {
                 className={f.full ? "sm:col-span-2" : undefined}
               >
                 <FormField label={t(f.labelKey)}>
-                  <Input
-                    type={f.type ?? "text"}
-                    value={(draft[f.key] as string | undefined) ?? ""}
-                    onChange={set(f.key)}
-                    placeholder={
-                      f.placeholderKey ? t(f.placeholderKey) : f.placeholder
-                    }
-                  />
+                  {f.select ? (
+                    <SelectMenu
+                      value={(draft[f.key] as string | undefined) ?? ""}
+                      onChange={(v) =>
+                        setDraft((d) => ({ ...d, [f.key]: v }))
+                      }
+                      options={VIETNAM_PROVINCE_OPTIONS}
+                      ariaLabel={t(f.labelKey)}
+                      placeholder={
+                        f.placeholderKey ? t(f.placeholderKey) : f.placeholder
+                      }
+                    />
+                  ) : (
+                    <Input
+                      type={f.type ?? "text"}
+                      value={(draft[f.key] as string | undefined) ?? ""}
+                      onChange={set(f.key)}
+                      placeholder={
+                        f.placeholderKey ? t(f.placeholderKey) : f.placeholder
+                      }
+                    />
+                  )}
                 </FormField>
               </div>
             ))}

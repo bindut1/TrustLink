@@ -8,6 +8,7 @@ import {
   type VerifyOutcome,
 } from "@/components/verify/VerificationResult";
 import { ShareCredential } from "@/components/verify/ShareCredential";
+import { VcOfflineVerifyNote } from "@/components/verify/VcOfflineVerifyNote";
 import { ApiError, apiRequest } from "@/lib/api";
 import { downloadPublicVc } from "@/lib/vc-download";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -198,6 +199,9 @@ export default function PublicVerifyPage({
               <Download size={14} />
               {t("verify.downloadVc")}
             </button>
+            <div className="mt-4">
+              <VcOfflineVerifyNote />
+            </div>
           </div>
         )}
 

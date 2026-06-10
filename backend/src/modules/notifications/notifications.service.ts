@@ -98,6 +98,22 @@ export class NotificationsService {
     saved.forEach((n) => this.push(n.userId, n));
   }
 
+  /**
+   * Whether a notification already exists for a given (user, type, reference).
+   * Used to avoid sending the same invitation/offer to a candidate twice.
+   */
+  async existsForReference(
+    userId: string,
+    type: NotificationType,
+    referenceType: string,
+    referenceId: string,
+  ): Promise<boolean> {
+    const count = await this.repo.count({
+      where: { userId, type, referenceType, referenceId },
+    });
+    return count > 0;
+  }
+
   async findForUser(userId: string): Promise<Notification[]> {
     return this.repo.find({
       where: { userId },

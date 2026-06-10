@@ -42,7 +42,7 @@ export function CandidateLookup({ value, onChange }: Props) {
   // Debounced search
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (query.trim().length < 2) {
+    if (query.trim().length < 1) {
       setResults([]);
       setOpen(false);
       return;
@@ -186,7 +186,7 @@ export function CandidateLookup({ value, onChange }: Props) {
         </ul>
       )}
 
-      {!open && query.trim().length >= 2 && !loading && results.length === 0 && (
+      {!open && query.trim().length >= 1 && !loading && results.length === 0 && (
         <p className="mt-2 text-[13px] text-fg-subtle">
           {t("candLookup.notFound")}
         </p>

@@ -42,7 +42,7 @@ type FieldValue = string | number | string[] | undefined;
 export default function IssueOnChainPage() {
   useSetPageMeta(
     "Cấp văn bằng",
-    "Issuer tự ký và tự anchor lên blockchain — TrustLink không giữ khoá.",
+    "Tổ chức tự ký và tự ghi văn bằng lên blockchain — TrustLink không giữ khoá.",
   );
 
   const [types, setTypes] = useState<CredentialType[] | null>(null);
@@ -96,7 +96,7 @@ export default function IssueOnChainPage() {
       setWallet(address);
       if (!res.authorized) {
         setError(
-          "Ví đã đăng ký nhưng CHƯA được uỷ quyền on-chain (addIssuer). Quản trị viên cần uỷ quyền địa chỉ này, nếu không giao dịch anchor sẽ bị từ chối.",
+          "Ví đã đăng ký nhưng CHƯA được cấp quyền trên blockchain. Quản trị viên cần cấp quyền cho địa chỉ này, nếu không giao dịch ghi văn bằng sẽ bị từ chối.",
         );
       }
     } catch (e) {
@@ -124,9 +124,9 @@ export default function IssueOnChainPage() {
   }
 
   async function issue() {
-    if (!wallet) return setError("Hãy kết nối ví MetaMask trước.");
-    if (!candidate) return setError("Hãy chọn ứng viên nhận.");
-    if (!selectedType) return setError("Hãy chọn loại văn bằng.");
+    if (!wallet) return setError("Vui lòng kết nối ví MetaMask trước.");
+    if (!candidate) return setError("Vui lòng chọn ứng viên nhận văn bằng.");
+    if (!selectedType) return setError("Vui lòng chọn loại văn bằng.");
 
     // Guard: the active MetaMask account must match the connected/registered
     // issuer wallet — otherwise the tx would be sent from an unauthorized
@@ -160,7 +160,7 @@ export default function IssueOnChainPage() {
 
     try {
       // 1. Backend builds credentials + Merkle tree, returns typed data to sign.
-      setStatus("Đang chuẩn bị lô (tính Merkle root)…");
+      setStatus("Đang chuẩn bị văn bằng…");
       const prepared = await prepareBatch([payload]);
 
       // 2. Issuer signs each VC with MetaMask (key never leaves the wallet).
@@ -172,7 +172,7 @@ export default function IssueOnChainPage() {
       }
 
       // 3. Issuer broadcasts the batch anchor from their own wallet.
-      setStatus("Gửi giao dịch anchor lên blockchain (ký trong ví)…");
+      setStatus("Đang ghi văn bằng lên blockchain (ký trong ví)…");
       const txHash = await anchorBatchOnChain(prepared.merkleRoot);
 
       // 4. Backend verifies signatures + on-chain root, then issues.
@@ -232,7 +232,7 @@ export default function IssueOnChainPage() {
     >
       {doneTx && (
         <Alert variant="success">
-          Đã cấp & anchor lên blockchain.{" "}
+          Đã cấp & ghi lên blockchain.{" "}
           <a
             href={`https://amoy.polygonscan.com/tx/${doneTx}`}
             target="_blank"
@@ -246,7 +246,7 @@ export default function IssueOnChainPage() {
       {status && <Alert variant="info">{status}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
 
-      <Section step="00" title="Ví issuer (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
+      <Section step="00" title="Ví tổ chức cấp (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
         {walletLoading ? (
           <p className="text-[13px] text-fg-subtle">Đang kiểm tra ví…</p>
         ) : wallet ? (

@@ -18,6 +18,7 @@ import type {
   RankedCandidate,
   RecruiterDashboard,
   RecruiterProfile,
+  SentInvitationItem,
   UpdateRecruiterProfilePayload,
 } from "@/types/recruiter-app";
 import type { VerificationResult } from "./candidate-api";
@@ -95,6 +96,26 @@ export function fetchRecommendedCandidates(
     `/jobs/${jobId}/recommended-candidates?limit=${limit}`,
     authOpts(),
   );
+}
+
+/** Invite a recommended candidate to apply to a job, with an optional message. */
+export function inviteCandidateToJob(
+  jobId: string,
+  candidateId: string,
+  message?: string,
+): Promise<{ id: string }> {
+  return apiRequest(`/jobs/${jobId}/invite/${candidateId}`, {
+    method: "POST",
+    body: { message: message?.trim() || undefined },
+    ...authOpts(),
+  });
+}
+
+/** Invitations the recruiter has sent for a job (recruiter "Lời mời" tab). */
+export function fetchJobInvitations(
+  jobId: string,
+): Promise<SentInvitationItem[]> {
+  return apiRequest(`/jobs/${jobId}/invitations`, authOpts());
 }
 
 // ───────────── Applications ─────────────

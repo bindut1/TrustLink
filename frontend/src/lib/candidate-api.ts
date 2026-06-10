@@ -10,6 +10,7 @@ import type {
   CandidateDashboard,
   CandidateProfile,
   CandidateSkill,
+  JobInvitationItem,
   JobItem,
   LearningPathResult,
   PaginatedJobs,
@@ -145,6 +146,23 @@ export function applyToJob(payload: {
   return apiRequest("/applications", {
     method: "POST",
     body: payload as unknown as Record<string, unknown>,
+    ...authOpts(),
+  });
+}
+
+// ───────────── Invitations (offers) ─────────────
+
+export function fetchMyInvitations(): Promise<JobInvitationItem[]> {
+  return apiRequest("/invitations/my", authOpts());
+}
+
+export function declineInvitation(
+  id: string,
+  reason?: string,
+): Promise<{ status: string }> {
+  return apiRequest(`/invitations/${id}/decline`, {
+    method: "PATCH",
+    body: { reason: reason?.trim() || undefined },
     ...authOpts(),
   });
 }

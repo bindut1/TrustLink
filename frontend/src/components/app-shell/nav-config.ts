@@ -8,6 +8,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Link2,
+  MailOpen,
   ScrollText,
   Search,
   Sparkles,
@@ -119,6 +120,7 @@ const CANDIDATE_NAV: NavSection[] = [
     items: [
       { labelKey: "nav.credentials", href: "/candidate/credentials", icon: Wallet },
       { labelKey: "nav.applications", href: "/candidate/applications", icon: ClipboardList },
+      { labelKey: "nav.offers", href: "/candidate/offers", icon: MailOpen },
     ],
   },
   {

@@ -46,7 +46,7 @@ function cell(v: unknown): string {
 export default function IssueBulkPage() {
   useSetPageMeta(
     "Cấp hàng loạt",
-    "Upload Excel → 1 chữ ký + 1 giao dịch cho cả lô. Non-custodial.",
+    "Tải lên Excel → chỉ 1 chữ ký và 1 giao dịch cho cả lô. Khoá ký luôn nằm trong ví của bạn.",
   );
 
   const [types, setTypes] = useState<CredentialType[] | null>(null);
@@ -93,7 +93,7 @@ export default function IssueBulkPage() {
       setWallet(address);
       if (!res.authorized) {
         setError(
-          "Ví đã đăng ký nhưng CHƯA được uỷ quyền on-chain. Quản trị viên cần uỷ quyền địa chỉ này.",
+          "Ví đã đăng ký nhưng CHƯA được cấp quyền trên blockchain. Quản trị viên cần cấp quyền cho địa chỉ này.",
         );
       }
     } catch (e) {
@@ -133,14 +133,15 @@ export default function IssueBulkPage() {
       setRows(parsed);
       setFileName(`${file.name} (${parsed.length} dòng)`);
     } catch {
-      setError("Không đọc được file Excel. Hãy kiểm tra định dạng.");
+      setError("Không đọc được tệp Excel. Vui lòng kiểm tra lại định dạng.");
     }
   }
 
   async function issue() {
-    if (!wallet) return setError("Hãy kết nối ví MetaMask trước.");
-    if (!selectedType) return setError("Hãy chọn loại văn bằng.");
-    if (rows.length === 0) return setError("Hãy upload file Excel có dữ liệu.");
+    if (!wallet) return setError("Vui lòng kết nối ví MetaMask trước.");
+    if (!selectedType) return setError("Vui lòng chọn loại văn bằng.");
+    if (rows.length === 0)
+      return setError("Vui lòng tải lên tệp Excel có dữ liệu.");
 
     let active: string;
     try {
@@ -159,7 +160,7 @@ export default function IssueBulkPage() {
     setDone(null);
     try {
       // 1. Resolve each row → credential item (email → candidateId, metadata).
-      setStatus("Đang phân giải ứng viên + dựng dữ liệu…");
+      setStatus("Đang xử lý danh sách ứng viên…");
       const items: IssueCredentialPayload[] = [];
       for (const [i, row] of rows.entries()) {
         const email = cell(row.candidateEmail);
@@ -196,7 +197,7 @@ export default function IssueBulkPage() {
       }
 
       // 2. Backend builds ONE Merkle tree + returns the batch typed data to sign.
-      setStatus(`Dựng Merkle cho ${items.length} văn bằng…`);
+      setStatus(`Đang chuẩn bị ${items.length} văn bằng…`);
       const prepared = await prepareBatch(items);
 
       // 3. Issuer signs the batch root ONCE.
@@ -204,11 +205,11 @@ export default function IssueBulkPage() {
       const batchSignature = await signBatchTypedData(prepared.batchTypedData);
 
       // 4. One issueBatch tx anchors the whole batch.
-      setStatus("Gửi 1 giao dịch anchor lên blockchain…");
+      setStatus("Đang ghi toàn bộ lên blockchain (1 giao dịch)…");
       const txHash = await anchorBatchOnChain(prepared.merkleRoot);
 
       // 5. Backend verifies the single signature + on-chain root, then issues all.
-      setStatus("Xác minh + lưu văn bằng…");
+      setStatus("Đang xác minh và lưu văn bằng…");
       const res = await anchorBatchBulk({
         merkleRoot: prepared.merkleRoot,
         txHash,
@@ -255,7 +256,8 @@ export default function IssueBulkPage() {
     >
       {done && (
         <Alert variant="success">
-          Đã cấp & anchor <b>{done.count}</b> văn bằng bằng <b>1 giao dịch</b>.{" "}
+          Đã cấp & ghi lên blockchain <b>{done.count}</b> văn bằng chỉ với{" "}
+          <b>1 giao dịch</b>.{" "}
           <a
             href={`https://amoy.polygonscan.com/tx/${done.tx}`}
             target="_blank"
@@ -269,7 +271,7 @@ export default function IssueBulkPage() {
       {status && <Alert variant="info">{status}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
 
-      <Section step="00" title="Ví issuer (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
+      <Section step="00" title="Ví tổ chức cấp (MetaMask)" subtitle="Khoá ký nằm trong ví của bạn, TrustLink không giữ.">
         {walletLoading ? (
           <p className="text-[13px] text-fg-subtle">Đang kiểm tra ví…</p>
         ) : wallet ? (
@@ -324,7 +326,7 @@ export default function IssueBulkPage() {
       {selectedType && (
         <Section
           step="02"
-          title="Upload Excel"
+          title="Tải lên Excel"
           subtitle={`Cột yêu cầu: ${expectedCols.join(", ")}`}
         >
           <input
