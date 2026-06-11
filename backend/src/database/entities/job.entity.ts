@@ -12,7 +12,6 @@ import {
 import { JobStatus } from '../enums';
 import { User } from './user.entity';
 import { Application } from './application.entity';
-import { MatchScore } from './match-score.entity';
 
 @Entity({ name: 'jobs' })
 @Index('idx_jobs_recruiter_id', ['recruiterId'])
@@ -121,7 +120,4 @@ export class Job {
 
   @OneToMany(() => Application, (application) => application.job)
   applications?: Application[];
-
-  @OneToMany(() => MatchScore, (score) => score.job)
-  matchScores?: MatchScore[];
 }

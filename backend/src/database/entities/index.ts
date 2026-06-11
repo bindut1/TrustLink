@@ -28,7 +28,6 @@ export { JobEmbedding } from './job-embedding.entity';
 // Group 6: Recruitment
 export { Job } from './job.entity';
 export { Application } from './application.entity';
-export { MatchScore } from './match-score.entity';
 
 // Group 7: System
 export { Notification } from './notification.entity';
