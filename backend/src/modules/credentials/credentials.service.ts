@@ -541,7 +541,24 @@ export class CredentialsService {
     return { anchored };
   }
 
-  async findAll(query: ListCredentialsQueryDto): Promise<Credential[]> {
+  async findAll(
+    query: ListCredentialsQueryDto,
+    requester?: User,
+  ): Promise<Credential[]> {
+    // Candidates can hide their profile + credentials from recruiters
+    // ("not open to work"). Absolute by product decision — applies even when
+    // the candidate has applied to the recruiter's job. Issuers/admins keep
+    // access (issuers must see credentials they issued).
+    if (query.candidateId && requester?.role === UserRole.RECRUITER) {
+      const candidate = await this.userRepo.findOne({
+        where: { id: query.candidateId },
+        relations: ['candidateProfile'],
+      });
+      if (candidate?.candidateProfile?.isOpenToWork === false) {
+        throw new ForbiddenException('Candidate has hidden their profile');
+      }
+    }
+
     const where: Record<string, unknown> = {};
     if (query.institutionId) where.institutionId = query.institutionId;
     if (query.candidateId) where.candidateId = query.candidateId;

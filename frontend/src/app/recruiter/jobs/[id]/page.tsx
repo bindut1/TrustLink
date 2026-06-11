@@ -4,6 +4,7 @@ import {
   Briefcase,
   CheckCircle2,
   Edit2,
+  EyeOff,
   Mail,
   MapPin,
   Send,
@@ -445,6 +446,7 @@ function toInfoData(app: ApplicationWithCandidate): CandidateInfoData {
       email: "",
     },
     coverLetter: app.coverLetter,
+    profileHidden: app.profileHidden,
   };
 }
 
@@ -547,6 +549,12 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                       {app.candidate.email}
                     </div>
                   )}
+                  {app.profileHidden && (
+                    <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/60 px-2.5 py-0.5 text-[12px] text-fg-subtle">
+                      <EyeOff size={11} />
+                      {t("recruiter.jobDetail.profileHidden")}
+                    </span>
+                  )}
                   {app.coverLetter && (
                     <p className="mt-3 text-[13.5px] text-fg-muted leading-relaxed border-l-2 border-border pl-3 line-clamp-2">
                       {app.coverLetter}
@@ -591,7 +599,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                   >
                     {t("recruiter.jobDetail.viewProfile")}
                   </Button>
-                  {app.candidate && (
+                  {app.candidate && !app.profileHidden && (
                     <Button
                       variant="verified"
                       size="sm"

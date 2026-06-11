@@ -104,8 +104,11 @@ export class CredentialsController {
   @RequireActions('credential.view')
   @ApiOperation({ summary: 'List credentials with filters' })
   @ApiOkResponse({ description: 'Filtered credential list' })
-  async findAll(@Query() query: ListCredentialsQueryDto) {
-    return this.service.findAll(query);
+  async findAll(
+    @Query() query: ListCredentialsQueryDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.service.findAll(query, user);
   }
 
   @Get('my')

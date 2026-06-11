@@ -85,6 +85,12 @@ describe("localizeBackendMessage", () => {
     );
   });
 
+  it("maps the hidden-profile rejection to Vietnamese", () => {
+    expect(
+      localizeBackendMessage("Candidate has hidden their profile", "vi"),
+    ).toBe("Ứng viên đã tạm ẩn hồ sơ");
+  });
+
   it("maps permission-guard messages with dynamic action lists", () => {
     expect(
       localizeBackendMessage(

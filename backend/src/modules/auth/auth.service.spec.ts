@@ -320,7 +320,7 @@ describe('AuthService.forgotPassword', () => {
 
     await m.service.forgotPassword('A@B.vn');
 
-    const [to, url] = m.email.sendPasswordReset.mock.calls[0] as [
+    const [to, url] = m.email.sendPasswordReset.mock.calls[0] as unknown as [
       string,
       string,
     ];
@@ -369,7 +369,7 @@ describe('AuthService.changePassword', () => {
     await m.service.changePassword('user-1', PASSWORD, 'brand-new-pass');
 
     expect(m.manager.update).toHaveBeenCalledTimes(2);
-    const [, , userPatch] = m.manager.update.mock.calls[0] as [
+    const [, , userPatch] = m.manager.update.mock.calls[0] as unknown as [
       unknown,
       unknown,
       { passwordHash: string },
@@ -377,11 +377,8 @@ describe('AuthService.changePassword', () => {
     expect(bcrypt.compareSync('brand-new-pass', userPatch.passwordHash)).toBe(
       true,
     );
-    const [, tokenWhere, tokenPatch] = m.manager.update.mock.calls[1] as [
-      unknown,
-      { userId: string },
-      { revokedAt: Date },
-    ];
+    const [, tokenWhere, tokenPatch] = m.manager.update.mock
+      .calls[1] as unknown as [unknown, { userId: string }, { revokedAt: Date }];
     expect(tokenWhere.userId).toBe('user-1');
     expect(tokenPatch.revokedAt).toBeInstanceOf(Date);
     expect(m.auditLogs.record).toHaveBeenCalledWith(
@@ -432,7 +429,7 @@ describe('AuthService.resetPassword', () => {
 
     await m.service.resetPassword('raw-reset', 'fresh-password');
 
-    const [, userId, userPatch] = m.manager.update.mock.calls[0] as [
+    const [, userId, userPatch] = m.manager.update.mock.calls[0] as unknown as [
       unknown,
       string,
       { passwordHash: string },

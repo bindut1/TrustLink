@@ -60,10 +60,12 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        # NEXT_PUBLIC_* are inlined at build time. Pass the API URL from .env so a
-        # direct localhost:3000 build talks to the backend (defaults to /api for
-        # nginx-proxied deployments).
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+        # NEXT_PUBLIC_* are inlined at build time, and compose interpolation
+        # reads only the shell / docker/.env — NOT ../.env (that file is
+        # runtime-only via env_file). Default to the local backend so a plain
+        # `docker compose up --build` works; production images are built by CI
+        # with an explicit NEXT_PUBLIC_API_URL=/api build-arg.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
         NEXT_PUBLIC_CONTRACT_ADDRESS: ${NEXT_PUBLIC_CONTRACT_ADDRESS}
         NEXT_PUBLIC_POLYGON_CHAIN_ID: ${NEXT_PUBLIC_POLYGON_CHAIN_ID:-80002}
     container_name: trustlink-frontend

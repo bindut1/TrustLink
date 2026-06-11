@@ -61,9 +61,15 @@ export class InvitationsService {
 
     const candidate = await this.userRepo.findOne({
       where: { id: candidateId },
+      relations: ['candidateProfile'],
     });
     if (!candidate || candidate.role !== UserRole.CANDIDATE) {
       throw new NotFoundException('Candidate not found');
+    }
+    // Hidden candidates are absent from recommendations, but the endpoint
+    // takes a raw id — enforce the same visibility rule here.
+    if (candidate.candidateProfile?.isOpenToWork === false) {
+      throw new ForbiddenException('Candidate has hidden their profile');
     }
 
     const existingApplication = await this.applicationRepo.findOne({

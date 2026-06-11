@@ -112,6 +112,12 @@ export type ApplicationWithCandidate = ApplicationItem & {
     avatarUrl?: string | null;
     candidateProfile?: CandidateProfile | null;
   };
+  /**
+   * True when the candidate turned off "open to work": the backend strips
+   * contact info / profile / resume and the UI explains why instead of
+   * rendering empty sections.
+   */
+  profileHidden?: boolean;
 };
 
 /** An invitation a recruiter sent for a job (recruiter-side "Lời mời" tab). */

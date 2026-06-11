@@ -164,7 +164,10 @@ export class ApplicationsService {
     });
   }
 
-  async findForJob(jobId: string, recruiterId: string): Promise<Application[]> {
+  async findForJob(
+    jobId: string,
+    recruiterId: string,
+  ): Promise<(Application & { profileHidden?: boolean })[]> {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
     if (job.recruiterId !== recruiterId) {
@@ -172,7 +175,7 @@ export class ApplicationsService {
     }
 
     // Sort by match_score DESC; NULLS LAST so unscored applications sink.
-    return this.repo
+    const applications = await this.repo
       .createQueryBuilder('application')
       .leftJoinAndSelect('application.candidate', 'candidate')
       .leftJoinAndSelect('candidate.candidateProfile', 'candidateProfile')
@@ -180,6 +183,25 @@ export class ApplicationsService {
       .orderBy('application.match_score', 'DESC', 'NULLS LAST')
       .addOrderBy('application.created_at', 'DESC')
       .getMany();
+
+    // Candidates who turned off "open to work" stay hidden even on submitted
+    // applications (absolute by product decision): the application row remains
+    // (name + the submitted cover letter), but contact info and the profile
+    // are stripped; `profileHidden` lets the UI explain why.
+    return applications.map((a) => {
+      if (a.candidate?.candidateProfile?.isOpenToWork !== false) return a;
+      return {
+        ...a,
+        profileHidden: true,
+        resumeUrl: null,
+        candidate: {
+          ...a.candidate,
+          email: '',
+          phone: null,
+          candidateProfile: undefined,
+        },
+      } as Application & { profileHidden: boolean };
+    });
   }
 
   async updateStatus(

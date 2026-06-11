@@ -4,6 +4,7 @@ import {
   Briefcase,
   Calendar,
   ExternalLink,
+  EyeOff,
   FileText,
   Github,
   Linkedin,
@@ -28,6 +29,8 @@ export type CandidateInfoData = {
     candidateProfile?: CandidateProfile | null;
   };
   coverLetter?: string | null;
+  /** Candidate turned off "open to work" — profile/contact data is stripped. */
+  profileHidden?: boolean;
 };
 
 type Props = {
@@ -40,7 +43,7 @@ export function CandidateInfoModal({ data, onClose }: Props) {
 
   if (!data) return null;
 
-  const { candidate, coverLetter } = data;
+  const { candidate, coverLetter, profileHidden } = data;
   const p = candidate.candidateProfile;
 
   return (
@@ -68,10 +71,12 @@ export function CandidateInfoModal({ data, onClose }: Props) {
             </div>
           )}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-            <span className="inline-flex items-center gap-1.5 text-[13px] text-fg-subtle">
-              <Mail size={13} />
-              {candidate.email}
-            </span>
+            {candidate.email && (
+              <span className="inline-flex items-center gap-1.5 text-[13px] text-fg-subtle">
+                <Mail size={13} />
+                {candidate.email}
+              </span>
+            )}
             {candidate.phone && (
               <span className="inline-flex items-center gap-1.5 text-[13px] text-fg-subtle">
                 <Phone size={13} />
@@ -88,7 +93,14 @@ export function CandidateInfoModal({ data, onClose }: Props) {
         </div>
       </div>
 
-      {!p ? (
+      {profileHidden ? (
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-surface-2/60 px-4 py-3.5">
+          <EyeOff size={16} className="text-fg-subtle mt-0.5 shrink-0" />
+          <p className="text-[13.5px] text-fg-muted leading-relaxed">
+            {t("candInfo.profileHidden")}
+          </p>
+        </div>
+      ) : !p ? (
         <p className="text-[13.5px] text-fg-subtle text-center py-4">
           {t("candInfo.noProfile")}
         </p>

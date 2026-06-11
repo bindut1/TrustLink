@@ -329,6 +329,18 @@ describe('MatchingService.recommendCandidatesForJob', () => {
     expect(ranked).toHaveLength(1);
     expect(ranked[0].candidateId).toBe('cand-strong');
   });
+
+  it('excludes candidates who are not open to work at the SQL level', async () => {
+    // Regression guard: hiding is enforced in the prefilter query itself, so
+    // hidden candidates never even reach scoring.
+    const { service, ds } = makeRankedSetup();
+    await service.recommendCandidatesForJob('job-1');
+
+    const prefilterSql = ds.query.mock.calls
+      .map((c) => c[0] as string)
+      .find((sql) => sql.includes('FROM candidate_embeddings ce'))!;
+    expect(prefilterSql).toContain('is_open_to_work = TRUE');
+  });
 });
 
 describe('MatchingService.recommendJobsForCandidate', () => {

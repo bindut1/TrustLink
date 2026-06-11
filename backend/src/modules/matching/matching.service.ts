@@ -202,12 +202,16 @@ export class MatchingService {
     // then full-rerank with all 3 tiers. Avoids scoring 10k candidates per
     // request when only 20 will be shown.
     const prefilterLimit = Math.max(limit * 5, 100);
+    // is_open_to_work = candidates can hide themselves from recruiters; they
+    // must drop out of recommendations at the query level, not in the UI.
     const rows = await this.dataSource.query<{ candidate_id: string }[]>(
       `SELECT ce.candidate_id
        FROM candidate_embeddings ce
        JOIN job_embeddings je ON je.job_id = $1
        JOIN users u ON u.id = ce.candidate_id
+       JOIN candidate_profiles cp ON cp.user_id = ce.candidate_id
        WHERE u.status = 'active' AND u.role = 'candidate'
+         AND cp.is_open_to_work = TRUE
        ORDER BY ce.embedding <=> je.embedding ASC
        LIMIT $2`,
       [jobId, prefilterLimit],

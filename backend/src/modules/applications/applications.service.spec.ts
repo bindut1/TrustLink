@@ -163,6 +163,70 @@ describe('ApplicationsService.findForJob', () => {
     );
   });
 
+  it('masks candidates who hid their profile and flags the application', async () => {
+    const m = makeMocks();
+    m.jobRepo.findOne.mockResolvedValue(openJob as never);
+    const apps = [
+      {
+        id: 'app-open',
+        resumeUrl: 'cv-open.pdf',
+        candidate: {
+          id: 'cand-open',
+          fullName: 'Open Dev',
+          email: 'open@x.vn',
+          phone: '0901',
+          candidateProfile: { isOpenToWork: true, bio: 'hi' },
+        },
+      },
+      {
+        id: 'app-hidden',
+        resumeUrl: 'cv-hidden.pdf',
+        coverLetter: 'please consider me',
+        candidate: {
+          id: 'cand-hidden',
+          fullName: 'Hidden Dev',
+          email: 'hidden@x.vn',
+          phone: '0902',
+          candidateProfile: { isOpenToWork: false, bio: 'secret' },
+        },
+      },
+    ];
+    const qb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(apps),
+    };
+    m.repo.createQueryBuilder.mockReturnValue(qb as never);
+
+    const result = (await m.service.findForJob('job-1', 'rec-1')) as Array<{
+      id: string;
+      profileHidden?: boolean;
+      resumeUrl: string | null;
+      coverLetter?: string;
+      candidate: {
+        fullName: string;
+        email: string;
+        phone: string | null;
+        candidateProfile?: unknown;
+      };
+    }>;
+
+    const open = result.find((a) => a.id === 'app-open')!;
+    expect(open.profileHidden).toBeUndefined();
+    expect(open.candidate.email).toBe('open@x.vn');
+
+    const hidden = result.find((a) => a.id === 'app-hidden')!;
+    expect(hidden.profileHidden).toBe(true);
+    expect(hidden.candidate.fullName).toBe('Hidden Dev'); // row stays listed
+    expect(hidden.coverLetter).toBe('please consider me'); // submitted with the application
+    expect(hidden.candidate.email).toBe('');
+    expect(hidden.candidate.phone).toBeNull();
+    expect(hidden.candidate.candidateProfile).toBeUndefined();
+    expect(hidden.resumeUrl).toBeNull();
+  });
+
   it('returns applications sorted by match score, nulls last', async () => {
     const m = makeMocks();
     m.jobRepo.findOne.mockResolvedValue(openJob as never);
@@ -247,7 +311,7 @@ describe('ApplicationsService.updateStatus', () => {
     });
 
     expect(saved.status).toBe(to);
-    expect(saved.statusChangedAt.getTime()).toBeGreaterThan(0);
+    expect(saved.statusChangedAt!.getTime()).toBeGreaterThan(0);
   });
 
   it('notifies the candidate with the Vietnamese status label', async () => {

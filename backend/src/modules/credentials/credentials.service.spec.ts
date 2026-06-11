@@ -8,6 +8,7 @@ import {
   ApprovalStatus,
   CredentialStatus,
   NotificationType,
+  UserRole,
   VerificationResult,
 } from '../../database/enums';
 import { buildMerkleTree, getProof } from '../blockchain/merkle';
@@ -349,10 +350,13 @@ describe('CredentialsService.anchorBatch — trust guard chain', () => {
       timestamp: 1700000000,
       isRevoked: false,
     } as never);
-    m.userRepo.findOne.mockImplementation(
-      ({ where: { id } }: { where: { id: string } }) =>
-        Promise.resolve({ id, fullName: 'Candidate' }),
-    );
+    m.userRepo.findOne.mockImplementation(((args: {
+      where: { id: string };
+    }) =>
+      Promise.resolve({
+        id: args.where.id,
+        fullName: 'Candidate',
+      })) as never);
     m.vcService.buildCredentialTypedData.mockReturnValue({
       message: { issuerDid: `did:ethr:polygon:${ADDRESS.toLowerCase()}` },
     } as never);
@@ -478,6 +482,65 @@ describe('CredentialsService.revoke', () => {
 
     await m.service.revoke('cred-1', 'issuer-1', { reason: 'x' });
     expect(m.notifications.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('CredentialsService.findAll — hidden-candidate visibility', () => {
+  function candidate(isOpenToWork: boolean) {
+    return {
+      id: 'cand-1',
+      role: UserRole.CANDIDATE,
+      candidateProfile: { isOpenToWork },
+    };
+  }
+
+  it('blocks a recruiter from listing a hidden candidate’s credentials', async () => {
+    const m = makeMocks();
+    m.userRepo.findOne.mockResolvedValue(candidate(false) as never);
+
+    await expect(
+      m.service.findAll(
+        { candidateId: 'cand-1' } as never,
+        { id: 'rec-1', role: UserRole.RECRUITER } as never,
+      ),
+    ).rejects.toThrow('Candidate has hidden their profile');
+    expect(m.credRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('allows a recruiter when the candidate is open to work', async () => {
+    const m = makeMocks();
+    m.userRepo.findOne.mockResolvedValue(candidate(true) as never);
+
+    await m.service.findAll(
+      { candidateId: 'cand-1' } as never,
+      { id: 'rec-1', role: UserRole.RECRUITER } as never,
+    );
+    expect(m.credRepo.find).toHaveBeenCalled();
+  });
+
+  it('does not restrict issuers or admins', async () => {
+    const m = makeMocks();
+    m.userRepo.findOne.mockResolvedValue(candidate(false) as never);
+
+    await m.service.findAll(
+      { candidateId: 'cand-1' } as never,
+      { id: 'issuer-1', role: UserRole.ISSUER } as never,
+    );
+    await m.service.findAll(
+      { candidateId: 'cand-1' } as never,
+      { id: 'admin-1', role: UserRole.ADMIN } as never,
+    );
+    expect(m.credRepo.find).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips the check when no candidateId filter is requested', async () => {
+    const m = makeMocks();
+    await m.service.findAll(
+      {} as never,
+      { id: 'rec-1', role: UserRole.RECRUITER } as never,
+    );
+    expect(m.userRepo.findOne).not.toHaveBeenCalled();
+    expect(m.credRepo.find).toHaveBeenCalled();
   });
 });
 

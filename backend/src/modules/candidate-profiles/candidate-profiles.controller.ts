@@ -43,8 +43,8 @@ export class CandidateProfilesController {
   @Get(':id')
   @ApiOperation({ summary: 'View candidate profile by ID' })
   @ApiOkResponse({ description: 'Candidate profile' })
-  async findById(@Param('id') id: string) {
-    return this.service.findById(id);
+  async findById(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.service.findById(id, user);
   }
 
   @Patch('me')

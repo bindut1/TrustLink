@@ -1021,6 +1021,9 @@ export const TRANSLATIONS = {
     "candInfo.coverLetter": "Thư ứng tuyển",
     "candInfo.noCoverLetter": "Không có thư ứng tuyển.",
     "candInfo.noProfile": "Ứng viên chưa cập nhật hồ sơ.",
+    "candInfo.profileHidden":
+      "Ứng viên đã tạm ẩn hồ sơ. Thông tin liên hệ, hồ sơ chi tiết và văn bằng được ẩn theo lựa chọn của ứng viên.",
+    "recruiter.jobDetail.profileHidden": "Hồ sơ đã ẩn",
 
     // ───────────── Recruiter — profile (Company profile) ─────────────
     "recruiter.profile.title": "Hồ sơ công ty",
@@ -2378,6 +2381,9 @@ export const TRANSLATIONS = {
     "candInfo.coverLetter": "Cover letter",
     "candInfo.noCoverLetter": "No cover letter provided.",
     "candInfo.noProfile": "Candidate hasn't updated their profile yet.",
+    "candInfo.profileHidden":
+      "This candidate has temporarily hidden their profile (not open to work). Contact details, profile and credentials are hidden at the candidate's request.",
+    "recruiter.jobDetail.profileHidden": "Profile hidden",
 
     // Recruiter — profile
     "recruiter.profile.title": "Company profile",

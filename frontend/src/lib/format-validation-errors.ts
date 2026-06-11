@@ -292,6 +292,7 @@ const BACKEND_MESSAGE_MAP: Record<Language, Record<string, string>> = {
       "Bạn không có quyền với tin tuyển dụng hoặc đơn ứng tuyển này",
     "You do not own this resource":
       "Bạn không có quyền truy cập tài nguyên này",
+    "Candidate has hidden their profile": "Ứng viên đã tạm ẩn hồ sơ",
     "Only candidates can apply to jobs": "Chỉ ứng viên mới có thể ứng tuyển",
     "Institution is not approved": "Tổ chức của bạn chưa được duyệt",
     "Issuer has no registered institution":

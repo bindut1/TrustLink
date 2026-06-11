@@ -1,11 +1,17 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CandidateProfile } from '../../database/entities/candidate-profile.entity';
 import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Application } from '../../database/entities/application.entity';
-import { CredentialStatus } from '../../database/enums';
+import { User } from '../../database/entities/user.entity';
+import { CredentialStatus, UserRole } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
 import { UpdateCandidateProfileDto } from './dto/update-candidate-profile.dto';
 
@@ -81,7 +87,7 @@ export class CandidateProfilesService {
     private readonly embeddings: EmbeddingService,
   ) {}
 
-  async findById(id: string): Promise<CandidateProfile> {
+  async findById(id: string, requester?: User): Promise<CandidateProfile> {
     // Explicitly selecting user fields keeps `passwordHash` out of the API
     // response while still allowing callers to render the candidate's name.
     const profile = await this.repo
@@ -91,7 +97,25 @@ export class CandidateProfilesService {
       .where('p.id = :id', { id })
       .getOne();
     if (!profile) throw new NotFoundException('Candidate profile not found');
+    this.assertVisibleTo(profile, requester);
     return this.withCompleteness(profile);
+  }
+
+  /**
+   * A candidate who turned off "open to work" is hidden from everyone except
+   * themselves, admins and issuers (issuers must still find candidates to
+   * issue credentials to). Recruiters get a 403 even for submitted
+   * applications — hiding is absolute by product decision.
+   */
+  private assertVisibleTo(profile: CandidateProfile, requester?: User): void {
+    if (profile.isOpenToWork) return;
+    if (!requester) return; // internal call, no access context
+    const isOwner = requester.id === profile.userId;
+    const exempt =
+      requester.role === UserRole.ADMIN || requester.role === UserRole.ISSUER;
+    if (!isOwner && !exempt) {
+      throw new ForbiddenException('Candidate has hidden their profile');
+    }
   }
 
   async findByUserId(userId: string): Promise<CandidateProfile> {
