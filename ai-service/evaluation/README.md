@@ -20,11 +20,20 @@ run_eval.py [--compare]           ->  report/metrics_*.json + console table
    ```bash
    # SEED_DEMO=true seeds jobs + candidate_skills + simulated credentials (the
    # eval set); default seed is accounts-only. SEED_VERIFY_FRACTION>0 gives the
-   # verified tier signal (graded 0/25/50/75/100%). SEED_RESET=true truncates
-   # data tables first (preserves migrations/RBAC/skill_catalog).
-   SEED_RESET=true SEED_DEMO=true SEED_VERIFY_FRACTION=0.5 npm run seed
+   # verified tier signal (graded 0/25/50/75/100%). SEED_OVERCLAIMER_PER_JOB>0
+   # seeds credential-fraud candidates (claim a job's skills, no on-chain proof)
+   # so the verified tier has something real to suppress — required for the
+   # fraud@5 metric and to keep the ranking metrics from saturating.
+   # SEED_RESET=true truncates data tables first (preserves migrations/RBAC/
+   # skill_catalog).
+   SEED_RESET=true SEED_DEMO=true SEED_VERIFY_FRACTION=0.5 \
+     SEED_OVERCLAIMER_PER_JOB=2 npm run seed
    npm run export:scores -- --build-embeddings   # needs AI service reachable
    ```
+   IMPORTANT: `scores.json` and `labels.csv` must come from the SAME seed run —
+   they join on UUID. After any re-seed, re-export scores AND regenerate labels
+   (`bootstrap_labels.py --overwrite`), otherwise the join is empty and the
+   metrics are undefined.
    Writes `evaluation/data/scores.json`. The `--build-embeddings` flag backfills
    candidate & job embeddings (the seed does not build them), so the semantic
    tier is non-zero. Drop the flag on later runs if embeddings already exist.
@@ -56,30 +65,62 @@ run_eval.py [--compare]           ->  report/metrics_*.json + console table
 
 5. **Ablation — does the blockchain-verification signal help recruitment?**
    ```bash
-   python run_eval.py --ablation         # learned vs learned-without-verified vs baseline
+   python run_eval.py --ablation --rel-threshold 3
    ```
-   Reports ranking metrics plus **claimed-only@5** (the share of the top-5 that
-   match on self-declared skills only — a trust-risk metric). The headline
-   finding: dropping the verified signal barely changes ranking quality (NDCG),
-   but roughly doubles claimed-only@5 — i.e. verified-aware matching surfaces
-   PROVEN candidates first without hurting relevance. Writes `report/ablation.json`.
+   Compares learned vs learned-without-verified vs baseline. Reports the ranking
+   metrics (with bootstrap 95% CIs) plus two trust-risk metrics, and a paired
+   permutation test (per job) between with/without verified. Writes
+   `report/ablation.json`. Expected story: removing the verified tier lets
+   over-claimers climb the top-5, so **fraud@5 and claimed-only@5 rise** while
+   **NDCG@5 drops** — verified-aware matching surfaces PROVEN candidates first.
 
-## Metric definitions (`metrics.py`)
+6. **Verified-weight sweep — does the magnitude matter?** (answers "why 0.225
+   and not just any positive value?")
+   ```bash
+   python run_eval.py --sweep --rel-threshold 3
+   ```
+   Holds the keyword:semantic ratio fixed and varies the verified share. Writes
+   `report/sweep.json`. Expect fraud@5/claimed-only@5 to fall as the weight
+   rises, while NDCG@5 holds then degrades once verified crowds out the semantic
+   tier — giving an optimum near the learned weight.
 
-- **Precision@5** — fraction of the top-5 ranked candidates that are relevant
-  (relevance ≥ threshold, default 2).
+## Metric definitions (`metrics.py`, `run_eval.py`)
+
+- **Precision@5** — fraction of the top-5 that are relevant (relevance ≥
+  threshold; use `--rel-threshold 3` so positives are strict and metrics don't
+  saturate).
 - **Recall@10** — fraction of all relevant candidates that appear in the top-10.
-- **NDCG@10** — graded ranking quality (gain `2^rel − 1`, `log2` discount),
-  normalized by the ideal ordering.
+- **NDCG@5 / NDCG@10** — graded ranking quality (gain `2^rel − 1`, `log2`
+  discount), normalized by the ideal ordering. Report **@5**: @10 saturates near
+  1.0 on a small candidate set and is not discriminative.
 - **MRR** — mean reciprocal rank of the first relevant candidate.
+- **claimed-only@5** — share of the top-5 (that match on skills) backed by
+  self-declared skills only (no required skill verified on-chain). Lower better.
+- **fraud@5** — share of the top-5 (that LOOK like a skill match) that are NOT
+  genuinely relevant (gold relevance < threshold): the over-claimer risk the
+  verified tier exists to suppress. Lower better.
 
-All metrics are computed per job, then macro-averaged. Jobs with no gold-relevant
-candidate are skipped (undefined recall/MRR).
+All metrics are computed per job, then macro-averaged; jobs with no gold-relevant
+candidate are skipped. CIs are percentile bootstrap (`stats.bootstrap_ci`);
+the paired test is a sign-flip permutation test (`stats.paired_permutation_p`),
+both standard-library only.
+
+## Why over-claimers (read before defending)
+
+Without a fraud population the verified tier is **orthogonal to relevance by
+construction**, so no relevance metric can ever credit it and a bigger dataset
+would NOT change that — only claimed-only@5 moves, which looks like the tier "does
+nothing". `SEED_OVERCLAIMER_PER_JOB` injects candidates who game keyword/semantic
+but hold no credential and are not a true fit; now the verified tier has a real
+job (keep them out of the top), so fraud@5/NDCG@5 become discriminative AND the
+weight magnitude acquires meaning (the sweep shows an optimum).
 
 ## Honest limitations (document in the thesis)
 
 - Gold labels start from a hand-authored role-fit matrix (weak supervision);
-  final quality depends on the manual review pass.
+  the over-claimer/fraud fraction is a controlled, author-set parameter — results
+  characterize behaviour under a modelled fraud rate, not a measured one.
 - The semantic tier is not explainable per-skill — only its weighted contribution
   is reported.
-- The demo set is small (10 jobs); metrics are indicative, not production SLAs.
+- The eval set is small; CIs and the paired test quantify the resulting
+  uncertainty, but metrics are indicative, not production SLAs.

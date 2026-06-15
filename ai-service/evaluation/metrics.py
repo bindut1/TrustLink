@@ -61,10 +61,16 @@ def evaluate_job(
     total_relevant: int,
     rel_threshold: int = 2,
 ) -> dict[str, float]:
-    """Compute all four metrics for one job's ranked candidate list."""
+    """Compute the ranking metrics for one job's ranked candidate list.
+
+    NDCG@5 is reported alongside @10 because @10 saturates near 1.0 on the demo
+    set (few candidates per job) and is not discriminative; @5 is the operating
+    point a recruiter actually looks at.
+    """
     return {
         "precision_at_5": precision_at_k(ranked_rel, 5, rel_threshold),
         "recall_at_10": recall_at_k(ranked_rel, total_relevant, 10, rel_threshold),
+        "ndcg_at_5": ndcg_at_k(ranked_rel, 5),
         "ndcg_at_10": ndcg_at_k(ranked_rel, 10),
         "mrr": reciprocal_rank(ranked_rel, rel_threshold),
     }

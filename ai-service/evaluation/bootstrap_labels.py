@@ -90,9 +90,17 @@ def main() -> None:
 
     out: list[dict] = []
     unknown_jobs: set[str] = set()
+    overclaimers: set[str] = set()
     for r in rows:
-        pool_index = pool_index_for_email(r["candidateEmail"])
-        if r["jobTitle"] not in JOB_POOL_RELEVANCE:
+        email = r["candidateEmail"]
+        pool_index = pool_index_for_email(email)
+        if email.startswith("overclaimer"):
+            # Credential-fraud population: claims a job's skills but is not a
+            # genuine fit. Graded 0 by definition — this is what the verified
+            # tier must keep out of the top-k (measured by fraud@5).
+            overclaimers.add(email)
+            relevance = 0
+        elif r["jobTitle"] not in JOB_POOL_RELEVANCE:
             unknown_jobs.add(r["jobTitle"])
             relevance = 0
         elif pool_index is None:
@@ -121,6 +129,8 @@ def main() -> None:
     pos = sum(1 for o in out if o["relevance"] >= 2)
     print(f"✓ Wrote {len(out)} draft labels to {LABELS_PATH}")
     print(f"  relevant (>=2): {pos}  |  irrelevant: {len(out) - pos}")
+    if overclaimers:
+        print(f"  over-claimers (graded 0, fraud population): {len(overclaimers)}")
     if unknown_jobs:
         print(f"⚠ Job titles not in JOB_REQUIRED_SKILLS (labelled 0): {sorted(unknown_jobs)}")
     print("→ Now hand-review data/labels.csv before trusting the metrics.")

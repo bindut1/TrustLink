@@ -41,6 +41,16 @@ const BCRYPT_ROUNDS = 10;
 const SEED_RESET = process.env.SEED_RESET === 'true';
 const SEED_DEMO = process.env.SEED_DEMO === 'true';
 const SEED_VERIFY_FRACTION = parseFloat(process.env.SEED_VERIFY_FRACTION || '0');
+// (demo/eval only) Number of OVER-CLAIMER candidates to seed per job. An
+// over-claimer self-declares exactly a job's required skills (so keyword/semantic
+// score high) but has NO on-chain credential (verifiedBonus stays 0) and is NOT a
+// genuine fit — graded relevance 0 by bootstrap_labels. They are the credential-
+// fraud population that makes the verified tier's contribution measurable
+// (fraud@5) and de-saturates the ranking metrics. Off by default.
+const SEED_OVERCLAIMER_PER_JOB = parseInt(
+  process.env.SEED_OVERCLAIMER_PER_JOB || '0',
+  10,
+);
 
 // ─────────────────────────── Data definitions ───────────────────────────
 
@@ -624,6 +634,59 @@ async function seed() {
       }
       console.log(
         `  candidate skills: ${skillCount} (verified backed by ${credentialCount} credentials)`,
+      );
+    }
+
+    // 8. Over-claimers — demo/eval only. Candidates who CLAIM a job's exact
+    //    required skills (high keyword + semantic) but hold NO credential
+    //    (verifiedBonus = 0) and are not a genuine fit. They model credential
+    //    fraud so the verified tier has something real to suppress.
+    if (SEED_DEMO && SEED_OVERCLAIMER_PER_JOB > 0) {
+      let n = 0;
+      let ocSkillCount = 0;
+      for (let j = 0; j < JOBS.length; j++) {
+        const claimed = JOBS[j].requiredSkills;
+        for (let k = 0; k < SEED_OVERCLAIMER_PER_JOB; k++) {
+          n++;
+          const user = await manager.save(
+            manager.create(User, {
+              email: `overclaimer${n}@trustlink.com`,
+              passwordHash,
+              role: UserRole.CANDIDATE,
+              fullName: `Over Claimer ${n}`,
+              status: AccountStatus.ACTIVE,
+              emailVerified: true,
+            }),
+          );
+          await manager.save(
+            manager.create(CandidateProfile, {
+              userId: user.id,
+              bio: `Self-taught professional proficient in ${claimed.join(', ')}.`,
+              yearsOfExperience: 1 + (n % 6),
+              desiredPosition: JOBS[j].title,
+              desiredSalaryMin: 15000,
+              desiredSalaryMax: 30000,
+              isOpenToWork: true,
+              profileCompleteness: 60,
+            }),
+          );
+          for (const skill of claimed) {
+            await manager.save(
+              manager.create(CandidateSkill, {
+                candidateId: user.id,
+                skillName: skill,
+                skillNameNormalized: skill.toLowerCase().trim(),
+                proficiencyLevel: 'intermediate',
+                isVerified: false, // the whole point: claimed, never proven
+                sourceCredentialId: null,
+              }),
+            );
+            ocSkillCount++;
+          }
+        }
+      }
+      console.log(
+        `  over-claimers: ${n} (claimed skills: ${ocSkillCount}, 0 credentials)`,
       );
     }
   });

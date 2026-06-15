@@ -2,13 +2,16 @@
 
 Loads the exported per-tier scores (data/scores.json) and the gold labels
 (data/labels.csv), re-ranks each job's candidates by the weighted total score,
-and reports macro-averaged Precision@5, Recall@10, NDCG@10 and MRR.
+and reports macro-averaged ranking metrics with bootstrap 95% CIs plus two
+trust-risk metrics (claimed-only@5, fraud@5).
 
 Usage:
     python run_eval.py                       # baseline weights 0.4/0.5/0.1
     python run_eval.py --weights ../../backend/config/match-weights.json
     python run_eval.py --compare             # baseline vs learned, side by side
-    python run_eval.py --rel-threshold 2
+    python run_eval.py --ablation            # with/without verified + paired test
+    python run_eval.py --sweep               # vary the verified weight, plot curve
+    python run_eval.py --rel-threshold 3     # stricter positives (recommended)
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ import os
 from collections import defaultdict
 
 import metrics as M
+import stats as S
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCORES_PATH = os.path.join(HERE, "data", "scores.json")
@@ -27,6 +31,9 @@ REPORT_DIR = os.path.join(HERE, "report")
 LEARNED_WEIGHTS = os.path.join(HERE, "..", "..", "backend", "config", "match-weights.json")
 
 BASELINE = {"keyword": 0.4, "semantic": 0.5, "verified": 0.1}
+
+# Metrics that get a bootstrap CI in the printed tables.
+HEADLINE = ["ndcg_at_5", "precision_at_5", "claimed_only_rate_at_5", "fraud_rate_at_5"]
 
 
 def load_scores() -> list[dict]:
@@ -51,15 +58,30 @@ def weighted_total(row: dict, w: dict) -> float:
 
 
 def claimed_only_rate_at_k(ranked: list[dict], k: int) -> float:
-    """Trust-risk metric: of the top-k ranked candidates, the fraction that match
-    the job on self-CLAIMED skills only (no required skill verified on-chain).
-    A risk-averse recruiter wants this LOW — proven candidates should surface first.
-    Candidates who don't match the job at all (keywordScore==0) are ignored."""
+    """Of the top-k that match the job on skills (keywordScore>0), the fraction
+    backed by self-CLAIMED skills only (no required skill verified on-chain).
+    A risk-averse recruiter wants this LOW."""
     top = [r for r in ranked[:k] if r["keywordScore"] > 0]
     if not top:
         return 0.0
-    claimed_only = sum(1 for r in top if r["verifiedBonus"] == 0)
-    return claimed_only / len(top)
+    return sum(1 for r in top if r["verifiedBonus"] == 0) / len(top)
+
+
+def fraud_rate_at_k(
+    ranked: list[dict], job_id: str, labels: dict, rel_threshold: int, k: int
+) -> float:
+    """Of the top-k that LOOK like a skill match (keywordScore>0), the fraction
+    that are NOT genuinely relevant (gold relevance < threshold). This is the
+    over-claimer / credential-fraud risk: candidates who gamed the keyword/
+    semantic tiers without truly fitting the role. Verified-aware ranking should
+    push these DOWN, so lower is better."""
+    top = [r for r in ranked[:k] if r["keywordScore"] > 0]
+    if not top:
+        return 0.0
+    miss = sum(
+        1 for r in top if labels.get((job_id, r["candidateId"]), 0) < rel_threshold
+    )
+    return miss / len(top)
 
 
 def evaluate(scores: list[dict], labels: dict, weights: dict, rel_threshold: int) -> dict:
@@ -67,10 +89,8 @@ def evaluate(scores: list[dict], labels: dict, weights: dict, rel_threshold: int
     for r in scores:
         by_job[r["jobId"]].append(r)
 
-    per_job_metrics = []
-    claimed_only_rates = []
+    per_job: dict[str, list[float]] = defaultdict(list)
     for job_id, rows in by_job.items():
-        # rank candidates by weighted total score, best first
         ranked = sorted(rows, key=lambda r: weighted_total(r, weights), reverse=True)
         ranked_rel = [labels.get((job_id, r["candidateId"]), 0) for r in ranked]
         total_relevant = sum(
@@ -79,26 +99,43 @@ def evaluate(scores: list[dict], labels: dict, weights: dict, rel_threshold: int
             if jid == job_id and rel >= rel_threshold
         )
         if total_relevant == 0:
-            # no gold-relevant candidate for this job -> skip (undefined recall/MRR)
-            continue
-        per_job_metrics.append(M.evaluate_job(ranked_rel, total_relevant, rel_threshold))
-        claimed_only_rates.append(claimed_only_rate_at_k(ranked, 5))
+            continue  # undefined recall/MRR
+        jm = M.evaluate_job(ranked_rel, total_relevant, rel_threshold)
+        for k, v in jm.items():
+            per_job[k].append(v)
+        per_job["claimed_only_rate_at_5"].append(claimed_only_rate_at_k(ranked, 5))
+        per_job["fraud_rate_at_5"].append(
+            fraud_rate_at_k(ranked, job_id, labels, rel_threshold, 5)
+        )
 
-    agg = M.aggregate(per_job_metrics)
-    agg["claimed_only_rate_at_5"] = (
-        sum(claimed_only_rates) / len(claimed_only_rates) if claimed_only_rates else 0.0
-    )
-    return {"weights": weights, "n_jobs": len(per_job_metrics), "metrics": agg}
+    n_jobs = len(per_job.get("ndcg_at_10", []))
+    agg = {k: (sum(v) / len(v) if v else 0.0) for k, v in per_job.items()}
+    return {
+        "weights": weights,
+        "n_jobs": n_jobs,
+        "metrics": agg,
+        "per_job": dict(per_job),
+    }
 
 
 def fmt(result: dict) -> str:
     m = result["metrics"]
     return (
         f"  P@5={m['precision_at_5']:.3f}  R@10={m['recall_at_10']:.3f}  "
-        f"NDCG@10={m['ndcg_at_10']:.3f}  MRR={m['mrr']:.3f}  "
+        f"NDCG@5={m['ndcg_at_5']:.3f}  NDCG@10={m['ndcg_at_10']:.3f}  MRR={m['mrr']:.3f}  "
         f"claimed-only@5={m['claimed_only_rate_at_5']:.3f}  "
-        f"(over {result['n_jobs']} jobs)"
+        f"fraud@5={m['fraud_rate_at_5']:.3f}  (over {result['n_jobs']} jobs)"
     )
+
+
+def fmt_ci(result: dict) -> str:
+    """Headline metrics with bootstrap 95% CIs (the version for the thesis table)."""
+    lines = []
+    for key in HEADLINE:
+        vals = result["per_job"].get(key, [])
+        mean, lo, hi = S.bootstrap_ci(vals)
+        lines.append(f"    {key:24s} {mean:.3f}  [95% CI {lo:.3f}, {hi:.3f}]")
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -109,6 +146,11 @@ def main() -> None:
         "--ablation",
         action="store_true",
         help="learned vs learned-without-verified vs baseline (trust-signal ablation)",
+    )
+    ap.add_argument(
+        "--sweep",
+        action="store_true",
+        help="vary the verified weight and report the trade-off curve",
     )
     ap.add_argument("--rel-threshold", type=int, default=2)
     args = ap.parse_args()
@@ -122,14 +164,43 @@ def main() -> None:
             w = json.load(f)
         return {k: float(w[k]) for k in ("keyword", "semantic", "verified")}
 
+    if args.sweep:
+        # How does the verified weight magnitude trade relevance vs trust risk?
+        # Keep the learned keyword:semantic RATIO fixed; vary only the verified
+        # share v in [0,1], renormalizing the other two to (1 - v).
+        base = load_weights(LEARNED_WEIGHTS) if os.path.exists(LEARNED_WEIGHTS) else BASELINE
+        kw, sem = base["keyword"], base["semantic"]
+        ratio = kw / (kw + sem)
+        grid = [0.0, 0.05, 0.10, 0.15, 0.2252, 0.30, 0.40, 0.60, 0.80]
+        rows = []
+        print(f"Verified-weight sweep (keyword:semantic ratio fixed at {ratio:.3f}):\n")
+        print(
+            f"  {'v_ver':>6}  {'NDCG@5':>7}  {'P@5':>5}  "
+            f"{'claimed@5':>9}  {'fraud@5':>7}"
+        )
+        for v in grid:
+            w = {"keyword": ratio * (1 - v), "semantic": (1 - ratio) * (1 - v), "verified": v}
+            res = evaluate(scores, labels, w, args.rel_threshold)
+            m = res["metrics"]
+            rows.append({"verified": v, **{k: m[k] for k in HEADLINE}})
+            print(
+                f"  {v:6.3f}  {m['ndcg_at_5']:7.3f}  {m['precision_at_5']:5.3f}  "
+                f"{m['claimed_only_rate_at_5']:9.3f}  {m['fraud_rate_at_5']:7.3f}"
+            )
+        with open(os.path.join(REPORT_DIR, "sweep.json"), "w") as f:
+            json.dump(rows, f, indent=2)
+        print(
+            "\n→ Read off the operating point: fraud@5/claimed-only@5 fall as v rises,"
+            "\n  while relevance (NDCG@5/P@5) holds then degrades once v crowds out"
+            "\n  the semantic tier — justifying the learned magnitude, not just its sign."
+        )
+        return
+
     if args.ablation:
-        # Does the blockchain-verification signal help recruitment matching?
-        # Compare the learned matcher WITH vs WITHOUT the verified tier.
         if not os.path.exists(LEARNED_WEIGHTS):
             print(f"Need learned weights at {LEARNED_WEIGHTS} — run train_weights.py first.")
             return
         learned_w = load_weights(LEARNED_WEIGHTS)
-        # ablate: drop the verified tier, renormalize the other two to sum=1
         kw, sem = learned_w["keyword"], learned_w["semantic"]
         no_verified = {
             "keyword": kw / (kw + sem),
@@ -147,26 +218,26 @@ def main() -> None:
             report[name] = res
             print(f"{name}:")
             print(fmt(res))
+            print(fmt_ci(res))
             print()
         with open(os.path.join(REPORT_DIR, "ablation.json"), "w") as f:
             json.dump(report, f, indent=2)
 
-        full = report["learned (with verified)"]["metrics"]
-        ablated = report["learned WITHOUT verified"]["metrics"]
-        d = ablated["claimed_only_rate_at_5"] - full["claimed_only_rate_at_5"]
-        print("Interpretation:")
+        full = report["learned (with verified)"]
+        ablated = report["learned WITHOUT verified"]
+        print("Paired tests (with verified vs WITHOUT verified, per job):")
+        for key in ("fraud_rate_at_5", "claimed_only_rate_at_5", "ndcg_at_5"):
+            a = full["per_job"].get(key, [])
+            b = ablated["per_job"].get(key, [])
+            p = S.paired_permutation_p(a, b)
+            da = sum(a) / len(a) if a else 0.0
+            db = sum(b) / len(b) if b else 0.0
+            sig = "significant" if p < 0.05 else "n.s."
+            print(f"  {key:24s} {da:.3f} → {db:.3f}  (Δ={db - da:+.3f}, p={p:.4f}, {sig})")
         print(
-            f"  Dropping the verified signal changes ranking quality little "
-            f"(NDCG {full['ndcg_at_10']:.3f} → {ablated['ndcg_at_10']:.3f}),"
-        )
-        print(
-            f"  but the trust profile of the top-5 worsens: claimed-only@5 "
-            f"{full['claimed_only_rate_at_5']:.3f} → {ablated['claimed_only_rate_at_5']:.3f} "
-            f"({'+' if d >= 0 else ''}{d:.3f})."
-        )
-        print(
-            "  → Verified-aware matching surfaces PROVEN candidates first without "
-            "hurting relevance — the value of blockchain for recruitment."
+            "\nInterpretation: verified-aware matching should DROP fraud@5/claimed-only@5"
+            "\n(significantly) while NDCG@5 stays within its CI — proven candidates surface"
+            "\nfirst without sacrificing relevance."
         )
         return
 
@@ -201,6 +272,7 @@ def main() -> None:
     tag = "learned" if args.weights else "baseline"
     print(f"Weights ({tag}): {weights}")
     print(fmt(result))
+    print(fmt_ci(result))
     with open(os.path.join(REPORT_DIR, f"metrics_{tag}.json"), "w") as f:
         json.dump(result, f, indent=2)
 
