@@ -228,14 +228,7 @@ function ApplicationCard({
               </span>
               <span className="text-[12px] text-fg-faint">/ 100</span>
             </div>
-            <MatchScoreBar
-              breakdown={{
-                keywordScore: Number(app.keywordScore ?? 0),
-                semanticScore: Number(app.semanticScore ?? 0),
-                verifiedBonus: Number(app.verifiedBonus ?? 0),
-                totalScore: Number(app.matchScore ?? 0),
-              }}
-            />
+            <MatchScoreBar breakdown={{ totalScore: Number(app.matchScore ?? 0) }} />
           </div>
         )}
       </div>

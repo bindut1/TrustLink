@@ -1,20 +1,15 @@
 "use client";
 
-import { Bookmark, Building2, GraduationCap, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bookmark, Building2, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
 import { Modal } from "@/components/ui/Modal";
 import { SkillTag } from "@/components/ui/SkillTag";
 import { RecruiterInfoModal } from "./RecruiterInfoModal";
-import { fetchLearningPath } from "@/lib/candidate-api";
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import type {
-  CandidateSkill,
-  LearningRecommendation,
-  RankedJob,
-} from "@/types/candidate";
+import type { CandidateSkill, RankedJob } from "@/types/candidate";
 import type { JobItem } from "@/types/candidate";
 
 type Props = {
@@ -36,22 +31,6 @@ export function JobMatchModal({
 }: Props) {
   const { t } = useLanguage();
   const [showRecruiter, setShowRecruiter] = useState(false);
-  const [learning, setLearning] = useState<LearningRecommendation[]>([]);
-
-  useEffect(() => {
-    if (!job) return;
-    let active = true;
-    fetchLearningPath(job.id)
-      .then((res) => {
-        if (active) setLearning(res.recommendations);
-      })
-      .catch(() => {
-        if (active) setLearning([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [job]);
 
   if (!job || !ranked) return null;
 
@@ -106,21 +85,20 @@ export function JobMatchModal({
       }
     >
       <div className="flex flex-col gap-6">
-        {/* Score panel */}
+        {/* Score panel — single fit bar on a 0–100 scale */}
         <div className="rounded-card bg-surface-2/60 border border-border px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.10em] text-fg-faint mb-3">
-            {t("candidate.recs.whyMatch")}
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-[28px] font-semibold leading-none text-fg tabular-nums">
+              {Math.round(Number(ranked.totalScore))}
+            </span>
+            <span className="text-[13px] text-fg-subtle">
+              / 100 {t("candidate.recs.match")}
+            </span>
           </div>
           <MatchScoreBar
             breakdown={ranked}
-            variant="detailed"
-            labels={{
-              match: t("candidate.recs.match"),
-              keyword: t("score.keyword"),
-              semantic: t("score.semantic"),
-              verified: t("score.verified"),
-              weight: t("score.weight").replace("{percentage}", "").replace(/[(){}]/g, "").trim(),
-            }}
+            label={t("candidate.recs.match")}
+            className="mt-3"
           />
         </div>
 
@@ -172,43 +150,6 @@ export function JobMatchModal({
                 .replace("{n}", String(exp ? exp.matchedVerified.length : verifiedCount))
                 .replace("{total}", String(required.length))}
             </p>
-          </div>
-        )}
-
-        {/* Learning path — close the gap (closes the verify ↔ match loop) */}
-        {learning.some((r) => r.recommendedCredential) && (
-          <div className="rounded-card border border-border bg-surface-2/40 px-5 py-4">
-            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
-              <GraduationCap size={15} className="text-navy" />
-              {t("candidate.recs.learningPath")}
-            </div>
-            <p className="mt-1 text-[12px] text-fg-faint">
-              {t("candidate.recs.learningPathHint")}
-            </p>
-            <ul className="mt-3 flex flex-col gap-2">
-              {learning
-                .filter((r) => r.recommendedCredential)
-                .map((r) => (
-                  <li
-                    key={`${r.status}-${r.skill}`}
-                    className="flex items-center gap-2 text-[13px]"
-                  >
-                    <SkillTag verified={false} size="sm">
-                      {r.skill}
-                    </SkillTag>
-                    <span className="text-[11px] text-fg-faint">
-                      {r.status === "missing"
-                        ? t("candidate.recs.statusMissing")
-                        : t("candidate.recs.statusUnverified")}
-                    </span>
-                    <span className="text-fg-faint">→</span>
-                    <span className="inline-flex items-center gap-1 font-medium text-navy">
-                      <GraduationCap size={13} />
-                      {r.recommendedCredential!.name}
-                    </span>
-                  </li>
-                ))}
-            </ul>
           </div>
         )}
       </div>

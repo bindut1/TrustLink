@@ -574,14 +574,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                       </span>
                       <span className="text-[11px] text-fg-faint">/ 100</span>
                     </div>
-                    <MatchScoreBar
-                      breakdown={{
-                        keywordScore: Number(app.keywordScore ?? 0),
-                        semanticScore: Number(app.semanticScore ?? 0),
-                        verifiedBonus: Number(app.verifiedBonus ?? 0),
-                        totalScore: Number(app.matchScore),
-                      }}
-                    />
+                    <MatchScoreBar breakdown={{ totalScore: Number(app.matchScore) }} />
                   </div>
                 )}
                 <ApplicationStatusSelect
