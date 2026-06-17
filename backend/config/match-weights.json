@@ -1,15 +1,23 @@
 {
-  "keyword": 0.3187,
-  "semantic": 0.2019,
-  "verified": 0.4793,
+  "keyword": 0.1312,
+  "semantic": 0.3976,
+  "verified": 0.4712,
   "modelVersion": "logreg-v1",
   "cvMetrics": {
-    "roc_auc_groupkfold": 0.9545
+    "roc_auc_groupkfold": 0.9679
   },
   "rawCoefficients": [
-    2.2486,
-    1.4246,
-    3.3814
+    1.7341,
+    5.2549,
+    6.2273
   ],
-  "note": "Learned by ai-service/evaluation/train_weights.py (Logistic Regression)."
+  "collinearity": {
+    "note": "keyword and verified are positively correlated by construction (verified skills are a subset of matched required skills); tier-basis magnitudes are regularization-sensitive.",
+    "disjointBasisWeights": {
+      "claimed_only": 0.0645,
+      "semantic": 0.4512,
+      "verified": 0.4843
+    }
+  },
+  "note": "Learned by ai-service/evaluation/train_weights.py (Logistic Regression). IN-SAMPLE fit for deployment; quote run_eval.py --holdout for performance."
 }

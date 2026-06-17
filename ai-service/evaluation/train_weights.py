@@ -6,7 +6,18 @@ backend/config/match-weights.json (consumed by MatchingWeightsService).
 
 Why Logistic Regression: its coefficients ARE interpretable tier weights that
 drop straight into the existing linear score — no model serving at runtime, and
-fully explainable for the defense ("the data says semantic matters most, ...").
+fully explainable for the defense ("the data says ...").
+
+IMPORTANT — what these weights are and are NOT:
+  * They are fit on ALL labelled pairs (this is correct for *deployment*: you
+    ship weights trained on everything you have).
+  * They are therefore IN-SAMPLE and MUST NOT be quoted as the matcher's
+    performance. The honest, out-of-sample ranking numbers come from
+    `run_eval.py --holdout` (nested GroupKFold), which re-fits per fold.
+  * keyword and verified are collinear by construction (verified ⊆ keyword), so
+    the tier-basis magnitudes are regularization-sensitive. A decorrelated
+    "disjoint-basis" fit (claimed_only vs verified) is printed as a robustness
+    check — see weights.py.
 
 Validation uses GroupKFold by job_id so a job's candidates never span train/test.
 
@@ -19,10 +30,7 @@ import csv
 import json
 import os
 
-import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GroupKFold
-from sklearn.metrics import roc_auc_score
+import weights as W
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCORES_PATH = os.path.join(HERE, "data", "scores.json")
@@ -32,90 +40,75 @@ OUT_PATH = os.environ.get(
     os.path.join(HERE, "..", "..", "backend", "config", "match-weights.json"),
 )
 
-REL_THRESHOLD = 2  # relevance >= 2 counts as a positive (relevant) example
-TIERS = ["keywordScore", "semanticScore", "verifiedBonus"]
 
-
-def load() -> tuple[np.ndarray, np.ndarray, list[str]]:
+def load() -> tuple[list[dict], dict[tuple[str, str], int]]:
     with open(SCORES_PATH, encoding="utf-8") as f:
         scores = json.load(f)
     labels: dict[tuple[str, str], int] = {}
     with open(LABELS_PATH, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             labels[(row["job_id"], row["candidate_id"])] = int(row["relevance"])
-
-    X, y, groups = [], [], []
-    for r in scores:
-        key = (r["jobId"], r["candidateId"])
-        if key not in labels:
-            continue
-        X.append([r[t] / 100.0 for t in TIERS])
-        y.append(1 if labels[key] >= REL_THRESHOLD else 0)
-        groups.append(r["jobId"])
-    return np.array(X), np.array(y), groups
-
-
-def cross_val_auc(X: np.ndarray, y: np.ndarray, groups: list[str]) -> float:
-    n_groups = len(set(groups))
-    n_splits = min(5, n_groups)
-    if n_splits < 2:
-        return float("nan")
-    gkf = GroupKFold(n_splits=n_splits)
-    aucs = []
-    for train_idx, test_idx in gkf.split(X, y, groups):
-        if len(set(y[train_idx])) < 2 or len(set(y[test_idx])) < 2:
-            continue
-        clf = LogisticRegression(max_iter=1000)
-        clf.fit(X[train_idx], y[train_idx])
-        prob = clf.predict_proba(X[test_idx])[:, 1]
-        aucs.append(roc_auc_score(y[test_idx], prob))
-    return float(np.mean(aucs)) if aucs else float("nan")
+    return scores, labels
 
 
 def main() -> None:
     if not os.path.exists(SCORES_PATH) or not os.path.exists(LABELS_PATH):
         raise SystemExit("Run `npm run export:scores` and bootstrap_labels.py first.")
 
-    X, y, groups = load()
+    scores, labels = load()
+
+    # --- tier basis: the deployed [keyword, semantic, verified] weights ---
+    X, y, groups = W.build_xy(scores, labels, basis="tier")
     print(f"Training examples: {len(y)}  (positives: {int(y.sum())})")
     if len(set(y)) < 2:
         raise SystemExit("Labels have only one class — cannot train.")
 
-    cv_auc = cross_val_auc(X, y, groups)
+    cv_auc = W.groupkfold_auc(X, y, groups)
+    fit = W.fit_weights(X, y)
+    coef = fit["raw"]
+    print(f"Raw coefficients (kw, sem, ver): {coef}")
 
-    # final fit on all data for the deployed coefficients
-    clf = LogisticRegression(max_iter=1000)
-    clf.fit(X, y)
-    coef = clf.coef_[0]
-    print(f"Raw coefficients (kw, sem, ver): {coef.round(3).tolist()}")
-
-    # clip negatives (a tier shouldn't *hurt* the score) then normalize to sum=1
-    clipped = np.clip(coef, 0, None)
-    if clipped.sum() == 0:
-        raise SystemExit("All coefficients <= 0 — labels not separable by tiers.")
-    weights = clipped / clipped.sum()
+    # --- disjoint basis: decorrelated robustness check ---
+    Xd, yd, _ = W.build_xy(scores, labels, basis="disjoint")
+    fit_d = W.fit_weights(Xd, yd)
+    print(
+        "Disjoint-basis check (claimed_only, semantic, verified): "
+        f"weights={[round(fit_d['keyword'],4), round(fit_d['semantic'],4), round(fit_d['verified'],4)]} "
+        f"raw={fit_d['raw']}"
+    )
 
     out = {
-        "keyword": round(float(weights[0]), 4),
-        "semantic": round(float(weights[1]), 4),
-        "verified": round(float(weights[2]), 4),
+        "keyword": round(fit["keyword"], 4),
+        "semantic": round(fit["semantic"], 4),
+        "verified": round(fit["verified"], 4),
         "modelVersion": "logreg-v1",
         "cvMetrics": {"roc_auc_groupkfold": round(cv_auc, 4)},
-        "rawCoefficients": coef.round(4).tolist(),
-        "note": "Learned by ai-service/evaluation/train_weights.py (Logistic Regression).",
+        "rawCoefficients": coef,
+        "collinearity": {
+            "note": (
+                "keyword and verified are positively correlated by construction "
+                "(verified skills are a subset of matched required skills); "
+                "tier-basis magnitudes are regularization-sensitive."
+            ),
+            "disjointBasisWeights": {
+                "claimed_only": round(fit_d["keyword"], 4),
+                "semantic": round(fit_d["semantic"], 4),
+                "verified": round(fit_d["verified"], 4),
+            },
+        },
+        "note": "Learned by ai-service/evaluation/train_weights.py (Logistic Regression). "
+        "IN-SAMPLE fit for deployment; quote run_eval.py --holdout for performance.",
     }
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
 
     print(f"\n✓ Wrote learned weights to {OUT_PATH}")
-    print(f"  keyword={out['keyword']}  semantic={out['semantic']}  verified={out['verified']}")
+    print(
+        f"  keyword={out['keyword']}  semantic={out['semantic']}  verified={out['verified']}"
+    )
     print(f"  CV ROC-AUC (GroupKFold): {out['cvMetrics']['roc_auc_groupkfold']}")
-    if coef[2] <= 0:
-        print(
-            "⚠ verified coefficient <= 0: on this label set, verified skills did not "
-            "independently predict relevance. Discuss in the report."
-        )
+    print("  → Performance numbers: run `python run_eval.py --holdout` (out-of-sample).")
 
 
 if __name__ == "__main__":

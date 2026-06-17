@@ -51,6 +51,19 @@ const SEED_OVERCLAIMER_PER_JOB = parseInt(
   process.env.SEED_OVERCLAIMER_PER_JOB || '0',
   10,
 );
+// (demo/eval only) Scale the evaluation set for tighter statistics. Defaults
+// keep the original 20 candidates / 10 jobs so prod and existing demos are
+// unchanged.
+//   SEED_CANDIDATES=<n>  total real candidates (>20 generates synthetic names);
+//                        pool index = i % 7 and verify tier = i % 5 as before.
+//   SEED_JOB_REPEAT=<r>  instantiate each of the 10 job archetypes r times
+//                        (distinct job_ids, same title/skills) → r×10 jobs, so
+//                        GroupKFold has more groups and the paired test more power.
+const SEED_CANDIDATES = parseInt(process.env.SEED_CANDIDATES || '0', 10);
+const SEED_JOB_REPEAT = Math.max(
+  1,
+  parseInt(process.env.SEED_JOB_REPEAT || '1', 10),
+);
 
 // ─────────────────────────── Data definitions ───────────────────────────
 
@@ -516,21 +529,22 @@ async function seed() {
     // 5. Jobs (demo/eval only — in prod recruiters post real jobs by hand)
     if (SEED_DEMO) {
       const jobs: Job[] = [];
-      for (let i = 0; i < JOBS.length; i++) {
+      for (let i = 0; i < JOBS.length * SEED_JOB_REPEAT; i++) {
+        const def = JOBS[i % JOBS.length];
         const job = await manager.save(
           manager.create(Job, {
             recruiterId: recruiterUsers[i % recruiterUsers.length].id,
-            title: JOBS[i].title,
-            description: JOBS[i].description,
-            requirements: JOBS[i].requirements,
+            title: def.title,
+            description: def.description,
+            requirements: def.requirements,
             jobType: 'full_time',
-            experienceLevel: JOBS[i].experienceLevel,
+            experienceLevel: def.experienceLevel,
             city: 'Hồ Chí Minh',
-            isRemote: JOBS[i].isRemote,
-            salaryMin: JOBS[i].salaryMin,
-            salaryMax: JOBS[i].salaryMax,
-            requiredSkills: JOBS[i].requiredSkills,
-            preferredSkills: JOBS[i].preferredSkills,
+            isRemote: def.isRemote,
+            salaryMin: def.salaryMin,
+            salaryMax: def.salaryMax,
+            requiredSkills: def.requiredSkills,
+            preferredSkills: def.preferredSkills,
             status: JobStatus.OPEN,
           }),
         );
@@ -541,14 +555,16 @@ async function seed() {
 
     // 6. Candidates + profiles
     const candidates: User[] = [];
-    for (let i = 0; i < CANDIDATE_NAMES.length; i++) {
+    const numCandidates =
+      SEED_CANDIDATES > 0 ? SEED_CANDIDATES : CANDIDATE_NAMES.length;
+    for (let i = 0; i < numCandidates; i++) {
       const email = `candidate${i + 1}@trustlink.com`;
       const user = await manager.save(
         manager.create(User, {
           email,
           passwordHash,
           role: UserRole.CANDIDATE,
-          fullName: CANDIDATE_NAMES[i],
+          fullName: CANDIDATE_NAMES[i] ?? `Candidate ${i + 1}`,
           status: AccountStatus.ACTIVE,
           emailVerified: true,
         }),
@@ -644,8 +660,9 @@ async function seed() {
     if (SEED_DEMO && SEED_OVERCLAIMER_PER_JOB > 0) {
       let n = 0;
       let ocSkillCount = 0;
-      for (let j = 0; j < JOBS.length; j++) {
-        const claimed = JOBS[j].requiredSkills;
+      for (let j = 0; j < JOBS.length * SEED_JOB_REPEAT; j++) {
+        const jobDef = JOBS[j % JOBS.length];
+        const claimed = jobDef.requiredSkills;
         for (let k = 0; k < SEED_OVERCLAIMER_PER_JOB; k++) {
           n++;
           const user = await manager.save(
@@ -663,7 +680,7 @@ async function seed() {
               userId: user.id,
               bio: `Self-taught professional proficient in ${claimed.join(', ')}.`,
               yearsOfExperience: 1 + (n % 6),
-              desiredPosition: JOBS[j].title,
+              desiredPosition: jobDef.title,
               desiredSalaryMin: 15000,
               desiredSalaryMax: 30000,
               isOpenToWork: true,

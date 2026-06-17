@@ -84,6 +84,41 @@ run_eval.py [--compare]           ->  report/metrics_*.json + console table
    rises, while NDCG@5 holds then degrades once verified crowds out the semantic
    tier — giving an optimum near the learned weight.
 
+7. **Honest evaluation modes (quote THESE in the report).** `--ablation`,
+   `--compare` and plain runs are **IN-SAMPLE** (weights fit on all labelled
+   pairs, then evaluated on the same pairs) — fine for illustration, not for
+   stating performance. Use instead:
+   ```bash
+   python run_eval.py --holdout       # OUT-OF-SAMPLE: nested GroupKFold; weights
+                                      #   learned on train jobs, scored on held-out
+                                      #   jobs. Reports per-fold weight mean±sd and a
+                                      #   paired permutation test (with vs without
+                                      #   verified). → report/holdout.json
+   python run_eval.py --real-only     # ablation on REAL candidates only (drops the
+                                      #   synthetic over-claimers). Here verified is
+                                      #   decoupled from the gold label, so any gain
+                                      #   is non-circular. → report/real_only.json
+   python run_eval.py --sensitivity   # learned verified weight + fraud@5/NDCG@5 as
+                                      #   over-claimer prevalence varies 0→50%; shows
+                                      #   the weight is contingent on the threat model,
+                                      #   not a universal constant. → sensitivity.json
+   python run_eval.py --baselines     # 3-tier vs keyword-only / semantic-only /
+                                      #   verified-only rankers (a real baseline, not
+                                      #   another hand weighting of the same model).
+   python run_eval.py --diagnostics   # tier correlations + decorrelated (disjoint-
+                                      #   basis) re-fit; verified stays the dominant
+                                      #   positive signal after removing the
+                                      #   keyword⊇verified collinearity.
+   ```
+   **Honest reading of the results:** on the full set the verified tier gives a
+   significant NDCG@5/MRR lift, but that lift is driven by suppressing the
+   relevance-0 over-claimers; the in-top-5 trust metrics (fraud@5, claimed-only@5)
+   change but are **not** significant at this sample size (p≈0.5). On the real-only
+   cut, verified does not change *who is relevant* (semantic+keyword already rank
+   them) — it changes *which equally-relevant candidate surfaces first* (proven
+   above unproven: claimed-only@5 ≈ 0.32→0.16). That is the trust-aware claim, and
+   it is the honest one.
+
 ## Metric definitions (`metrics.py`, `run_eval.py`)
 
 - **Precision@5** — fraction of the top-5 that are relevant (relevance ≥

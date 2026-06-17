@@ -351,7 +351,11 @@ export class MatchingService {
       return { keywordScore: 0, verifiedBonus: 0, explanation: empty };
     }
 
-    // candidate's skills that intersect the required set, with verified flag
+    // candidate's skills that intersect the required set, with verified flag.
+    // NOTE: this is an EXACT normalized (lower+trim) match — skill_catalog
+    // aliases are NOT expanded here, so e.g. "ReactJS" vs "React" only meet at
+    // the semantic tier, not the keyword tier. Alias-aware keyword matching is
+    // future work; the report should not claim the keyword tier is alias-normalized.
     const rows = await this.dataSource.query<
       { name: string; is_verified: boolean }[]
     >(
