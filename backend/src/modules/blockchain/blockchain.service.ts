@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Queue } from 'bull';
 import { ethers } from 'ethers';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
 import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
@@ -180,26 +180,7 @@ export class BlockchainService implements OnModuleInit {
       );
     }
 
-    // Best-effort receipt enrichment for the audit row / admin blockchain view.
-    let blockNumber: string | null = null;
-    let gasUsed: string | null = null;
-    let gasPrice: string | null = null;
-    let confirmedAt = new Date();
-    try {
-      const receipt = await this.provider.getTransactionReceipt(args.txHash);
-      if (receipt) {
-        blockNumber = receipt.blockNumber.toString();
-        gasUsed = receipt.gasUsed?.toString() ?? null;
-        gasPrice = receipt.gasPrice?.toString() ?? null;
-        const block = await this.provider.getBlock(receipt.blockNumber);
-        if (block?.timestamp) confirmedAt = new Date(block.timestamp * 1000);
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Could not fetch receipt for revokeLeaf tx ${args.txHash}: ${(err as Error).message}`,
-      );
-    }
-
+    const meta = await this.fetchTxMeta(args.txHash);
     const tx = await this.txRepo.save(
       this.txRepo.create({
         transactionType: TxType.REVOKE_CREDENTIAL,
@@ -210,11 +191,7 @@ export class BlockchainService implements OnModuleInit {
         contractMethod: 'revokeLeaf',
         contractParams: { leafHash: args.leafHash },
         txHash: args.txHash,
-        blockNumber,
-        gasUsed,
-        gasPrice,
-        submittedAt: new Date(),
-        confirmedAt,
+        ...meta,
       }),
     );
 
@@ -227,6 +204,105 @@ export class BlockchainService implements OnModuleInit {
     await this.refreshCandidateEmbedding(credential?.candidateId);
 
     return tx;
+  }
+
+  /**
+   * Read-only check: has this whole Merkle batch been revoked on-chain
+   * (`revokeBatch`)? No gas, no signing.
+   */
+  async isBatchRevokedOnChain(merkleRoot: string): Promise<boolean> {
+    const onChain = await this.verifyBatchOnChain(merkleRoot);
+    return onChain.exists && onChain.isRevoked;
+  }
+
+  /**
+   * Record an issuer-signed WHOLE-BATCH revocation (`revokeBatch`, Option B's
+   * coarse counterpart). The issuer broadcast it from their own wallet; here we
+   * confirm the batch is revoked on-chain, persist one audit row, and unverify
+   * the skills of every credential in the batch. The per-credential DB status +
+   * StatusList bits are flipped by the caller.
+   */
+  async recordBatchRevocation(args: {
+    institutionId: string | null;
+    initiatedBy: string;
+    merkleRoot: string;
+    txHash: string;
+    credentialIds: string[];
+  }): Promise<BlockchainTransaction> {
+    if (!this.contract) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+
+    if (!(await this.isBatchRevokedOnChain(args.merkleRoot))) {
+      throw new BadRequestException(
+        'Batch is not revoked on-chain — the revoke transaction may not be confirmed yet',
+      );
+    }
+
+    const meta = await this.fetchTxMeta(args.txHash);
+    const tx = await this.txRepo.save(
+      this.txRepo.create({
+        transactionType: TxType.REVOKE_CREDENTIAL,
+        status: TxStatus.CONFIRMED,
+        credentialId: null,
+        institutionId: args.institutionId,
+        initiatedBy: args.initiatedBy,
+        contractMethod: 'revokeBatch',
+        contractParams: {
+          merkleRoot: args.merkleRoot,
+          count: args.credentialIds.length,
+        },
+        txHash: args.txHash,
+        ...meta,
+      }),
+    );
+
+    // Unverify every credential's skills + refresh each affected candidate once.
+    for (const id of args.credentialIds) {
+      await this.setSkillsVerified(id, false);
+    }
+    if (args.credentialIds.length > 0) {
+      const creds = await this.credRepo.find({
+        where: { id: In(args.credentialIds) },
+      });
+      const candidateIds = [
+        ...new Set(creds.map((c) => c.candidateId).filter(Boolean)),
+      ];
+      for (const cid of candidateIds) {
+        await this.refreshCandidateEmbedding(cid);
+      }
+    }
+
+    return tx;
+  }
+
+  /** Best-effort receipt enrichment for an audit row / admin blockchain view. */
+  private async fetchTxMeta(txHash: string): Promise<{
+    blockNumber: string | null;
+    gasUsed: string | null;
+    gasPrice: string | null;
+    submittedAt: Date;
+    confirmedAt: Date;
+  }> {
+    let blockNumber: string | null = null;
+    let gasUsed: string | null = null;
+    let gasPrice: string | null = null;
+    let confirmedAt = new Date();
+    try {
+      const receipt = await this.provider.getTransactionReceipt(txHash);
+      if (receipt) {
+        blockNumber = receipt.blockNumber.toString();
+        gasUsed = receipt.gasUsed?.toString() ?? null;
+        gasPrice = receipt.gasPrice?.toString() ?? null;
+        const block = await this.provider.getBlock(receipt.blockNumber);
+        if (block?.timestamp) confirmedAt = new Date(block.timestamp * 1000);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not fetch receipt for tx ${txHash}: ${(err as Error).message}`,
+      );
+    }
+    return { blockNumber, gasUsed, gasPrice, submittedAt: new Date(), confirmedAt };
   }
 
   /**

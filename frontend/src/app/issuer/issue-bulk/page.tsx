@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Upload, Wallet } from "lucide-react";
+import { Ban, ShieldCheck, Upload, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useSetPageMeta } from "@/components/app-shell/page-meta";
@@ -11,10 +11,13 @@ import { SelectMenu } from "@/components/ui/SelectMenu";
 import { ApiError } from "@/lib/api";
 import {
   anchorBatchBulk,
+  fetchBatches,
   fetchCredentialTypes,
   lookupCandidate,
   prepareBatch,
+  revokeBatch,
 } from "@/lib/issuer-api";
+import type { BatchSummary } from "@/lib/issuer-api";
 import {
   disconnectIssuerWallet,
   fetchMyInstitution,
@@ -25,6 +28,7 @@ import {
   anchorBatchOnChain,
   connectWallet,
   getActiveAccount,
+  revokeBatchOnChain,
   signBatchTypedData,
 } from "@/lib/web3";
 import type { CredentialType, IssueCredentialPayload } from "@/types/issuer";
@@ -64,9 +68,15 @@ export default function IssueBulkPage() {
   const [done, setDone] = useState<{ tx: string; count: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [batches, setBatches] = useState<BatchSummary[] | null>(null);
+  const [revokingRoot, setRevokingRoot] = useState<string | null>(null);
+
+  const loadBatches = () => fetchBatches().then(setBatches).catch(() => setBatches([]));
+
   useEffect(() => {
     fetchCredentialTypes().then(setTypes);
     setHasMetaMask(Boolean(window.ethereum));
+    void loadBatches();
   }, []);
   // Restore the REGISTERED issuer wallet on reload (not the active MM account).
   useEffect(() => {
@@ -222,6 +232,7 @@ export default function IssueBulkPage() {
       setRows([]);
       setFileName("");
       if (fileRef.current) fileRef.current.value = "";
+      void loadBatches();
     } catch (e) {
       setStatus(null);
       const err = e as {
@@ -239,6 +250,36 @@ export default function IssueBulkPage() {
     }
   }
 
+  async function revokeWholeBatch(b: BatchSummary) {
+    if (!wallet) return setError("Vui lòng kết nối ví MetaMask trước.");
+    const reason = window.prompt(
+      `Thu hồi toàn bộ ${b.count - b.revokedCount} văn bằng còn hiệu lực trong lô này?\nNhập lý do thu hồi:`,
+    );
+    if (!reason || !reason.trim()) return;
+
+    setError(null);
+    setRevokingRoot(b.merkleRoot);
+    try {
+      const active = await getActiveAccount();
+      if (active !== wallet) {
+        throw new WalletError(
+          `Ví đang chọn (${active.slice(0, 6)}…${active.slice(-4)}) khác ví đã kết nối. Hãy chuyển MetaMask về đúng ví.`,
+        );
+      }
+      const txHash = await revokeBatchOnChain(b.merkleRoot);
+      await revokeBatch(b.merkleRoot, reason.trim(), txHash);
+      await loadBatches();
+    } catch (e) {
+      setError(
+        e instanceof WalletError || e instanceof ApiError
+          ? e.message
+          : "Thu hồi lô thất bại.",
+      );
+    } finally {
+      setRevokingRoot(null);
+    }
+  }
+
   const typeOptions = [
     { value: "", label: "— Chọn loại văn bằng —" },
     ...(types ?? [])
@@ -247,6 +288,7 @@ export default function IssueBulkPage() {
   ];
 
   return (
+    <div className="flex flex-col gap-5">
     <form
       onSubmit={(e) => {
         e.preventDefault();
@@ -357,6 +399,81 @@ export default function IssueBulkPage() {
         </Button>
       </div>
     </form>
+
+      <Section
+        step="03"
+        title="Lịch sử cấp theo lô"
+        subtitle="Mỗi lô = 1 file Excel đã cấp. Thu hồi sẽ huỷ toàn bộ văn bằng của lô bằng 1 giao dịch revokeBatch."
+      >
+        {batches === null ? (
+          <p className="text-[13px] text-fg-subtle">Đang tải…</p>
+        ) : batches.length === 0 ? (
+          <p className="text-[13px] text-fg-subtle">Chưa có lô nào được cấp.</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {batches.map((b) => {
+              const txHash = b.revoked ? b.revokeTxHash : b.issueTxHash;
+              return (
+                <div
+                  key={b.merkleRoot}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 text-[13px] text-fg">
+                      <span className="font-mono text-[12px] text-fg-muted">
+                        {b.merkleRoot.slice(0, 10)}…{b.merkleRoot.slice(-6)}
+                      </span>
+                      {b.revoked ? (
+                        <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
+                          Đã thu hồi
+                        </span>
+                      ) : b.revokedCount > 0 ? (
+                        <span className="rounded-full bg-warn/10 px-2 py-0.5 text-[11px] font-medium text-warn">
+                          Thu hồi {b.revokedCount}/{b.count}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-teal/10 px-2 py-0.5 text-[11px] font-medium text-teal">
+                          {b.count} văn bằng
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[12px] text-fg-subtle">
+                      {new Date(b.issuedAt).toLocaleString()}
+                      {txHash && (
+                        <>
+                          {" · "}
+                          <a
+                            href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-navy hover:underline"
+                          >
+                            {b.revoked ? "Tx thu hồi" : "Tx phát hành"}
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  {!b.revoked && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      loading={revokingRoot === b.merkleRoot}
+                      disabled={!wallet || revokingRoot !== null}
+                      onClick={() => void revokeWholeBatch(b)}
+                      leftIcon={<Ban size={15} />}
+                    >
+                      Thu hồi cả lô
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Section>
+    </div>
   );
 }
 

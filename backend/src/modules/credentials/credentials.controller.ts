@@ -119,6 +119,27 @@ export class CredentialsController {
     return this.service.findMy(user.id);
   }
 
+  @Get('batches')
+  @RequireActions('credential.view')
+  @ApiOperation({ summary: 'List the issuer batch issuance history' })
+  @ApiOkResponse({ description: 'Batches grouped by Merkle root' })
+  async listBatches(@CurrentUser() user: User) {
+    return this.service.listBatches(user.id);
+  }
+
+  @Post('batches/:merkleRoot/revoke')
+  @RequireActions('credential.revoke')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke a whole batch by Merkle root (issuer)' })
+  @ApiOkResponse({ description: 'Batch revoked' })
+  async revokeBatch(
+    @Param('merkleRoot') merkleRoot: string,
+    @CurrentUser() user: User,
+    @Body() dto: RevokeCredentialDto,
+  ) {
+    return this.service.revokeBatch(user.id, merkleRoot, dto);
+  }
+
   @Get(':id')
   @RequireActions('credential.view')
   @ApiOperation({ summary: 'Get credential detail (with institution info)' })

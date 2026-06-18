@@ -149,3 +149,34 @@ export async function revokeCredential(
   });
 }
 
+// ───────────── Batch issuance history + whole-batch revoke ─────────────
+
+export interface BatchSummary {
+  merkleRoot: string;
+  count: number;
+  revokedCount: number;
+  revoked: boolean;
+  issuedAt: string;
+  issueTxHash: string | null;
+  revokeTxHash: string | null;
+}
+
+export function fetchBatches(): Promise<BatchSummary[]> {
+  return apiRequest("/credentials/batches", authOpts());
+}
+
+export async function revokeBatch(
+  merkleRoot: string,
+  reason: string,
+  txHash?: string,
+): Promise<{ revoked: number }> {
+  return apiRequest(
+    `/credentials/batches/${merkleRoot}/revoke`,
+    {
+      method: "POST",
+      body: txHash ? { reason, txHash } : { reason },
+      ...authOpts(),
+    },
+  );
+}
+

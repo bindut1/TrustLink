@@ -62,6 +62,16 @@ export interface VerificationOutcome {
   cached: boolean;
 }
 
+export interface BatchSummary {
+  merkleRoot: string;
+  count: number;
+  revokedCount: number;
+  revoked: boolean;
+  issuedAt: Date;
+  issueTxHash: string | null;
+  revokeTxHash: string | null;
+}
+
 @Injectable()
 export class CredentialsService {
   private readonly logger = new Logger(CredentialsService.name);
@@ -539,6 +549,136 @@ export class CredentialsService {
       anchored++;
     }
     return { anchored };
+  }
+
+  /**
+   * Issuance history grouped by batch (one Merkle root = one uploaded file). Each
+   * row carries the shared issuance tx, the credential count, and revocation
+   * progress so the issuer can revoke a whole batch from one place.
+   */
+  async listBatches(issuerUserId: string): Promise<BatchSummary[]> {
+    const institution = await this.institutionRepo.findOne({
+      where: { userId: issuerUserId },
+    });
+    if (!institution) {
+      throw new ForbiddenException('Issuer has no registered institution');
+    }
+
+    const rows = await this.credRepo
+      .createQueryBuilder('c')
+      .select('c.merkle_root', 'merkleRoot')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect(
+        "SUM(CASE WHEN c.status = 'revoked' THEN 1 ELSE 0 END)",
+        'revokedCount',
+      )
+      .addSelect('MIN(c.created_at)', 'issuedAt')
+      .addSelect('MAX(c.blockchain_tx_hash)', 'issueTxHash')
+      .addSelect('MAX(c.revoke_tx_hash)', 'revokeTxHash')
+      .where('c.institution_id = :inst', { inst: institution.id })
+      .andWhere('c.merkle_root IS NOT NULL')
+      .groupBy('c.merkle_root')
+      .orderBy('MIN(c.created_at)', 'DESC')
+      .getRawMany<{
+        merkleRoot: string;
+        count: string;
+        revokedCount: string;
+        issuedAt: Date;
+        issueTxHash: string | null;
+        revokeTxHash: string | null;
+      }>();
+
+    return rows.map((r) => {
+      const count = Number(r.count);
+      const revokedCount = Number(r.revokedCount);
+      return {
+        merkleRoot: r.merkleRoot,
+        count,
+        revokedCount,
+        revoked: revokedCount >= count,
+        issuedAt: r.issuedAt,
+        issueTxHash: r.issueTxHash,
+        revokeTxHash: r.revokeTxHash,
+      };
+    });
+  }
+
+  /**
+   * Revoke a whole batch by its Merkle root (`revokeBatch`, signed by the issuer
+   * wallet). Confirms the on-chain batch revoke landed, then marks every active
+   * credential in the batch revoked, flips its StatusList bit, and stamps the
+   * shared revoke tx hash.
+   */
+  async revokeBatch(
+    issuerUserId: string,
+    merkleRoot: string,
+    dto: RevokeCredentialDto,
+  ): Promise<{ revoked: number }> {
+    const institution = await this.institutionRepo.findOne({
+      where: { userId: issuerUserId },
+    });
+    if (!institution) {
+      throw new ForbiddenException('Issuer has no registered institution');
+    }
+
+    const creds = await this.credRepo.find({
+      where: { merkleRoot, institutionId: institution.id },
+    });
+    if (creds.length === 0) {
+      throw new NotFoundException('No credentials found for this batch');
+    }
+    const active = creds.filter((c) => c.status !== CredentialStatus.REVOKED);
+    if (active.length === 0) {
+      throw new BadRequestException('Batch is already fully revoked');
+    }
+
+    if (this.blockchain.isReady()) {
+      if (!dto.txHash) {
+        throw new BadRequestException(
+          'Missing on-chain revoke transaction hash (revokeBatch must be signed by the issuer wallet)',
+        );
+      }
+      await this.blockchain.recordBatchRevocation({
+        institutionId: institution.id,
+        initiatedBy: issuerUserId,
+        merkleRoot,
+        txHash: dto.txHash,
+        credentialIds: active.map((c) => c.id),
+      });
+    }
+
+    const now = new Date();
+    for (const c of active) {
+      c.status = CredentialStatus.REVOKED;
+      c.revokedAt = now;
+      c.revocationReason = dto.reason;
+      if (dto.txHash) c.revokeTxHash = dto.txHash;
+      await this.credRepo.save(c);
+      await this.statusList.revokeByCredential(c.id);
+
+      if (c.candidateId) {
+        await this.notifications.create({
+          userId: c.candidateId,
+          type: NotificationType.CREDENTIAL_REVOKED,
+          title: 'Văn bằng bị thu hồi',
+          message: `Văn bằng "${c.title}" của bạn đã bị thu hồi${
+            dto.reason ? `: ${dto.reason}` : ''
+          }.`,
+          referenceType: 'credential',
+          referenceId: c.id,
+        });
+      }
+    }
+
+    await this.auditLogs.record({
+      userId: issuerUserId,
+      action: 'credential.revokeBatch',
+      entityType: 'credential',
+      entityId: merkleRoot,
+      newValues: { reason: dto.reason, count: active.length },
+    });
+
+    return { revoked: active.length };
   }
 
   async findAll(

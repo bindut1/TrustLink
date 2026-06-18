@@ -20,6 +20,7 @@ declare global {
 const REGISTRY_IFACE = new Interface([
   "function issueBatch(bytes32 _merkleRoot)",
   "function revokeLeaf(bytes32 _leafHash)",
+  "function revokeBatch(bytes32 _merkleRoot)",
 ]);
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? "";
@@ -198,6 +199,36 @@ export async function revokeLeafOnChain(leafHash: string): Promise<string> {
   })) as string;
 
   return waitForReceipt(txHash, "Giao dịch thu hồi");
+}
+
+/**
+ * Broadcast `revokeBatch(merkleRoot)` from the issuer's own wallet — revokes a
+ * whole batch (every credential under that Merkle root) in one tx. Returns the
+ * tx hash.
+ */
+export async function revokeBatchOnChain(merkleRoot: string): Promise<string> {
+  if (!CONTRACT_ADDRESS) {
+    throw new WalletError("NEXT_PUBLIC_CONTRACT_ADDRESS is not configured.");
+  }
+  await ensureChain();
+  const from = await getActiveAccount();
+  const data = REGISTRY_IFACE.encodeFunctionData("revokeBatch", [merkleRoot]);
+
+  const txHash = (await eth().request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        from,
+        to: CONTRACT_ADDRESS,
+        data,
+        gas: REVOKE_LEAF_GAS,
+        maxPriorityFeePerGas: MAX_PRIORITY_FEE,
+        maxFeePerGas: MAX_FEE,
+      },
+    ],
+  })) as string;
+
+  return waitForReceipt(txHash, "Giao dịch thu hồi lô");
 }
 
 /** Poll for a tx receipt over raw RPC — robust against the flaky public RPC. */
