@@ -675,7 +675,7 @@ export const TRANSLATIONS = {
     "jobForm.remoteCheck": "Có thể làm việc từ xa",
     "jobForm.salaryVisible": "Hiển thị mức lương công khai",
     "jobForm.requiredSkillsHint":
-      "Hệ thống dùng để xếp hạng ứng viên (chiếm 40% điểm phù hợp)",
+      "Hệ thống dùng để xếp hạng ứng viên phù hợp",
     "jobForm.preferredSkillsHint":
       "Điểm cộng — không bắt buộc ứng viên phải có",
     "jobForm.descriptionPlaceholder":
@@ -795,7 +795,7 @@ export const TRANSLATIONS = {
     // ───────────── Candidate — recommendations (Suggested jobs) ─────────────
     "candidate.recs.title": "Việc làm phù hợp với bạn",
     "candidate.recs.description":
-      "Những vị trí hàng đầu được AI xếp hạng theo 3 lớp: từ khoá (40%), ngữ nghĩa (50%) và bằng cấp đã xác thực (10%).",
+      "Những vị trí phù hợp nhất với hồ sơ và kỹ năng đã xác thực của bạn, được AI xếp hạng.",
     "candidate.recs.loading": "Đang tải gợi ý…",
     "candidate.recs.emptyTitle": "Chưa có gợi ý nào",
     "candidate.recs.emptyDesc":
@@ -2046,7 +2046,7 @@ export const TRANSLATIONS = {
     "jobForm.remoteCheck": "This role is remote-friendly",
     "jobForm.salaryVisible": "Show salary range publicly",
     "jobForm.requiredSkillsHint":
-      "Used by AI matcher (keyword tier — 40% of total score)",
+      "Used by the AI matcher to rank candidates",
     "jobForm.preferredSkillsHint":
       "Nice-to-haves — they don't penalize candidates who lack them",
     "jobForm.descriptionPlaceholder":
@@ -2165,7 +2165,7 @@ export const TRANSLATIONS = {
     // Candidate — recommendations
     "candidate.recs.title": "Recommended for you",
     "candidate.recs.description":
-      "Top open jobs ranked by our 3-tier AI matcher: keyword overlap (40%), semantic similarity (50%), and verified-skill bonus (10%).",
+      "Top open jobs ranked by our AI matcher to fit your profile and verified skills.",
     "candidate.recs.loading": "Loading recommendations…",
     "candidate.recs.emptyTitle": "No recommendations yet",
     "candidate.recs.emptyDesc":
