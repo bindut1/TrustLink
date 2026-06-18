@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bull';
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -15,11 +16,7 @@ import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
-import {
-  CredentialStatus,
-  TxStatus,
-  TxType,
-} from '../../database/enums';
+import { TxStatus, TxType } from '../../database/enums';
 import {
   BLOCKCHAIN_JOB_ISSUE,
   BLOCKCHAIN_JOB_REVOKE,
@@ -157,37 +154,77 @@ export class BlockchainService implements OnModuleInit {
     return ethers.keccak256(ethers.toUtf8Bytes(serialized));
   }
 
-  async revokeCredentialOnChain(args: {
+  /**
+   * Record an issuer-signed per-leaf revocation (Option B). The issuer broadcast
+   * `revokeLeaf(leafHash)` from their OWN wallet (non-custodial, like issueBatch),
+   * so this never signs anything — it confirms the revocation actually landed
+   * on-chain, persists an audit row, and flips the dependent skill flags. Throws
+   * if the leaf is not revoked on-chain so the caller never marks a credential
+   * revoked in the DB before the chain agrees.
+   */
+  async recordLeafRevocation(args: {
     credentialId: string;
+    institutionId: string | null;
     initiatedBy: string;
+    leafHash: string;
+    txHash: string;
   }): Promise<BlockchainTransaction> {
-    const credential = await this.credRepo.findOne({
-      where: { id: args.credentialId },
-    });
-    if (!credential) {
-      throw new InternalServerErrorException(
-        `Credential ${args.credentialId} not found while queueing revoke`,
+    if (!this.contract) {
+      throw new InternalServerErrorException('Blockchain not configured');
+    }
+
+    const revoked = await this.isLeafRevokedOnChain(args.leafHash);
+    if (!revoked) {
+      throw new BadRequestException(
+        'Leaf is not revoked on-chain — the revoke transaction may not be confirmed yet',
       );
     }
-    const hash = credential.credentialHash ?? this.computeCredentialHash(credential);
+
+    // Best-effort receipt enrichment for the audit row / admin blockchain view.
+    let blockNumber: string | null = null;
+    let gasUsed: string | null = null;
+    let gasPrice: string | null = null;
+    let confirmedAt = new Date();
+    try {
+      const receipt = await this.provider.getTransactionReceipt(args.txHash);
+      if (receipt) {
+        blockNumber = receipt.blockNumber.toString();
+        gasUsed = receipt.gasUsed?.toString() ?? null;
+        gasPrice = receipt.gasPrice?.toString() ?? null;
+        const block = await this.provider.getBlock(receipt.blockNumber);
+        if (block?.timestamp) confirmedAt = new Date(block.timestamp * 1000);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not fetch receipt for revokeLeaf tx ${args.txHash}: ${(err as Error).message}`,
+      );
+    }
 
     const tx = await this.txRepo.save(
       this.txRepo.create({
         transactionType: TxType.REVOKE_CREDENTIAL,
-        status: TxStatus.QUEUED,
-        credentialId: credential.id,
-        institutionId: credential.institutionId,
+        status: TxStatus.CONFIRMED,
+        credentialId: args.credentialId,
+        institutionId: args.institutionId,
         initiatedBy: args.initiatedBy,
-        contractMethod: 'revokeCredential',
-        contractParams: { credentialHash: hash },
+        contractMethod: 'revokeLeaf',
+        contractParams: { leafHash: args.leafHash },
+        txHash: args.txHash,
+        blockNumber,
+        gasUsed,
+        gasPrice,
+        submittedAt: new Date(),
+        confirmedAt,
       }),
     );
 
-    await this.queue.add(
-      BLOCKCHAIN_JOB_REVOKE,
-      { transactionId: tx.id },
-      { attempts: 1, removeOnComplete: true, removeOnFail: false },
-    );
+    // On-chain revoke landed → the skills this credential backed are no longer
+    // verified, and the candidate's embedding must be refreshed for matching.
+    const credential = await this.credRepo.findOne({
+      where: { id: args.credentialId },
+    });
+    await this.setSkillsVerified(args.credentialId, false);
+    await this.refreshCandidateEmbedding(credential?.candidateId);
 
     return tx;
   }
@@ -282,20 +319,22 @@ export class BlockchainService implements OnModuleInit {
   }
 
   /**
-   * Read-only verification — no gas, no signing.
+   * Read-only check: has this credential's Merkle leaf been individually revoked
+   * on-chain (Option B)? No gas, no signing. Returns false on any error so the
+   * verifier can fold it into the result without throwing.
    */
-  async verifyCredentialOnChain(hash: string): Promise<OnChainVerification> {
+  async isLeafRevokedOnChain(leafHash: string): Promise<boolean> {
     if (!this.contract) {
       throw new InternalServerErrorException('Blockchain not configured');
     }
-    const result = await this.contract.verifyCredential(hash);
-    // ethers v6 returns a Result tuple-like object
-    return {
-      exists: Boolean(result[0]),
-      issuer: String(result[1]),
-      timestamp: Number(result[2]),
-      isRevoked: Boolean(result[3]),
-    };
+    try {
+      return Boolean(await this.contract.isLeafRevoked(leafHash));
+    } catch (err) {
+      this.logger.warn(
+        `isLeafRevoked(${leafHash}) failed: ${(err as Error).message}`,
+      );
+      return false;
+    }
   }
 
   /**
@@ -350,67 +389,14 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-  private async submitAndConfirm(tx: BlockchainTransaction): Promise<void> {
-    const nonce = await this.provider.getTransactionCount(
-      this.wallet.address,
-      'pending',
+  private submitAndConfirm(tx: BlockchainTransaction): Promise<void> {
+    // Revocation is now issuer-signed (`revokeLeaf`, broadcast from the issuer's
+    // own wallet) and recorded synchronously via `recordLeafRevocation`, so it no
+    // longer flows through this queue. No transaction type is currently enqueued;
+    // the queue machinery is kept for future server-signed operations.
+    return Promise.reject(
+      new Error(`Unsupported queued tx type: ${tx.transactionType}`),
     );
-
-    let sentTx: ethers.TransactionResponse;
-    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
-      const hash = (tx.contractParams as { credentialHash: string })
-        .credentialHash;
-      sentTx = await this.contract.revokeCredential(hash, { nonce });
-    } else {
-      throw new Error(`Unsupported tx type for queue: ${tx.transactionType}`);
-    }
-
-    tx.status = TxStatus.SUBMITTED;
-    tx.txHash = sentTx.hash;
-    tx.nonce = nonce;
-    tx.submittedAt = new Date();
-    await this.txRepo.save(tx);
-
-    const receipt = await sentTx.wait();
-    if (!receipt || receipt.status !== 1) {
-      throw new Error('Transaction reverted on-chain');
-    }
-
-    tx.status = TxStatus.CONFIRMED;
-    tx.blockNumber = receipt.blockNumber.toString();
-    tx.gasUsed = receipt.gasUsed?.toString() ?? null;
-    tx.gasPrice = receipt.gasPrice?.toString() ?? null;
-    tx.confirmedAt = new Date();
-    await this.txRepo.save(tx);
-
-    await this.applyConfirmedSideEffects(tx, receipt);
-  }
-
-  private async applyConfirmedSideEffects(
-    tx: BlockchainTransaction,
-    receipt: ethers.TransactionReceipt,
-  ): Promise<void> {
-    if (!tx.credentialId) return;
-
-    const credential = await this.credRepo.findOne({
-      where: { id: tx.credentialId },
-    });
-    if (!credential) return;
-
-    const block = await this.provider.getBlock(receipt.blockNumber);
-    const blockTimestamp = block?.timestamp
-      ? new Date(block.timestamp * 1000)
-      : new Date();
-
-    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
-      credential.status = CredentialStatus.REVOKED;
-      if (!credential.revokedAt) credential.revokedAt = blockTimestamp;
-    }
-    await this.credRepo.save(credential);
-    if (tx.transactionType === TxType.REVOKE_CREDENTIAL) {
-      await this.setSkillsVerified(credential.id, false);
-      await this.refreshCandidateEmbedding(credential.candidateId);
-    }
   }
 
   /**

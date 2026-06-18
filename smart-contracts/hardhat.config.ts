@@ -30,6 +30,13 @@ const config: HardhatUserConfig = {
     cache: "./cache",
     artifacts: "./artifacts",
   },
+  // Source verification on Polygonscan (Amoy). Lets the explorer decode method
+  // names (issueBatch / revokeLeaf / addIssuer) and params, and exposes the
+  // Read/Write Contract tabs. Run: npx hardhat verify --network polygonAmoy <addr>
+  etherscan: {
+    // Etherscan API V2 — a single key works across all chains (Amoy included).
+    apiKey: process.env.POLYGONSCAN_API_KEY || "",
+  },
 };
 
 export default config;

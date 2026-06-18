@@ -115,6 +115,16 @@ export class Credential {
   })
   blockchainTxHash: string | null;
 
+  // Issuer-signed `revokeLeaf` tx (Option B) — distinct from the issuance anchor
+  // above. Set when the credential is revoked on-chain.
+  @Column({
+    name: 'revoke_tx_hash',
+    type: 'varchar',
+    length: 66,
+    nullable: true,
+  })
+  revokeTxHash: string | null;
+
   @Column({
     name: 'blockchain_block_number',
     type: 'bigint',

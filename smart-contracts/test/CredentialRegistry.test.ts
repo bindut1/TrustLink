@@ -105,4 +105,60 @@ describe("CredentialRegistry", () => {
       expect(exists).to.equal(false);
     });
   });
+
+  describe("revokeLeaf", () => {
+    const leaf = ethers.keccak256(ethers.toUtf8Bytes("credential-leaf-hash"));
+
+    it("authorized issuer can revoke a single leaf; root stays intact", async () => {
+      const { registry, issuer } = await deploy();
+      await registry.addIssuer(issuer.address);
+      await registry.connect(issuer).issueBatch(root);
+
+      expect(await registry.isLeafRevoked(leaf)).to.equal(false);
+
+      await expect(registry.connect(issuer).revokeLeaf(leaf))
+        .to.emit(registry, "LeafRevoked")
+        .withArgs(leaf, issuer.address);
+
+      expect(await registry.isLeafRevoked(leaf)).to.equal(true);
+
+      // The batch (and thus every other leaf) is untouched by a leaf revocation.
+      const [exists, , , batchRevoked] = await registry.verifyBatch(root);
+      expect(exists).to.equal(true);
+      expect(batchRevoked).to.equal(false);
+    });
+
+    it("does not require the leaf to belong to any anchored batch", async () => {
+      const { registry, issuer } = await deploy();
+      await registry.addIssuer(issuer.address);
+      // No issueBatch at all — revocation is independent of issuance.
+      await registry.connect(issuer).revokeLeaf(leaf);
+      expect(await registry.isLeafRevoked(leaf)).to.equal(true);
+    });
+
+    it("unauthorized address cannot revoke a leaf", async () => {
+      const { registry, other } = await deploy();
+      await expect(
+        registry.connect(other).revokeLeaf(leaf),
+      ).to.be.revertedWith("Not authorized issuer");
+    });
+
+    it("cannot revoke the same leaf twice", async () => {
+      const { registry, issuer } = await deploy();
+      await registry.addIssuer(issuer.address);
+      await registry.connect(issuer).revokeLeaf(leaf);
+      await expect(
+        registry.connect(issuer).revokeLeaf(leaf),
+      ).to.be.revertedWith("Leaf already revoked");
+    });
+
+    it("isLeafRevoked is false for an unknown leaf", async () => {
+      const { registry } = await deploy();
+      expect(
+        await registry.isLeafRevoked(
+          ethers.keccak256(ethers.toUtf8Bytes("never-revoked")),
+        ),
+      ).to.equal(false);
+    });
+  });
 });

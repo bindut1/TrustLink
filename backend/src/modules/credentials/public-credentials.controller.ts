@@ -58,6 +58,7 @@ export class PublicCredentialsController {
             }
           : null,
         blockchainTxHash: credential.blockchainTxHash,
+        revokeTxHash: credential.revokeTxHash,
         blockchainBlockNumber: credential.blockchainBlockNumber,
         issuerDid: credential.issuerDid,
       },

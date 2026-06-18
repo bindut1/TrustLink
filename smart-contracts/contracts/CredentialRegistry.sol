@@ -3,25 +3,28 @@ pragma solidity ^0.8.24;
 
 /**
  * @title CredentialRegistry
- * @notice On-chain credential hash storage with issuer management for TrustLink.
+ * @notice On-chain credential anchoring with issuer management for TrustLink.
  * @dev Deployed on Polygon Amoy testnet.
+ *
+ * Blockcerts-style batch anchoring: one Merkle root represents many
+ * credentials, anchored in a single `issueBatch` tx by the issuing institution.
+ * Revocation works at two granularities, both signed by the issuer:
+ *   - `revokeBatch`  — invalidates a whole Merkle root (every credential in it).
+ *   - `revokeLeaf`   — invalidates a single credential by its leaf hash, without
+ *                      touching the root or the other leaves. Membership in the
+ *                      root is proven off-chain via a Merkle proof; this set only
+ *                      records "this leaf is no longer valid".
  */
 contract CredentialRegistry {
     address public owner;
 
     mapping(address => bool) public authorizedIssuers;
-    mapping(bytes32 => Credential) public credentials;
-
-    // Blockcerts-style batch anchoring: one Merkle root represents many
-    // credentials. Individual credential revocation is handled off-chain via a
-    // StatusList; on-chain we only track whole-batch existence/revocation.
     mapping(bytes32 => Batch) public batches;
 
-    struct Credential {
-        address issuer;
-        uint256 timestamp;
-        bool isRevoked;
-    }
+    // Per-credential revocation set, keyed by the credential's Merkle leaf hash.
+    // Independent of issuance: a leaf can be revoked even though only the batch
+    // root was ever stored on-chain.
+    mapping(bytes32 => bool) public revokedLeaves;
 
     struct Batch {
         address issuer;
@@ -31,10 +34,9 @@ contract CredentialRegistry {
 
     event IssuerAdded(address indexed issuer);
     event IssuerRemoved(address indexed issuer);
-    event CredentialIssued(bytes32 indexed credentialHash, address indexed issuer, uint256 timestamp);
-    event CredentialRevoked(bytes32 indexed credentialHash, address indexed issuer);
     event BatchIssued(bytes32 indexed merkleRoot, address indexed issuer, uint256 timestamp);
     event BatchRevoked(bytes32 indexed merkleRoot, address indexed issuer);
+    event LeafRevoked(bytes32 indexed leafHash, address indexed issuer);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -61,40 +63,6 @@ contract CredentialRegistry {
         require(authorizedIssuers[_issuer], "Not an issuer");
         authorizedIssuers[_issuer] = false;
         emit IssuerRemoved(_issuer);
-    }
-
-    function issueCredential(bytes32 _credentialHash) external onlyAuthorizedIssuer {
-        require(credentials[_credentialHash].timestamp == 0, "Credential already exists");
-
-        credentials[_credentialHash] = Credential({
-            issuer: msg.sender,
-            timestamp: block.timestamp,
-            isRevoked: false
-        });
-
-        emit CredentialIssued(_credentialHash, msg.sender, block.timestamp);
-    }
-
-    function revokeCredential(bytes32 _credentialHash) external onlyAuthorizedIssuer {
-        Credential storage cred = credentials[_credentialHash];
-        require(cred.timestamp != 0, "Credential does not exist");
-        require(cred.issuer == msg.sender, "Not credential issuer");
-        require(!cred.isRevoked, "Already revoked");
-
-        cred.isRevoked = true;
-        emit CredentialRevoked(_credentialHash, msg.sender);
-    }
-
-    function verifyCredential(bytes32 _credentialHash)
-        external
-        view
-        returns (bool exists, address issuer, uint256 timestamp, bool isRevoked)
-    {
-        Credential storage cred = credentials[_credentialHash];
-        if (cred.timestamp == 0) {
-            return (false, address(0), 0, false);
-        }
-        return (true, cred.issuer, cred.timestamp, cred.isRevoked);
     }
 
     function isIssuer(address _addr) external view returns (bool) {
@@ -140,5 +108,25 @@ contract CredentialRegistry {
             return (false, address(0), 0, false);
         }
         return (true, b.issuer, b.timestamp, b.isRevoked);
+    }
+
+    // ───────────────────────── Per-leaf revocation ─────────────────────────
+
+    /**
+     * @notice Revoke a single credential by its Merkle leaf hash.
+     * @dev Does NOT require the leaf to have been issued on-chain — only the
+     *      batch root is stored. Anchoring stays one cheap tx per batch; this
+     *      adds one tx only when a specific credential is revoked. Whether the
+     *      leaf genuinely belongs to an anchored root is checked off-chain by the
+     *      verifier via a Merkle proof, so revoking an unknown hash is harmless.
+     */
+    function revokeLeaf(bytes32 _leafHash) external onlyAuthorizedIssuer {
+        require(!revokedLeaves[_leafHash], "Leaf already revoked");
+        revokedLeaves[_leafHash] = true;
+        emit LeafRevoked(_leafHash, msg.sender);
+    }
+
+    function isLeafRevoked(bytes32 _leafHash) external view returns (bool) {
+        return revokedLeaves[_leafHash];
     }
 }

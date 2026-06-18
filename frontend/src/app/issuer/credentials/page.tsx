@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { ApiError } from "@/lib/api";
+import { statusTxHash } from "@/lib/credential-tx";
 import { fetchCredentials, fetchMyInstitution } from "@/lib/issuer-api";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Credential, Institution } from "@/types/issuer";
@@ -220,19 +221,27 @@ export default function IssuerCredentialsPage() {
                   )}
                 </TD>
                 <TD>
-                  {c.blockchainTxHash ? (
-                    <a
-                      href={`https://amoy.polygonscan.com/tx/${c.blockchainTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[12px] font-mono text-fg-muted hover:text-navy transition-colors"
-                    >
-                      {shortHash(c.blockchainTxHash)}
-                      <ExternalLink size={11} />
-                    </a>
-                  ) : (
-                    <span className="text-fg-faint">—</span>
-                  )}
+                  {(() => {
+                    const { hash, isRevoke } = statusTxHash(c);
+                    return hash ? (
+                      <a
+                        href={`https://amoy.polygonscan.com/tx/${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={
+                          isRevoke
+                            ? t("issuer.credentials.txRevoke")
+                            : t("issuer.credentials.txIssue")
+                        }
+                        className="inline-flex items-center gap-1 text-[12px] font-mono text-fg-muted hover:text-navy transition-colors"
+                      >
+                        {shortHash(hash)}
+                        <ExternalLink size={11} />
+                      </a>
+                    ) : (
+                      <span className="text-fg-faint">—</span>
+                    );
+                  })()}
                 </TD>
                 <TD className="font-mono text-[12.5px] text-fg-subtle">
                   {new Date(c.issuedDate).toLocaleDateString()}

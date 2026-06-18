@@ -2,10 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
-import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
 import { CandidateSkill } from '../../database/entities/candidate-skill.entity';
 import { Credential } from '../../database/entities/credential.entity';
-import { CredentialStatus, TxStatus, TxType } from '../../database/enums';
+import { CredentialStatus } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
 import { BlockchainService } from './blockchain.service';
 
@@ -19,8 +18,6 @@ export class BlockchainReconciliationService {
     private readonly blockchain: BlockchainService,
     @InjectRepository(Credential)
     private readonly credRepo: Repository<Credential>,
-    @InjectRepository(BlockchainTransaction)
-    private readonly txRepo: Repository<BlockchainTransaction>,
     @InjectRepository(CandidateSkill)
     private readonly skillRepo: Repository<CandidateSkill>,
     private readonly embeddings: EmbeddingService,
@@ -59,100 +56,29 @@ export class BlockchainReconciliationService {
     }
   }
 
-  /**
-   * T1.3 — every 5 minutes, find credentials revoked in our DB whose on-chain
-   * revoke never landed (worker crash / permanently-failed tx). Verification
-   * already refuses to return VALID for these (DB-revoked guard), but the chain
-   * should still converge: re-queue the revoke when there is no active revoke tx.
-   */
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  async reconcileRevocations(): Promise<void> {
-    if (!this.blockchain.isReady()) return;
-
-    const revoked = await this.credRepo.find({
-      where: { status: CredentialStatus.REVOKED },
-      take: 100,
-    });
-
-    for (const credential of revoked) {
-      if (!credential.credentialHash) continue;
-      try {
-        const onChain = await this.blockchain.verifyCredentialOnChain(
-          credential.credentialHash,
-        );
-        // Already revoked on-chain (or never anchored) → nothing to converge.
-        if (!onChain.exists || onChain.isRevoked) continue;
-
-        // Reuse the original revoker; initiated_by is a non-null FK to users.
-        const lastRevoke = await this.txRepo.findOne({
-          where: {
-            credentialId: credential.id,
-            transactionType: TxType.REVOKE_CREDENTIAL,
-          },
-          order: { createdAt: 'DESC' },
-        });
-        if (!lastRevoke) continue; // no revoke tx to attribute / converge from
-        if (
-          [TxStatus.QUEUED, TxStatus.SUBMITTED, TxStatus.RETRYING].includes(
-            lastRevoke.status,
-          )
-        ) {
-          continue; // a revoke is already in flight
-        }
-
-        this.logger.warn(
-          `Revocation divergence for credential ${credential.id}: DB revoked but on-chain active — re-queueing revoke`,
-        );
-        await this.blockchain.revokeCredentialOnChain({
-          credentialId: credential.id,
-          initiatedBy: lastRevoke.initiatedBy,
-        });
-      } catch (err) {
-        this.logger.error(
-          `Revocation reconcile failed for credential ${credential.id}: ${(err as Error).message}`,
-        );
-      }
-    }
-  }
-
   private async reconcileOne(credential: Credential): Promise<void> {
-    if (!credential.credentialHash) return;
+    // Every credential is anchored as a Merkle batch; reconcile against the
+    // batch root + per-leaf revocation set (Option B).
+    if (!credential.merkleRoot || !credential.credentialHash) return;
 
-    const onChain = await this.blockchain.verifyCredentialOnChain(
+    const onChain = await this.blockchain.verifyBatchOnChain(
+      credential.merkleRoot,
+    );
+    if (!onChain.exists) return; // batch not anchored yet — nothing to converge
+
+    // The signed VC is assembled during anchorBatch. Without it the credential
+    // isn't really issued, so don't flip PENDING -> ISSUED prematurely.
+    if (!credential.vcJson) return;
+
+    const leafRevoked = await this.blockchain.isLeafRevokedOnChain(
       credential.credentialHash,
     );
-    if (!onChain.exists) return;
 
-    const provider = this.blockchain.getProvider();
-
-    const issueTx = await this.txRepo.findOne({
-      where: {
-        credentialId: credential.id,
-        transactionType: TxType.ISSUE_CREDENTIAL,
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (issueTx && issueTx.txHash && issueTx.status !== TxStatus.CONFIRMED) {
-      const receipt = await provider.getTransactionReceipt(issueTx.txHash);
-      if (receipt && receipt.status === 1) {
-        issueTx.status = TxStatus.CONFIRMED;
-        issueTx.blockNumber = receipt.blockNumber.toString();
-        issueTx.confirmedAt = new Date();
-        await this.txRepo.save(issueTx);
-      }
-    }
-
-    credential.status = onChain.isRevoked
-      ? CredentialStatus.REVOKED
-      : CredentialStatus.ISSUED;
+    credential.status =
+      onChain.isRevoked || leafRevoked
+        ? CredentialStatus.REVOKED
+        : CredentialStatus.ISSUED;
     credential.blockchainTimestamp = new Date(onChain.timestamp * 1000);
-    if (issueTx?.txHash && !credential.blockchainTxHash) {
-      credential.blockchainTxHash = issueTx.txHash;
-    }
-    if (issueTx?.blockNumber && !credential.blockchainBlockNumber) {
-      credential.blockchainBlockNumber = issueTx.blockNumber;
-    }
     await this.credRepo.save(credential);
 
     await this.skillRepo.update(

@@ -26,6 +26,7 @@ import {
   verifyCredential,
   type VerificationResult as VerifyApiResult,
 } from "@/lib/candidate-api";
+import { statusTxHash } from "@/lib/credential-tx";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { CandidateSkill } from "@/types/candidate";
@@ -184,19 +185,28 @@ export function CredentialDetailDrawer({ credential, skills, onClose }: Props) {
           <Row label={t("candidate.credentials.credentialId")} mono>
             {c.credentialNumber}
           </Row>
-          {c.blockchainTxHash && (
-            <Row label={t("candidate.credentials.transaction")}>
-              <a
-                href={`${EXPLORER}/${c.blockchainTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-mono text-[12.5px] text-navy hover:underline"
+          {(() => {
+            const { hash, isRevoke } = statusTxHash(c);
+            return hash ? (
+              <Row
+                label={
+                  isRevoke
+                    ? t("candidate.credentials.revokeTransaction")
+                    : t("candidate.credentials.transaction")
+                }
               >
-                {`${c.blockchainTxHash.slice(0, 10)}…${c.blockchainTxHash.slice(-8)}`}
-                <ExternalLink size={12} />
-              </a>
-            </Row>
-          )}
+                <a
+                  href={`${EXPLORER}/${hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-mono text-[12.5px] text-navy hover:underline"
+                >
+                  {`${hash.slice(0, 10)}…${hash.slice(-8)}`}
+                  <ExternalLink size={12} />
+                </a>
+              </Row>
+            ) : null;
+          })()}
         </dl>
 
         {/* Skills */}

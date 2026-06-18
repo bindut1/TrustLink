@@ -19,12 +19,17 @@ declare global {
 
 const REGISTRY_IFACE = new Interface([
   "function issueBatch(bytes32 _merkleRoot)",
+  "function revokeLeaf(bytes32 _leafHash)",
 ]);
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? "";
 const CHAIN_ID = Number(process.env.NEXT_PUBLIC_POLYGON_CHAIN_ID ?? "80002");
 const CHAIN_ID_HEX = "0x" + CHAIN_ID.toString(16); // 80002 -> 0x13882
 const ISSUE_BATCH_GAS = "0x" + (150000).toString(16); // ~90k needed, safe ceiling
+const REVOKE_LEAF_GAS = "0x" + (100000).toString(16); // ~50k needed, safe ceiling
+
+/** Whether on-chain anchoring/revocation is configured (contract address set). */
+export const ONCHAIN_ENABLED = Boolean(CONTRACT_ADDRESS);
 // Amoy enforces a minimum priority fee of 25 gwei; MetaMask often under-quotes
 // it, so we set EIP-1559 fees explicitly.
 const MAX_PRIORITY_FEE = "0x" + (30 * 1e9).toString(16); // 30 gwei tip
@@ -162,7 +167,41 @@ export async function anchorBatchOnChain(merkleRoot: string): Promise<string> {
     ],
   })) as string;
 
-  // Poll for the receipt ourselves (raw RPC) — robust against the flaky public RPC.
+  return waitForReceipt(txHash, "Giao dịch anchor");
+}
+
+/**
+ * Broadcast `revokeLeaf(leafHash)` from the issuer's own wallet (Option B,
+ * non-custodial — same model as issueBatch); returns the tx hash. The leaf hash
+ * is the credential's canonical content hash.
+ */
+export async function revokeLeafOnChain(leafHash: string): Promise<string> {
+  if (!CONTRACT_ADDRESS) {
+    throw new WalletError("NEXT_PUBLIC_CONTRACT_ADDRESS is not configured.");
+  }
+  await ensureChain();
+  const from = await getActiveAccount();
+  const data = REGISTRY_IFACE.encodeFunctionData("revokeLeaf", [leafHash]);
+
+  const txHash = (await eth().request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        from,
+        to: CONTRACT_ADDRESS,
+        data,
+        gas: REVOKE_LEAF_GAS,
+        maxPriorityFeePerGas: MAX_PRIORITY_FEE,
+        maxFeePerGas: MAX_FEE,
+      },
+    ],
+  })) as string;
+
+  return waitForReceipt(txHash, "Giao dịch thu hồi");
+}
+
+/** Poll for a tx receipt over raw RPC — robust against the flaky public RPC. */
+async function waitForReceipt(txHash: string, label: string): Promise<string> {
   for (let i = 0; i < 60; i++) {
     const receipt = (await eth().request({
       method: "eth_getTransactionReceipt",
@@ -170,9 +209,9 @@ export async function anchorBatchOnChain(merkleRoot: string): Promise<string> {
     })) as { status?: string } | null;
     if (receipt) {
       if (receipt.status === "0x1") return txHash;
-      throw new WalletError("Giao dịch anchor bị revert on-chain.");
+      throw new WalletError(`${label} bị revert on-chain.`);
     }
     await new Promise((res) => setTimeout(res, 2000));
   }
-  throw new WalletError("Hết thời gian chờ giao dịch anchor được xác nhận.");
+  throw new WalletError(`Hết thời gian chờ ${label.toLowerCase()} được xác nhận.`);
 }

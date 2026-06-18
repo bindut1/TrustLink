@@ -474,6 +474,7 @@ export const TRANSLATIONS = {
     "candidate.credentials.details": "Thông tin văn bằng",
     "candidate.credentials.credentialId": "Mã văn bằng",
     "candidate.credentials.transaction": "Giao dịch",
+    "candidate.credentials.revokeTransaction": "Giao dịch thu hồi",
     "candidate.credentials.verification": "Xác minh",
     "candidate.credentials.verifyHint": "Kiểm tra tính xác thực on-chain của văn bằng.",
     "candidate.credentials.notVerifiedYet": "Chưa kiểm tra",
@@ -581,6 +582,8 @@ export const TRANSLATIONS = {
     "issuer.credentials.colCredential": "Văn bằng",
     "issuer.credentials.colCandidate": "Ứng viên",
     "issuer.credentials.colTxHash": "Mã giao dịch",
+    "issuer.credentials.txIssue": "Giao dịch phát hành (issueBatch)",
+    "issuer.credentials.txRevoke": "Giao dịch thu hồi (revokeLeaf)",
     "issuer.credentials.colIssued": "Đã cấp",
     "issuer.credentials.revoke": "Thu hồi",
     "issuer.credentials.issueCta": "Cấp văn bằng",
@@ -700,13 +703,17 @@ export const TRANSLATIONS = {
     // ───────────── Modals — RevokeModal ─────────────
     "revoke.title": 'Thu hồi "{title}"?',
     "revoke.description":
-      "Văn bằng sẽ bị đánh dấu thu hồi và một giao dịch sẽ được đưa vào hàng đợi trên Polygon. Ứng viên sẽ thấy thay đổi ngay.",
+      "Bạn sẽ ký một giao dịch thu hồi (revokeLeaf) bằng ví của mình trên Polygon. Văn bằng bị đánh dấu thu hồi và ứng viên thấy thay đổi ngay.",
     "revoke.reason": "Lý do",
     "revoke.reasonPlaceholder": "VD: Cấp nhầm — trùng với CR-2026-0034.",
     "revoke.reasonHint":
       "Lý do này sẽ được lưu cùng văn bằng và ứng viên có thể thấy.",
     "revoke.submit": "Thu hồi văn bằng",
     "revoke.failed": "Thu hồi thất bại",
+    "revoke.onchainHint":
+      "Cần ký bằng ví MetaMask của tổ chức để thu hồi trên chuỗi.",
+    "revoke.noHash":
+      "Văn bằng này chưa có hash on-chain nên không thể thu hồi trên chuỗi.",
 
     // ───────────── Modals — UserActionsModal ─────────────
     "userActions.title": "Tuỳ chỉnh quyền",
@@ -1170,6 +1177,8 @@ export const TRANSLATIONS = {
     "publicVerify.failedCheck": "✗ Không đạt",
     "publicVerify.blockchainProof": "Bằng chứng blockchain",
     "publicVerify.block": "Block",
+    "publicVerify.txIssue": "Tx phát hành",
+    "publicVerify.txRevoke": "Tx thu hồi",
     "publicVerify.footer": "Xác minh bởi TrustLink • Được hỗ trợ bởi Polygon",
     "publicVerify.unableToVerify": "Không thể xác minh văn bằng",
 
@@ -1838,6 +1847,7 @@ export const TRANSLATIONS = {
     "candidate.credentials.details": "Credential details",
     "candidate.credentials.credentialId": "Credential ID",
     "candidate.credentials.transaction": "Transaction",
+    "candidate.credentials.revokeTransaction": "Revocation transaction",
     "candidate.credentials.verification": "Verification",
     "candidate.credentials.verifyHint": "Run an on-chain authenticity check for this credential.",
     "candidate.credentials.notVerifiedYet": "Not checked yet",
@@ -1944,6 +1954,8 @@ export const TRANSLATIONS = {
     "issuer.credentials.colCredential": "Credential",
     "issuer.credentials.colCandidate": "Candidate",
     "issuer.credentials.colTxHash": "Tx hash",
+    "issuer.credentials.txIssue": "Issuance transaction (issueBatch)",
+    "issuer.credentials.txRevoke": "Revocation transaction (revokeLeaf)",
     "issuer.credentials.colIssued": "Issued",
     "issuer.credentials.revoke": "Revoke",
     "issuer.credentials.issueCta": "Issue credential",
@@ -2058,6 +2070,10 @@ export const TRANSLATIONS = {
     "expLevel.lead": "Lead",
 
     // RevokeModal
+    "revoke.onchainHint":
+      "Requires signing with your institution's MetaMask wallet to revoke on-chain.",
+    "revoke.noHash":
+      "This credential has no on-chain hash, so it cannot be revoked on-chain.",
     "revoke.title": 'Revoke "{title}"?',
     "revoke.description":
       "The credential will be marked revoked and a revocation transaction will be queued on Polygon. The candidate will see this status change immediately.",
@@ -2528,6 +2544,8 @@ export const TRANSLATIONS = {
     "publicVerify.failedCheck": "✗ Failed",
     "publicVerify.blockchainProof": "Blockchain proof",
     "publicVerify.block": "Block",
+    "publicVerify.txIssue": "Issuance tx",
+    "publicVerify.txRevoke": "Revocation tx",
     "publicVerify.footer": "Verified by TrustLink • Powered by Polygon",
     "publicVerify.unableToVerify": "Unable to verify credential",
 

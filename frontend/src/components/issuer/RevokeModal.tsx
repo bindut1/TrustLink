@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { revokeCredential } from "@/lib/issuer-api";
+import { ONCHAIN_ENABLED, connectWallet, revokeLeafOnChain } from "@/lib/web3";
 import type { Credential } from "@/types/issuer";
 
 type RevokeModalProps = {
@@ -29,7 +30,17 @@ export function RevokeModal({
     setSubmitting(true);
     setError(null);
     try {
-      await revokeCredential(credential.id, reason.trim());
+      // Option B — the issuer signs revokeLeaf(leafHash) with their own wallet
+      // (non-custodial). When the chain isn't configured we revoke off-chain only.
+      let txHash: string | undefined;
+      if (ONCHAIN_ENABLED) {
+        if (!credential.credentialHash) {
+          throw new Error(t("revoke.noHash"));
+        }
+        await connectWallet();
+        txHash = await revokeLeafOnChain(credential.credentialHash);
+      }
+      await revokeCredential(credential.id, reason.trim(), txHash);
       onRevoked(credential.id);
       setReason("");
       onClose();
@@ -67,6 +78,11 @@ export function RevokeModal({
       {error && (
         <Alert variant="error" className="mb-3">
           {error}
+        </Alert>
+      )}
+      {ONCHAIN_ENABLED && (
+        <Alert variant="info" className="mb-3">
+          {t("revoke.onchainHint")}
         </Alert>
       )}
       <label className="text-[14px] font-medium text-fg mb-2 block">

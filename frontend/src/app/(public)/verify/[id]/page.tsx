@@ -10,6 +10,7 @@ import {
 import { ShareCredential } from "@/components/verify/ShareCredential";
 import { VcOfflineVerifyNote } from "@/components/verify/VcOfflineVerifyNote";
 import { ApiError, apiRequest } from "@/lib/api";
+import { statusTxHash } from "@/lib/credential-tx";
 import { downloadPublicVc } from "@/lib/vc-download";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
@@ -30,6 +31,7 @@ type PublicVerifyResponse = {
     candidate: { fullName: string } | null;
     credentialType: { name: string; category: string } | null;
     blockchainTxHash: string | null;
+    revokeTxHash: string | null;
     blockchainBlockNumber: number | null;
     issuerDid: string | null;
   };
@@ -157,7 +159,9 @@ export default function PublicVerifyPage({
           <VerificationResult outcome={verification} />
         </div>
 
-        {credential.blockchainTxHash && (
+        {(() => {
+          const { hash: txHash, isRevoke } = statusTxHash(credential);
+          return txHash && (
           <div className="mt-6 border-t border-border pt-6">
             <h2 className="text-sm font-semibold text-fg">
               {t("publicVerify.blockchainProof")}
@@ -169,23 +173,24 @@ export default function PublicVerifyPage({
               </p>
             )}
             <p className="mt-2 break-all font-mono text-xs text-fg-muted">
-              Tx:{" "}
+              {isRevoke ? t("publicVerify.txRevoke") : t("publicVerify.txIssue")}:{" "}
               <a
-                href={`https://amoy.polygonscan.com/tx/${credential.blockchainTxHash}`}
+                href={`https://amoy.polygonscan.com/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-navy hover:underline"
               >
-                {credential.blockchainTxHash}
+                {txHash}
               </a>
             </p>
-            {credential.blockchainBlockNumber && (
+            {!isRevoke && credential.blockchainBlockNumber && (
               <p className="mt-1 font-mono text-xs text-fg-muted">
                 {t("publicVerify.block")}: {credential.blockchainBlockNumber}
               </p>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {canDownload && (
           <div className="mt-6 border-t border-border pt-6">

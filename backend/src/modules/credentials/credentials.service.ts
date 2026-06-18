@@ -611,19 +611,41 @@ export class CredentialsService {
       throw new BadRequestException('Credential is already revoked');
     }
 
+    const leafHash =
+      credential.credentialHash ??
+      this.blockchain.computeCredentialHash(credential);
+
+    // Option B — per-leaf revocation, signed by the issuer's own wallet
+    // (non-custodial, mirroring issueBatch). The frontend broadcast
+    // `revokeLeaf(leafHash)` and waited for the receipt, then sent us the tx
+    // hash. We confirm it actually landed on-chain BEFORE flipping any DB state,
+    // so the ledger and our records never diverge. Skipped when the chain isn't
+    // configured (dev) — the StatusList2021 bit still enforces revocation.
+    if (this.blockchain.isReady()) {
+      if (!dto.txHash) {
+        throw new BadRequestException(
+          'Missing on-chain revoke transaction hash (revokeLeaf must be signed by the issuer wallet)',
+        );
+      }
+      await this.blockchain.recordLeafRevocation({
+        credentialId: credential.id,
+        institutionId: credential.institutionId,
+        initiatedBy: issuerUserId,
+        leafHash,
+        txHash: dto.txHash,
+      });
+    }
+
     credential.status = CredentialStatus.REVOKED;
     credential.revokedAt = new Date();
     credential.revocationReason = dto.reason;
+    // Record the revoke tx so the UI can show the hash matching the new status.
+    if (dto.txHash) credential.revokeTxHash = dto.txHash;
     const saved = await this.credRepo.save(credential);
 
-    // Flip the StatusList2021 bit immediately so verification reflects the
-    // revocation even before the on-chain batch revoke (if any) lands.
+    // Flip the StatusList2021 bit so off-chain / W3C verifiers reflect the
+    // revocation too (herd-privacy revocation list alongside the on-chain leaf).
     await this.statusList.revokeByCredential(saved.id);
-
-    await this.blockchain.revokeCredentialOnChain({
-      credentialId: saved.id,
-      initiatedBy: issuerUserId,
-    });
 
     if (saved.candidateId) {
       await this.notifications.create({
@@ -810,20 +832,32 @@ export class CredentialsService {
     let onChainRevoked = false;
     let onChainExists = false;
     try {
-      const onChain = isBatch
-        ? await this.blockchain.verifyBatchOnChain(credential.merkleRoot!)
-        : await this.blockchain.verifyCredentialOnChain(recomputedHash);
-      onChainExists = onChain.exists;
-      onChainIssuer = onChain.issuer;
-      onChainRevoked = onChain.isRevoked;
-      onChainVerified = onChain.exists && !onChain.isRevoked;
-      details.onChain = {
-        mode: isBatch ? 'batch' : 'direct',
-        exists: onChain.exists,
-        issuer: onChain.issuer,
-        timestamp: onChain.timestamp,
-        isRevoked: onChain.isRevoked,
-      };
+      if (!isBatch) {
+        // Single-credential on-chain anchoring was removed (Option B): every
+        // credential is anchored as a Merkle batch. A credential with no root is
+        // not anchored on-chain, so it cannot be on-chain verified.
+        details.onChain = { mode: 'none', exists: false };
+      } else {
+        const onChain = await this.blockchain.verifyBatchOnChain(
+          credential.merkleRoot!,
+        );
+        // Per-leaf revocation (Option B): an individual credential can be revoked
+        // without revoking the whole batch root. Either kind of revoke counts.
+        const leafRevoked =
+          await this.blockchain.isLeafRevokedOnChain(recomputedHash);
+        onChainExists = onChain.exists;
+        onChainIssuer = onChain.issuer;
+        onChainRevoked = onChain.isRevoked || leafRevoked;
+        onChainVerified = onChain.exists && !onChainRevoked;
+        details.onChain = {
+          mode: 'batch',
+          exists: onChain.exists,
+          issuer: onChain.issuer,
+          timestamp: onChain.timestamp,
+          isRevoked: onChain.isRevoked,
+          leafRevoked,
+        };
+      }
     } catch (err) {
       // T1.4 — infrastructure failure (RPC down) is ERROR, distinct from a
       // data-level INVALID. Callers/UI must surface "cannot verify right now"

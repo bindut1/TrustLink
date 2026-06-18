@@ -140,10 +140,11 @@ export function fetchCredentials(filter?: {
 export async function revokeCredential(
   id: string,
   reason: string,
+  txHash?: string,
 ): Promise<void> {
   await apiRequest(`/credentials/${id}/revoke`, {
     method: "POST",
-    body: { reason },
+    body: txHash ? { reason, txHash } : { reason },
     ...authOpts(),
   });
 }

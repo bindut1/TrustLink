@@ -107,6 +107,7 @@ export type Credential = {
   status: CredentialStatus;
   credentialHash?: string | null;
   blockchainTxHash?: string | null;
+  revokeTxHash?: string | null;
   blockchainBlockNumber?: number | string | null;
   revokedAt?: string | null;
   revocationReason?: string | null;

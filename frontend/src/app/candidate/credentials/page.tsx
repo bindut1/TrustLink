@@ -16,6 +16,7 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { cn } from "@/lib/cn";
 import { ApiError } from "@/lib/api";
 import { fetchMyCredentials, fetchMySkills } from "@/lib/candidate-api";
+import { statusTxHash } from "@/lib/credential-tx";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { CandidateSkill } from "@/types/candidate";
@@ -174,7 +175,7 @@ function CredentialCard({
   const Icon = categoryIcon(c.credentialType?.category);
   const pill = credentialPill(c);
   const tags = skills.filter((s) => s.sourceCredentialId === c.id).slice(0, 4);
-  const hash = c.blockchainTxHash ?? c.credentialHash;
+  const hash = statusTxHash(c).hash ?? c.credentialHash;
 
   return (
     <article

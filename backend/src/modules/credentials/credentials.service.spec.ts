@@ -41,9 +41,9 @@ function makeMocks() {
     isReady: jest.fn(() => false),
     isIssuerAuthorized: jest.fn(() => Promise.resolve(false)),
     addIssuerOnChain: jest.fn(() => Promise.resolve(undefined)),
-    revokeCredentialOnChain: jest.fn(() => Promise.resolve(undefined)),
+    recordLeafRevocation: jest.fn(() => Promise.resolve(undefined)),
     computeCredentialHash: jest.fn(() => '0x' + '11'.repeat(32)),
-    verifyCredentialOnChain: jest.fn(),
+    isLeafRevokedOnChain: jest.fn(() => Promise.resolve(false)),
     verifyBatchOnChain: jest.fn(),
   };
   const vcService = {
@@ -445,7 +445,7 @@ describe('CredentialsService.revoke', () => {
     ).rejects.toThrow('Credential is already revoked');
   });
 
-  it('revokes: status list bit, on-chain revoke, notification and audit', async () => {
+  it('revokes off-chain (chain not configured): status list bit, notification and audit', async () => {
     const m = makeMocks();
     const cred = issuedCredential();
     m.credRepo.findOne.mockResolvedValue(cred as never);
@@ -458,9 +458,8 @@ describe('CredentialsService.revoke', () => {
     expect(saved.status).toBe(CredentialStatus.REVOKED);
     expect(saved.revocationReason).toBe('data entry error');
     expect(m.statusList.revokeByCredential).toHaveBeenCalledWith('cred-1');
-    expect(m.blockchain.revokeCredentialOnChain).toHaveBeenCalledWith(
-      expect.objectContaining({ credentialId: 'cred-1' }),
-    );
+    // isReady() is false in dev mock → no on-chain leaf-revoke recorded.
+    expect(m.blockchain.recordLeafRevocation).not.toHaveBeenCalled();
     expect(m.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'cand-1',
@@ -471,6 +470,37 @@ describe('CredentialsService.revoke', () => {
     expect(m.auditLogs.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'credential.revoke' }),
     );
+  });
+
+  it('records the issuer-signed revokeLeaf when the chain is configured', async () => {
+    const m = makeMocks();
+    m.blockchain.isReady.mockReturnValue(true);
+    m.credRepo.findOne.mockResolvedValue(issuedCredential() as never);
+    m.institutionRepo.findOne.mockResolvedValue(institution() as never);
+
+    const txHash = '0x' + 'ab'.repeat(32);
+    const saved = await m.service.revoke('cred-1', 'issuer-1', {
+      reason: 'fraud',
+      txHash,
+    });
+
+    expect(saved.status).toBe(CredentialStatus.REVOKED);
+    expect(m.blockchain.recordLeafRevocation).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialId: 'cred-1', txHash }),
+    );
+    expect(m.statusList.revokeByCredential).toHaveBeenCalledWith('cred-1');
+  });
+
+  it('rejects revoke without a txHash when the chain is configured', async () => {
+    const m = makeMocks();
+    m.blockchain.isReady.mockReturnValue(true);
+    m.credRepo.findOne.mockResolvedValue(issuedCredential() as never);
+    m.institutionRepo.findOne.mockResolvedValue(institution() as never);
+
+    await expect(
+      m.service.revoke('cred-1', 'issuer-1', { reason: 'fraud' }),
+    ).rejects.toThrow('Missing on-chain revoke transaction hash');
+    expect(m.blockchain.recordLeafRevocation).not.toHaveBeenCalled();
   });
 
   it('skips the notification when the credential has no candidate', async () => {
@@ -580,13 +610,16 @@ describe('CredentialsService.getVc', () => {
 describe('CredentialsService.verify', () => {
   const STORED_HASH = '0x' + '11'.repeat(32);
 
-  // Non-batch credential with an EIP-712 VC — the simplest full path.
+  // A single-credential batch (root == leaf == STORED_HASH, empty proof) with a
+  // per-credential EIP-712 VC — the simplest full path now that every credential
+  // is Merkle-anchored.
   function directCredential(overrides: Record<string, unknown> = {}) {
     return {
       id: 'cred-1',
       credentialHash: STORED_HASH,
-      merkleRoot: null,
-      merkleProof: null,
+      merkleRoot: STORED_HASH,
+      merkleProof: [],
+      leafIndex: 0,
       status: CredentialStatus.ISSUED,
       vcJson: { proof: { type: 'EthereumEip712Signature2021' } },
       ...overrides,
@@ -600,12 +633,13 @@ describe('CredentialsService.verify', () => {
       signerAddress: ADDRESS.toLowerCase(),
       issuerDid: `did:ethr:polygon:${ADDRESS.toLowerCase()}`,
     } as never);
-    m.blockchain.verifyCredentialOnChain.mockResolvedValue({
+    m.blockchain.verifyBatchOnChain.mockResolvedValue({
       exists: true,
       issuer: ADDRESS,
       timestamp: 1700000000,
       isRevoked: false,
     } as never);
+    m.blockchain.isLeafRevokedOnChain.mockResolvedValue(false as never);
     m.blockchain.isIssuerAuthorized.mockResolvedValue(true);
   }
 
@@ -673,7 +707,7 @@ describe('CredentialsService.verify', () => {
     const m = makeMocks();
     m.credRepo.findOne.mockResolvedValue(directCredential() as never);
     happyChain(m);
-    m.blockchain.verifyCredentialOnChain.mockRejectedValue(
+    m.blockchain.verifyBatchOnChain.mockRejectedValue(
       new Error('RPC timeout'),
     );
 
@@ -683,11 +717,11 @@ describe('CredentialsService.verify', () => {
     expect(outcome.details.onChainError).toBe('RPC timeout');
   });
 
-  it('returns NOT_FOUND when the hash is not anchored on-chain', async () => {
+  it('returns NOT_FOUND when the batch root is not anchored on-chain', async () => {
     const m = makeMocks();
     m.credRepo.findOne.mockResolvedValue(directCredential() as never);
     happyChain(m);
-    m.blockchain.verifyCredentialOnChain.mockResolvedValue({
+    m.blockchain.verifyBatchOnChain.mockResolvedValue({
       exists: false,
       issuer: '0x0',
       timestamp: 0,
@@ -696,6 +730,20 @@ describe('CredentialsService.verify', () => {
 
     const outcome = await m.service.verify('cred-1');
     expect(outcome.result).toBe(VerificationResult.NOT_FOUND);
+  });
+
+  it('returns REVOKED when the leaf is individually revoked on-chain (Option B)', async () => {
+    const m = makeMocks();
+    m.credRepo.findOne.mockResolvedValue(directCredential() as never);
+    happyChain(m);
+    m.blockchain.isLeafRevokedOnChain.mockResolvedValue(true as never);
+
+    const outcome = await m.service.verify('cred-1');
+
+    expect(outcome.result).toBe(VerificationResult.REVOKED);
+    expect(
+      (outcome.details.onChain as { leafRevoked: boolean }).leafRevoked,
+    ).toBe(true);
   });
 
   it('returns REVOKED when revoked in the DB even if on-chain says active', async () => {
