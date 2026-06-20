@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/opt/hf-cache \
     SENTENCE_TRANSFORMERS_HOME=/opt/hf-cache \
-    AI_MODEL_NAME=paraphrase-multilingual-MiniLM-L12-v2
+    AI_MODEL_NAME=intfloat/multilingual-e5-small
 
 WORKDIR /app
 

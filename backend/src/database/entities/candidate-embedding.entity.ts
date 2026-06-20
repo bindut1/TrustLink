@@ -49,7 +49,7 @@ export class CandidateEmbedding {
     name: 'model_version',
     type: 'varchar',
     length: 100,
-    default: 'paraphrase-multilingual-MiniLM-L12-v2',
+    default: 'intfloat/multilingual-e5-small',
   })
   modelVersion: string;
 

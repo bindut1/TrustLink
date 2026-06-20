@@ -26,14 +26,6 @@ export class AiClientService {
     return data.embedding;
   }
 
-  async encodeBatch(texts: string[]): Promise<number[][]> {
-    if (texts.length === 0) return [];
-    const data = await this.post<{ embeddings: number[][] }>('/encode-batch', {
-      texts,
-    });
-    return data.embeddings;
-  }
-
   private async post<T>(path: string, body: unknown): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);

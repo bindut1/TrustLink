@@ -21,7 +21,7 @@ Matching scores are calculated based on blockchain-verified achievements, not se
 | Frontend | Next.js + Tailwind |
 | Database | PostgreSQL + pgvector |
 | Blockchain | Solidity + Polygon Amoy |
-| AI Service | Python FastAPI + all-MiniLM-L6-v2 |
+| AI Service | Python FastAPI + intfloat/multilingual-e5-small |
 | Queue | Bull + Redis |
 | DevOps | Docker Compose |
 
@@ -47,11 +47,15 @@ TrustLink/
 
 ## AI Matching (3-Tier)
 
-| Tier | Weight | Method |
+Weights are learned by Logistic Regression on the gold-labelled set
+(`ai-service/evaluation/train_weights.py` → `backend/config/match-weights.json`),
+not hand-set — so they shift when the embedding model or dataset changes.
+
+| Tier | Weight (learned) | Method |
 |------|--------|--------|
-| Keyword | 40% | SQL array overlap (required_skills vs candidate_skills) |
-| Semantic | 50% | pgvector cosine similarity (384-dim embeddings) |
-| Verified Bonus | 10% | % of blockchain-verified skills |
+| Keyword | 13% | SQL array overlap (required_skills vs candidate_skills) |
+| Semantic | 27% | pgvector cosine similarity (384-dim `intfloat/multilingual-e5-small`), normalized per query pool |
+| Verified Bonus | 60% | % of blockchain-verified skills |
 
 ## Getting Started
 

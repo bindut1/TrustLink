@@ -1,12 +1,14 @@
 /**
- * Export the full 3-tier score breakdown for EVERY (job, candidate) pair into
- * a JSON file consumed by the Python evaluation harness (ai-service/evaluation).
+ * Export the 3-tier score breakdown for each job's prefilter pool into a JSON
+ * file consumed by the Python evaluation harness (ai-service/evaluation).
  *
- * Unlike the recommendation endpoints, this scores ALL candidates per job (no
- * pgvector prefilter) so the ranking metrics (P@K, Recall@K, NDCG, MRR) see the
- * complete candidate set. The raw per-tier scores (0–100) are exported WITHOUT
- * applying any weights — weighting is the job of the Python side, so the same
- * dump can be re-ranked under baseline vs learned weights.
+ * Scores each job's pgvector prefilter pool (the same candidates the
+ * recommendation endpoint reranks) so the semantic tier is normalized per-job
+ * identically to runtime, and the ranking metrics (P@K, Recall@K, NDCG, MRR)
+ * reflect the real end-to-end pipeline (prefilter + rerank). The raw per-tier
+ * scores (0–100) are exported WITHOUT applying any weights — weighting is the
+ * job of the Python side, so the same dump can be re-ranked under baseline vs
+ * learned weights.
  *
  * The semantic tier needs embeddings to exist. The fresh seed does not build
  * them, so pass --build-embeddings to backfill candidate & job embeddings first
@@ -73,15 +75,22 @@ async function run() {
       console.log('  embeddings built.');
     }
 
+    // Score per JOB over the SAME prefilter pool the recommendation endpoint
+    // reranks, so the per-job semantic normalization is identical between this
+    // training export and runtime serving. In the seed (#candidates < prefilter
+    // limit) the pool is every candidate; at scale it correctly caps recall at
+    // the prefilter — exactly as production does.
+    const emailById = new Map(candidates.map((c) => [c.id, c.email]));
     const rows: ScoreRow[] = [];
     for (const job of jobs) {
-      for (const cand of candidates) {
-        const s = await matchingService.calculateScore(cand.id, job.id);
+      const poolIds = await matchingService.prefilterCandidatesForJob(job.id);
+      const scored = await matchingService.scoreCandidatesForJob(job.id, poolIds);
+      for (const s of scored) {
         rows.push({
           jobId: job.id,
           jobTitle: job.title,
-          candidateId: cand.id,
-          candidateEmail: cand.email,
+          candidateId: s.candidateId,
+          candidateEmail: emailById.get(s.candidateId) ?? '',
           keywordScore: s.keywordScore,
           semanticScore: s.semanticScore,
           verifiedBonus: s.verifiedBonus,

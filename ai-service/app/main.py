@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
 
 from .config import settings
-from .routes import embedding, matching, health
+from .routes import embedding, health
 
 ml_model: SentenceTransformer | None = None
 
@@ -15,6 +15,9 @@ async def lifespan(app: FastAPI):
     global ml_model
     print(f"Loading model: {settings.model_name}")
     ml_model = SentenceTransformer(settings.model_name)
+    # e5-small supports 512 tokens; set explicitly so long CV/JD text is not
+    # silently truncated (the previous MiniLM model capped at 128).
+    ml_model.max_seq_length = 512
     app.state.model = ml_model
     print("Model loaded successfully")
     yield
@@ -37,4 +40,3 @@ app.add_middleware(
 
 app.include_router(health.router, tags=["health"])
 app.include_router(embedding.router, tags=["embeddings"])
-app.include_router(matching.router, prefix="/api/v1", tags=["matching"])

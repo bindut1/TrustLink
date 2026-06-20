@@ -7,6 +7,32 @@ import { User } from '../../database/entities/user.entity';
 import { MatchingWeightsService } from './matching-weights.service';
 
 /**
+ * ABSOLUTE fallback for the semantic tier. The e5 model packs cosine
+ * similarities into a narrow high band (empirically ~[0.85, 0.96] on this
+ * corpus): every pair scores ~0.85+, so a raw (1 - distance) * 100 sits in
+ * [85, 96] and barely separates candidates. Stretching that band onto 0–100
+ * gives the tier some dynamic range.
+ *
+ * NOTE: the PRIMARY path is per-pool normalization (see
+ * computeNormalizedSemanticScores) — that is what the ranking endpoints and the
+ * eval export use. This fixed-band rescale is only reached for single-pair
+ * scoring (no pool to normalize against, e.g. recommendLearningPath /
+ * application scoring) and for degenerate pools with no spread.
+ *
+ * Bounds are corpus-derived (≈ the observed min/max of similarities). Revisit
+ * them if the embedding model or the candidate/job text mix changes materially.
+ */
+const SEMANTIC_COSINE_FLOOR = 0.85;
+const SEMANTIC_COSINE_CEIL = 0.96;
+
+function rescaleSemantic(cosine: number): number {
+  const stretched =
+    (cosine - SEMANTIC_COSINE_FLOOR) /
+    (SEMANTIC_COSINE_CEIL - SEMANTIC_COSINE_FLOOR);
+  return Math.max(0, Math.min(1, stretched)) * 100;
+}
+
+/**
  * Why a candidate matches a job, expressed through the trust signal: which
  * required skills are proven on-chain vs only self-declared vs missing. This is
  * the core of the "trust-aware matching" thesis — the verification status IS the
@@ -89,13 +115,20 @@ export class MatchingService {
   async calculateScore(
     candidateId: string,
     jobId: string,
+    // When ranking a pool (recommend / eval export) the semantic score is
+    // normalized PER QUERY across that pool — see computeNormalizedSemanticScores
+    // — and passed in here. Single-pair callers omit it and fall back to the
+    // absolute fixed-band rescale, which is fine since they don't rank by it.
+    precomputedSemanticScore?: number,
   ): Promise<ScoreBreakdown> {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
 
     const [skillBreakdown, semanticScore] = await Promise.all([
       this.computeSkillTiers(candidateId, job.requiredSkills),
-      this.computeSemanticScore(candidateId, jobId),
+      precomputedSemanticScore !== undefined
+        ? Promise.resolve(precomputedSemanticScore)
+        : this.computeSemanticScore(candidateId, jobId),
     ]);
     const { keywordScore, verifiedBonus, explanation } = skillBreakdown;
     const w = this.weights.get();
@@ -120,6 +153,131 @@ export class MatchingService {
       verifiedBonus: round(verifiedBonus),
       explanation,
     };
+  }
+
+  /**
+   * Score a fixed candidate list against one job, with the semantic tier
+   * normalized PER JOB across that list. Shared by recommendCandidatesForJob
+   * (prefiltered pool) and the eval export (all candidates) so ranking and
+   * training see exactly the same semantic definition.
+   */
+  async scoreCandidatesForJob(
+    jobId: string,
+    candidateIds: string[],
+  ): Promise<ScoreBreakdown[]> {
+    const semMap = await this.computeNormalizedSemanticScores(
+      'job',
+      jobId,
+      candidateIds,
+    );
+    return Promise.all(
+      candidateIds.map((cid) =>
+        this.calculateScore(cid, jobId, semMap.get(cid)),
+      ),
+    );
+  }
+
+  /**
+   * Tier-2 semantic prefilter: the most-similar candidates a job's
+   * recommendation reranks (caps the rerank cost and acts as the recall gate).
+   * `is_open_to_work` is enforced here at the query level so hidden candidates
+   * never reach scoring. Exposed (not inlined) so the eval export scores EXACTLY
+   * the pool production would consider — keeping the per-job semantic
+   * normalization identical between training and serving.
+   */
+  async prefilterCandidatesForJob(
+    jobId: string,
+    limit = 20,
+  ): Promise<string[]> {
+    const prefilterLimit = Math.max(limit * 5, 100);
+    const rows = await this.dataSource.query<{ candidate_id: string }[]>(
+      `SELECT ce.candidate_id
+       FROM candidate_embeddings ce
+       JOIN job_embeddings je ON je.job_id = $1
+       JOIN users u ON u.id = ce.candidate_id
+       JOIN candidate_profiles cp ON cp.user_id = ce.candidate_id
+       WHERE u.status = 'active' AND u.role = 'candidate'
+         AND cp.is_open_to_work = TRUE
+       ORDER BY ce.embedding <=> je.embedding ASC
+       LIMIT $2`,
+      [jobId, prefilterLimit],
+    );
+    return rows.map((r) => r.candidate_id);
+  }
+
+  /** Symmetric counterpart: score a job list for one candidate, semantic tier
+   * normalized per candidate across that list. */
+  async scoreJobsForCandidate(
+    candidateId: string,
+    jobIds: string[],
+  ): Promise<ScoreBreakdown[]> {
+    const semMap = await this.computeNormalizedSemanticScores(
+      'candidate',
+      candidateId,
+      jobIds,
+    );
+    return Promise.all(
+      jobIds.map((jid) => this.calculateScore(candidateId, jid, semMap.get(jid))),
+    );
+  }
+
+  /**
+   * Per-query semantic normalization. e5's cosine similarities sit in a narrow
+   * high band (anisotropy of a retrieval-tuned model), so absolute (1-distance)
+   * scores barely separate candidates and the semantic tier loses its weight in
+   * the linear re-rank. Min-max normalizing the cosines WITHIN the pool being
+   * ranked, relative to one fixed anchor, stretches them onto 0–100 so the tier
+   * carries real ranking signal. The score is therefore RELATIVE to the pool:
+   * 100 = best match among those ranked, 0 = weakest. This matches the eval
+   * export (which normalizes per job over all candidates), so the learned weight
+   * transfers. A degenerate pool (all near-identical) falls back to the absolute
+   * fixed-band rescale instead of dividing by ~0.
+   *
+   *   anchor='job'       -> rank candidates (poolIds) for one job (anchorId)
+   *   anchor='candidate' -> rank jobs (poolIds) for one candidate (anchorId)
+   */
+  private async computeNormalizedSemanticScores(
+    anchor: 'job' | 'candidate',
+    anchorId: string,
+    poolIds: string[],
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (poolIds.length === 0) return result;
+
+    const sql =
+      anchor === 'job'
+        ? `SELECT ce.candidate_id::text AS id,
+                  (1 - (ce.embedding <=> je.embedding))::float8 AS sim
+           FROM candidate_embeddings ce
+           JOIN job_embeddings je ON je.job_id = $1
+           WHERE ce.candidate_id::text = ANY($2::text[])`
+        : `SELECT je.job_id::text AS id,
+                  (1 - (ce.embedding <=> je.embedding))::float8 AS sim
+           FROM job_embeddings je
+           JOIN candidate_embeddings ce ON ce.candidate_id = $1
+           WHERE je.job_id::text = ANY($2::text[])`;
+
+    const rows = await this.dataSource.query<{ id: string; sim: string }[]>(
+      sql,
+      [anchorId, poolIds],
+    );
+
+    const sims = rows
+      .map((r) => ({ id: r.id, sim: parseFloat(r.sim) }))
+      .filter((r) => Number.isFinite(r.sim));
+    if (sims.length === 0) return result;
+
+    const values = sims.map((s) => s.sim);
+    const min = Math.min(...values);
+    const range = Math.max(...values) - min;
+
+    for (const { id, sim } of sims) {
+      result.set(
+        id,
+        range > 1e-6 ? ((sim - min) / range) * 100 : rescaleSemantic(sim),
+      );
+    }
+    return result;
   }
 
   /**
@@ -198,31 +356,10 @@ export class MatchingService {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
 
-    // Tier-2 prefilter: pick the most semantically-similar candidates first,
-    // then full-rerank with all 3 tiers. Avoids scoring 10k candidates per
-    // request when only 20 will be shown.
-    const prefilterLimit = Math.max(limit * 5, 100);
-    // is_open_to_work = candidates can hide themselves from recruiters; they
-    // must drop out of recommendations at the query level, not in the UI.
-    const rows = await this.dataSource.query<{ candidate_id: string }[]>(
-      `SELECT ce.candidate_id
-       FROM candidate_embeddings ce
-       JOIN job_embeddings je ON je.job_id = $1
-       JOIN users u ON u.id = ce.candidate_id
-       JOIN candidate_profiles cp ON cp.user_id = ce.candidate_id
-       WHERE u.status = 'active' AND u.role = 'candidate'
-         AND cp.is_open_to_work = TRUE
-       ORDER BY ce.embedding <=> je.embedding ASC
-       LIMIT $2`,
-      [jobId, prefilterLimit],
-    );
+    const candidateIds = await this.prefilterCandidatesForJob(jobId, limit);
+    if (candidateIds.length === 0) return [];
 
-    if (rows.length === 0) return [];
-
-    const candidateIds = rows.map((r) => r.candidate_id);
-    const scored = await Promise.all(
-      candidateIds.map((cid) => this.calculateScore(cid, jobId)),
-    );
+    const scored = await this.scoreCandidatesForJob(jobId, candidateIds);
 
     const users = await this.userRepo.find({
       where: { id: In(candidateIds) },
@@ -289,9 +426,7 @@ export class MatchingService {
     if (rows.length === 0) return [];
 
     const jobIds = rows.map((r) => r.job_id);
-    const scored = await Promise.all(
-      jobIds.map((jid) => this.calculateScore(candidateId, jid)),
-    );
+    const scored = await this.scoreJobsForCandidate(candidateId, jobIds);
 
     const jobs = await this.jobRepo.findBy({ id: In(jobIds) });
     const jobMap = new Map(jobs.map((j) => [j.id, j]));
@@ -410,10 +545,11 @@ export class MatchingService {
     if (rows.length === 0) return 0;
     const sim = parseFloat(rows[0].similarity);
     if (!Number.isFinite(sim)) return 0;
-    // Clamp to [0,1] — cosine is technically [-1,1] but for sentence embeddings
-    // negative similarity is rare and meaningless for ranking.
-    const clamped = Math.max(0, Math.min(1, sim));
-    return clamped * 100;
+    // Stretch the narrow e5 cosine band onto 0–100 so the tier carries real
+    // dynamic range (see SEMANTIC_COSINE_FLOOR/CEIL above). Note: this is a
+    // monotonic transform, so it does NOT change the pgvector prefilter ordering
+    // (retrieval); it only restores the tier's weight in the linear re-rank.
+    return rescaleSemantic(sim);
   }
 }
 

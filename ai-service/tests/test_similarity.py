@@ -13,7 +13,7 @@ def test_health():
     with TestClient(app) as client:
         r = client.get("/health")
         assert r.status_code == 200
-        assert r.json() == {"status": "ok", "model": "paraphrase-multilingual-MiniLM-L12-v2"}
+        assert r.json() == {"status": "ok", "model": "intfloat/multilingual-e5-small"}
 
 
 def test_encode_dimension():
@@ -24,13 +24,21 @@ def test_encode_dimension():
         assert len(emb) == 384
 
 
-def test_encode_batch_dimension():
+def test_no_truncation_past_128_tokens():
+    # Two texts that are identical for the first ~150 words and differ only
+    # AFTER the old 128-token cutoff. With the previous MiniLM model (max 128)
+    # the tail was truncated, so the embeddings were near-identical. e5-small
+    # (max 512) must actually read the tail, producing distinct embeddings.
+    head = " ".join(["experienced backend engineer"] * 50)  # ~150 tokens
+    text_a = head + " specialised in Rust systems programming and WebAssembly"
+    text_b = head + " specialised in frontend React and accessibility design"
     with TestClient(app) as client:
-        r = client.post("/encode-batch", json={"texts": ["a", "b", "c"]})
-        assert r.status_code == 200
-        embs = r.json()["embeddings"]
-        assert len(embs) == 3
-        assert all(len(e) == 384 for e in embs)
+        r1 = client.post("/encode", json={"text": text_a})
+        r2 = client.post("/encode", json={"text": text_b})
+        sim = cosine(r1.json()["embedding"], r2.json()["embedding"])
+        print(f"long-tail cosine similarity: {sim:.4f}")
+        # If the tail were truncated the two would be ~identical (>0.99).
+        assert sim < 0.98, f"tail likely truncated, got {sim:.4f}"
 
 
 def test_cross_lingual_java_similarity():

@@ -10,7 +10,12 @@ import { Job } from '../../database/entities/job.entity';
 import { JobEmbedding } from '../../database/entities/job-embedding.entity';
 import { AiClientService } from './ai-client.service';
 
-export const EMBEDDING_MODEL_VERSION = 'paraphrase-multilingual-MiniLM-L12-v2';
+export const EMBEDDING_MODEL_VERSION = 'intfloat/multilingual-e5-small';
+
+// e5 models expect an instruction prefix. We reuse the same stored vector for
+// both retrieval directions (job→candidates and candidate→jobs), so we treat
+// matching as a symmetric task and prefix BOTH sides with "query: ".
+const E5_PREFIX = 'query: ';
 
 @Injectable()
 export class EmbeddingService {
@@ -41,7 +46,7 @@ export class EmbeddingService {
       return;
     }
 
-    const embedding = await this.ai.encode(sourceText);
+    const embedding = await this.ai.encode(E5_PREFIX + sourceText);
     await this.candEmbRepo.upsert(
       {
         candidateId,
@@ -63,7 +68,7 @@ export class EmbeddingService {
     const sourceText = this.buildJobSourceText(job);
     if (!sourceText.trim()) return;
 
-    const embedding = await this.ai.encode(sourceText);
+    const embedding = await this.ai.encode(E5_PREFIX + sourceText);
     await this.jobEmbRepo.upsert(
       {
         jobId,

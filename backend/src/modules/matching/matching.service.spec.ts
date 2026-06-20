@@ -26,6 +26,27 @@ function makeDataSource(routes: Routes) {
       if (sql.includes('credential_types')) {
         return Promise.resolve(routes.coverage ?? []);
       }
+      // Per-job semantic normalization (anchor = job, pool = candidates).
+      // Must be checked before the generic prefilter routes below.
+      if (sql.includes('ce.candidate_id::text = ANY')) {
+        const jobId = params[0] as string;
+        const ids = (params[1] as string[]) ?? [];
+        return Promise.resolve(
+          ids
+            .map((cid) => ({ id: cid, sim: routes.similarity?.(cid, jobId) }))
+            .filter((r) => r.sim != null),
+        );
+      }
+      // Per-candidate semantic normalization (anchor = candidate, pool = jobs).
+      if (sql.includes('je.job_id::text = ANY')) {
+        const candId = params[0] as string;
+        const ids = (params[1] as string[]) ?? [];
+        return Promise.resolve(
+          ids
+            .map((jid) => ({ id: jid, sim: routes.similarity?.(candId, jid) }))
+            .filter((r) => r.sim != null),
+        );
+      }
       if (sql.includes('candidate_embeddings ce, job_embeddings je')) {
         const sim = routes.similarity?.(
           params[0] as string,
@@ -89,12 +110,13 @@ describe('MatchingService.calculateScore', () => {
           { name: 'react', is_verified: true },
           { name: 'node.js', is_verified: false },
         ],
-        similarity: () => '0.8',
       },
       { 'job-1': makeJob() },
     );
 
-    const score = await service.calculateScore('cand-1', 'job-1');
+    // semantic is passed in precomputed (the per-pool-normalized value the
+    // ranking path supplies); this isolates the tier-combination logic.
+    const score = await service.calculateScore('cand-1', 'job-1', 80);
 
     // keyword: 2 of 4 required matched; verified: 1 of 4 proven on-chain
     expect(score.keywordScore).toBe(50);
@@ -137,16 +159,31 @@ describe('MatchingService.calculateScore', () => {
 
   it('scores zero keyword/verified tiers when the job requires no skills', async () => {
     const { service } = makeService(
-      { similarity: () => '0.6' },
+      {},
       { 'job-1': makeJob({ requiredSkills: [] }) },
     );
 
-    const score = await service.calculateScore('cand-1', 'job-1');
+    const score = await service.calculateScore('cand-1', 'job-1', 60);
 
     expect(score.keywordScore).toBe(0);
     expect(score.verifiedBonus).toBe(0);
     expect(score.semanticScore).toBe(60);
     expect(score.totalScore).toBe(30); // 0.5 * 60
+  });
+
+  it('single-pair fallback stretches the e5 cosine band [0.85,0.96] onto 0-100', async () => {
+    // No precomputed semantic -> computeSemanticScore + rescaleSemantic.
+    const job = { 'job-1': makeJob({ requiredSkills: [] }) };
+
+    const ceil = makeService({ skills: () => [], similarity: () => '0.96' }, job);
+    expect((await ceil.service.calculateScore('cand-1', 'job-1')).semanticScore).toBe(
+      100,
+    ); // band ceiling
+
+    const floor = makeService({ skills: () => [], similarity: () => '0.85' }, job);
+    expect(
+      (await floor.service.calculateScore('cand-1', 'job-1')).semanticScore,
+    ).toBe(0); // band floor (and anything below)
   });
 
   it('dedupes and normalizes required skills (case/whitespace)', async () => {
@@ -241,6 +278,42 @@ describe('MatchingService.recommendLearningPath', () => {
     expect(node.status).toBe('unverified');
     expect(node.recommendedCredential).toBeNull();
     expect(node.similarity).toBe(0);
+  });
+});
+
+describe('MatchingService.scoreCandidatesForJob (per-job semantic normalization)', () => {
+  it('min-max normalizes the pool: best candidate -> 100, weakest -> 0', async () => {
+    const cosByCand: Record<string, string> = {
+      'c-hi': '0.95',
+      'c-mid': '0.90',
+      'c-lo': '0.86',
+    };
+    const { service } = makeService(
+      { skills: () => [], similarity: (cid) => cosByCand[cid] ?? null },
+      { 'job-1': makeJob({ requiredSkills: [] }) },
+    );
+
+    const scored = await service.scoreCandidatesForJob('job-1', [
+      'c-hi',
+      'c-mid',
+      'c-lo',
+    ]);
+    const sem = new Map(scored.map((s) => [s.candidateId, s.semanticScore]));
+
+    expect(sem.get('c-hi')).toBe(100); // pool max
+    expect(sem.get('c-lo')).toBe(0); // pool min
+    // c-mid: (0.90-0.86)/(0.95-0.86)*100 ≈ 44.44 — RELATIVE to the pool, not absolute
+    expect(sem.get('c-mid')).toBeCloseTo(44.44, 1);
+  });
+
+  it('falls back to the absolute rescale when the pool has no semantic spread', async () => {
+    const { service } = makeService(
+      { skills: () => [], similarity: () => '0.96' },
+      { 'job-1': makeJob({ requiredSkills: [] }) },
+    );
+    // All identical cosines -> range ~0 -> rescaleSemantic(0.96) = 100 (not 50/NaN)
+    const scored = await service.scoreCandidatesForJob('job-1', ['a', 'b']);
+    expect(scored.every((s) => s.semanticScore === 100)).toBe(true);
   });
 });
 
@@ -369,9 +442,11 @@ describe('MatchingService.recommendJobsForCandidate', () => {
 
     expect(ranked.map((r) => r.jobId)).toEqual(['job-good', 'job-bad']);
     expect(ranked[0].job.title).toBe('Backend Engineer');
-    // job-good: keyword 100, semantic 90, verified 100 → 40 + 45 + 10
-    expect(ranked[0].totalScore).toBe(95);
-    // job-bad: react isn't required → all skill tiers 0, semantic 30 → 15
-    expect(ranked[1].totalScore).toBe(15);
+    // Semantic is normalized PER CANDIDATE across the job pool {0.9, 0.3}:
+    // job-good (max) -> 100, job-bad (min) -> 0.
+    // job-good: keyword 100, semantic 100, verified 100 → 40 + 50 + 10
+    expect(ranked[0].totalScore).toBe(100);
+    // job-bad: react isn't required → all skill tiers 0, semantic 0 → 0
+    expect(ranked[1].totalScore).toBe(0);
   });
 });
