@@ -62,9 +62,15 @@ jobs:
           cache-dependency-path: ai-service/requirements.txt
       - run: pip install -r requirements.txt pytest
         working-directory: ai-service
-      # Only the model-free tests run in CI; tests/test_similarity.py needs the
-      # ~500MB sentence-transformers model and is meant for local runs.
-      - run: python -m pytest tests/test_matching.py -q
+      # Cache the sentence-transformers model so it downloads once, not every run.
+      # Key tracks config.py so it busts when the configured model changes.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('ai-service/app/config.py') }}
+      # test_similarity.py loads the e5-small model and validates the model name,
+      # 384-dim output, no-truncation guarantee and cross-lingual similarity.
+      - run: python -m pytest tests/test_similarity.py -q
         working-directory: ai-service
 
   build-push:
