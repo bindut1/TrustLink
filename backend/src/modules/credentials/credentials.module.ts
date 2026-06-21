@@ -10,6 +10,7 @@ import { StatusListEntry } from '../../database/entities/status-list-entry.entit
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
+import { MatchingModule } from '../matching/matching.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SkillsModule } from '../skills/skills.module';
 import { CredentialsController } from './credentials.controller';
@@ -34,6 +35,7 @@ import { StatusListService } from './status-list.service';
     BlockchainModule,
     AuditLogsModule,
     SkillsModule,
+    MatchingModule,
   ],
   controllers: [
     CredentialsController,

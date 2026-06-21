@@ -46,6 +46,7 @@ import { ListCredentialsQueryDto } from './dto/list-credentials.query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
 import { StatusListService } from './status-list.service';
 import { SkillsService } from '../skills/skills.service';
+import { EmbeddingService } from '../matching/embedding.service';
 import { validateCredentialMetadata } from './helpers/metadata-validator';
 import {
   ExtractedSkill,
@@ -97,6 +98,7 @@ export class CredentialsService {
     private readonly auditLogs: AuditLogsService,
     private readonly statusList: StatusListService,
     private readonly skills: SkillsService,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   /**
@@ -662,6 +664,7 @@ export class CredentialsService {
     }
 
     const now = new Date();
+    const affectedCandidates = new Set<string>();
     for (const c of active) {
       c.status = CredentialStatus.REVOKED;
       c.revokedAt = now;
@@ -669,6 +672,10 @@ export class CredentialsService {
       if (dto.txHash) c.revokeTxHash = dto.txHash;
       await this.credRepo.save(c);
       await this.statusList.revokeByCredential(c.id);
+
+      // Drop the now-invalid skills this credential contributed (see revoke()).
+      await this.skillRepo.delete({ sourceCredentialId: c.id });
+      if (c.candidateId) affectedCandidates.add(c.candidateId);
 
       if (c.candidateId) {
         await this.notifications.create({
@@ -682,6 +689,10 @@ export class CredentialsService {
           referenceId: c.id,
         });
       }
+    }
+
+    for (const candidateId of affectedCandidates) {
+      await this.refreshCandidateEmbedding(candidateId);
     }
 
     await this.auditLogs.record({
@@ -800,6 +811,12 @@ export class CredentialsService {
     // Flip the StatusList2021 bit so off-chain / W3C verifiers reflect the
     // revocation too (herd-privacy revocation list alongside the on-chain leaf).
     await this.statusList.revokeByCredential(saved.id);
+
+    // A revoked credential no longer attests to anything, so the skills it
+    // contributed to the candidate's profile are no longer valid — remove them.
+    // (Purely self-declared skills have a null source_credential_id and are kept.)
+    await this.skillRepo.delete({ sourceCredentialId: saved.id });
+    if (saved.candidateId) await this.refreshCandidateEmbedding(saved.candidateId);
 
     if (saved.candidateId) {
       await this.notifications.create({
@@ -1106,5 +1123,21 @@ export class CredentialsService {
         ['candidate_id', 'skill_name_normalized'],
       )
       .execute();
+  }
+
+  /**
+   * Re-derive the candidate's matching embedding after their skill set changes.
+   * Best-effort: AI-service downtime must never block a revoke from completing.
+   */
+  private async refreshCandidateEmbedding(candidateId: string): Promise<void> {
+    try {
+      await this.embeddings.updateCandidateEmbedding(candidateId);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to refresh embedding for candidate ${candidateId}: ${
+          (err as Error).message
+        }`,
+      );
+    }
   }
 }

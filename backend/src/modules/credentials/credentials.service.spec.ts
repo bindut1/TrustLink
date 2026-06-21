@@ -28,7 +28,10 @@ function makeMocks() {
     save: jest.fn((i: unknown) => Promise.resolve(i)),
   };
   const userRepo = { findOne: jest.fn(() => Promise.resolve(null)) };
-  const skillRepo = { update: jest.fn(() => Promise.resolve(undefined)) };
+  const skillRepo = {
+    update: jest.fn(() => Promise.resolve(undefined)),
+    delete: jest.fn(() => Promise.resolve({ affected: 0 })),
+  };
   const verificationCacheRepo = {
     findOne: jest.fn(() => Promise.resolve(null)),
     save: jest.fn((c: unknown) => Promise.resolve(c)),
@@ -63,6 +66,9 @@ function makeMocks() {
     buildCredentialStatus: jest.fn(),
   };
   const skills = { resolve: jest.fn() };
+  const embeddings = {
+    updateCandidateEmbedding: jest.fn(() => Promise.resolve(undefined)),
+  };
 
   const service = new CredentialsService(
     credRepo as never,
@@ -79,6 +85,7 @@ function makeMocks() {
     auditLogs as never,
     statusList as never,
     skills as never,
+    embeddings as never,
   );
 
   return {
@@ -94,6 +101,7 @@ function makeMocks() {
     vcService,
     auditLogs,
     statusList,
+    embeddings,
   };
 }
 
@@ -471,6 +479,21 @@ describe('CredentialsService.revoke', () => {
     expect(m.auditLogs.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'credential.revoke' }),
     );
+  });
+
+  it('removes the credential-derived skills and refreshes the embedding on revoke', async () => {
+    const m = makeMocks();
+    m.credRepo.findOne.mockResolvedValue(issuedCredential() as never);
+    m.institutionRepo.findOne.mockResolvedValue(institution() as never);
+
+    await m.service.revoke('cred-1', 'issuer-1', { reason: 'fraud' });
+
+    // Only the skills this credential sourced are dropped; self-declared rows
+    // (source_credential_id = null) are left untouched.
+    expect(m.skillRepo.delete).toHaveBeenCalledWith({
+      sourceCredentialId: 'cred-1',
+    });
+    expect(m.embeddings.updateCandidateEmbedding).toHaveBeenCalledWith('cand-1');
   });
 
   it('records the issuer-signed revokeLeaf when the chain is configured', async () => {
