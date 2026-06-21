@@ -41,7 +41,6 @@ export default function AdminBlockchainPage() {
     { value: "all", label: t("status.tx.all") },
     { value: "queued", label: t("status.tx.queued") },
     { value: "submitted", label: t("status.tx.submitted") },
-    { value: "retrying", label: t("status.tx.retrying") },
     { value: "confirmed", label: t("status.tx.confirmed") },
     { value: "failed", label: t("status.tx.failed") },
   ];
@@ -76,19 +75,18 @@ export default function AdminBlockchainPage() {
             <TH>{t("admin.blockchain.block")}</TH>
             <TH>{t("admin.blockchain.initiatedBy")}</TH>
             <TH>{t("admin.blockchain.queuedAt")}</TH>
-            <TH>{t("admin.blockchain.retries")}</TH>
           </TR>
         </THead>
         <TBody>
           {!items ? (
             <TR>
-              <TD colSpan={7} className="text-center text-fg-subtle py-10">
+              <TD colSpan={6} className="text-center text-fg-subtle py-10">
                 {t("admin.blockchain.loading")}
               </TD>
             </TR>
           ) : items.length === 0 ? (
             <TR>
-              <TD colSpan={7} className="text-center text-fg-subtle py-10">
+              <TD colSpan={6} className="text-center text-fg-subtle py-10">
                 {t("admin.blockchain.empty")}
               </TD>
             </TR>
@@ -144,17 +142,6 @@ export default function AdminBlockchainPage() {
                   <TD className="text-fg-muted">{tx.initiatedByName}</TD>
                   <TD className="font-mono text-[12px] text-fg-subtle">
                     {new Date(tx.queuedAt).toLocaleString()}
-                  </TD>
-                  <TD>
-                    <span
-                      className={
-                        tx.retryCount > 0
-                          ? "text-warn font-semibold"
-                          : "text-fg-subtle"
-                      }
-                    >
-                      {tx.retryCount}/3
-                    </span>
                   </TD>
                 </TR>
               );

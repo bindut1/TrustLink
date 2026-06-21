@@ -287,7 +287,6 @@ export class AdminService {
       contractMethod: t.contractMethod,
       initiatedByName:
         t.institution?.name ?? t.initiator?.fullName ?? 'Unknown',
-      retryCount: t.retryCount,
       errorMessage: t.errorMessage,
       queuedAt: t.queuedAt,
       submittedAt: t.submittedAt,

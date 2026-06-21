@@ -1,4 +1,3 @@
-import { InjectQueue } from '@nestjs/bull';
 import {
   BadRequestException,
   Injectable,
@@ -8,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Queue } from 'bull';
 import { ethers } from 'ethers';
 import { In, Repository } from 'typeorm';
 import { BlockchainTransaction } from '../../database/entities/blockchain-transaction.entity';
@@ -17,12 +15,6 @@ import { Credential } from '../../database/entities/credential.entity';
 import { Institution } from '../../database/entities/institution.entity';
 import { User } from '../../database/entities/user.entity';
 import { TxStatus, TxType } from '../../database/enums';
-import {
-  BLOCKCHAIN_JOB_ISSUE,
-  BLOCKCHAIN_JOB_REVOKE,
-  BLOCKCHAIN_QUEUE,
-  BlockchainTxJobData,
-} from './blockchain.constants';
 import { CREDENTIAL_REGISTRY_ABI } from './contract/credential-registry.abi';
 import { EmbeddingService } from '../matching/embedding.service';
 import { VcService } from './vc.service';
@@ -83,7 +75,6 @@ export class BlockchainService implements OnModuleInit {
     private readonly userRepo: Repository<User>,
     @InjectRepository(CandidateSkill)
     private readonly skillRepo: Repository<CandidateSkill>,
-    @InjectQueue(BLOCKCHAIN_QUEUE) private readonly queue: Queue<BlockchainTxJobData>,
     private readonly vcService: VcService,
     private readonly embeddings: EmbeddingService,
   ) {}
@@ -117,16 +108,6 @@ export class BlockchainService implements OnModuleInit {
   // ---------------------------------------------------------------------------
   // Public API consumed by other modules
   // ---------------------------------------------------------------------------
-
-  /**
-   * The platform's on-chain signer address (deployer wallet). In the MVP this
-   * single wallet signs and anchors every credential, so it doubles as every
-   * institution's authorized-issuer identity. Returns null if the wallet is
-   * not configured.
-   */
-  getSignerAddress(): string | null {
-    return this.wallet?.address ?? null;
-  }
 
   /**
    * Compute deterministic bytes32 hash for a credential. The same fields must
@@ -431,49 +412,8 @@ export class BlockchainService implements OnModuleInit {
   }
 
   // ---------------------------------------------------------------------------
-  // Worker-facing API (called by BlockchainProcessor)
+  // Internal helpers
   // ---------------------------------------------------------------------------
-
-  /**
-   * Process a queued blockchain_transactions row: sign, submit, await receipt,
-   * update DB. On failure, increment retry count and either re-queue or mark
-   * permanently failed.
-   */
-  async processTransaction(transactionId: string): Promise<void> {
-    const tx = await this.txRepo.findOne({ where: { id: transactionId } });
-    if (!tx) {
-      this.logger.warn(`processTransaction: tx ${transactionId} not found`);
-      return;
-    }
-
-    if (
-      tx.status === TxStatus.CONFIRMED ||
-      tx.status === TxStatus.FAILED
-    ) {
-      return;
-    }
-
-    if (!this.contract || !this.wallet) {
-      await this.markFailed(tx, new Error('Blockchain not configured'));
-      return;
-    }
-
-    try {
-      await this.runSerialized(() => this.submitAndConfirm(tx));
-    } catch (err) {
-      await this.handleFailure(tx, err as Error);
-    }
-  }
-
-  private submitAndConfirm(tx: BlockchainTransaction): Promise<void> {
-    // Revocation is now issuer-signed (`revokeLeaf`, broadcast from the issuer's
-    // own wallet) and recorded synchronously via `recordLeafRevocation`, so it no
-    // longer flows through this queue. No transaction type is currently enqueued;
-    // the queue machinery is kept for future server-signed operations.
-    return Promise.reject(
-      new Error(`Unsupported queued tx type: ${tx.transactionType}`),
-    );
-  }
 
   /**
    * Flip the `is_verified` flag on every candidate_skill that traces back to
@@ -507,58 +447,6 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-
-  private async handleFailure(
-    tx: BlockchainTransaction,
-    err: Error,
-  ): Promise<void> {
-    tx.retryCount += 1;
-    tx.errorMessage = err.message;
-    tx.lastErrorAt = new Date();
-
-    if (tx.retryCount >= tx.maxRetries) {
-      tx.status = TxStatus.FAILED;
-      tx.failedAt = new Date();
-      await this.txRepo.save(tx);
-      this.logger.error(
-        `Tx ${tx.id} permanently failed after ${tx.retryCount} attempts: ${err.message}`,
-      );
-      return;
-    }
-
-    tx.status = TxStatus.RETRYING;
-    await this.txRepo.save(tx);
-    this.logger.warn(
-      `Tx ${tx.id} attempt ${tx.retryCount}/${tx.maxRetries} failed: ${err.message}. Re-queueing.`,
-    );
-
-    const jobName =
-      tx.transactionType === TxType.REVOKE_CREDENTIAL
-        ? BLOCKCHAIN_JOB_REVOKE
-        : BLOCKCHAIN_JOB_ISSUE;
-    await this.queue.add(
-      jobName,
-      { transactionId: tx.id },
-      {
-        attempts: 1,
-        delay: this.backoffDelay(tx.retryCount),
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
-  }
-
-  private async markFailed(
-    tx: BlockchainTransaction,
-    err: Error,
-  ): Promise<void> {
-    tx.status = TxStatus.FAILED;
-    tx.errorMessage = err.message;
-    tx.failedAt = new Date();
-    tx.lastErrorAt = new Date();
-    await this.txRepo.save(tx);
-  }
-
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -579,18 +467,9 @@ export class BlockchainService implements OnModuleInit {
     return next;
   }
 
-  private backoffDelay(attempt: number): number {
-    return Math.min(60_000, 2 ** attempt * 1_000);
-  }
-
   private normalizeDate(d: Date | string): string {
     const date = d instanceof Date ? d : new Date(d);
     return date.toISOString().slice(0, 10);
-  }
-
-  // Exposed for the reconciliation cron.
-  getProvider(): ethers.JsonRpcProvider {
-    return this.provider;
   }
 
   isReady(): boolean {

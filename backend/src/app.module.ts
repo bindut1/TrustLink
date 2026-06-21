@@ -1,4 +1,3 @@
-import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -46,15 +45,6 @@ import { SkillsModule } from './modules/skills/skills.module';
         entities: [join(__dirname, 'database', 'entities', '*.entity.{ts,js}')],
         migrations: [join(__dirname, 'database', 'migrations', '*.{ts,js}')],
         migrationsTableName: 'migrations',
-      }),
-    }),
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        redis: {
-          host: config.get<string>('REDIS_HOST', 'localhost'),
-          port: parseInt(config.get<string>('REDIS_PORT', '6379'), 10),
-        },
       }),
     }),
     ScheduleModule.forRoot(),

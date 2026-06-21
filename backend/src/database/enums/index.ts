@@ -30,7 +30,6 @@ export enum TxStatus {
   SUBMITTED = 'submitted',
   CONFIRMED = 'confirmed',
   FAILED = 'failed',
-  RETRYING = 'retrying',
 }
 
 export enum TxType {

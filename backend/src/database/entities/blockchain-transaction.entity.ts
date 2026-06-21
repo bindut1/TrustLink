@@ -89,12 +89,6 @@ export class BlockchainTransaction {
   })
   contractParams: Record<string, unknown>;
 
-  @Column({ name: 'retry_count', type: 'smallint', default: 0 })
-  retryCount: number;
-
-  @Column({ name: 'max_retries', type: 'smallint', default: 3 })
-  maxRetries: number;
-
   @Column({ name: 'error_message', type: 'text', nullable: true })
   errorMessage: string | null;
 

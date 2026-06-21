@@ -8,7 +8,6 @@ import type { TxStatus } from "@/types/admin";
 const STATUS_VARIANT: Record<TxStatus, BadgeVariant> = {
   queued: "neutral",
   submitted: "info",
-  retrying: "warn",
   confirmed: "success",
   failed: "danger",
 };
@@ -16,7 +15,6 @@ const STATUS_VARIANT: Record<TxStatus, BadgeVariant> = {
 const STATUS_KEY: Record<TxStatus, TranslationKey> = {
   queued: "status.tx.queued",
   submitted: "status.tx.submitted",
-  retrying: "status.tx.retrying",
   confirmed: "status.tx.confirmed",
   failed: "status.tx.failed",
 };

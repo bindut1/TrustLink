@@ -12,8 +12,7 @@ export type TxStatus =
   | "queued"
   | "submitted"
   | "confirmed"
-  | "failed"
-  | "retrying";
+  | "failed";
 
 export type TxType =
   | "issue_credential"
@@ -57,7 +56,6 @@ export type BlockchainTx = {
   blockNumber?: number | null;
   contractMethod: string;
   initiatedByName: string;
-  retryCount: number;
   errorMessage?: string | null;
   queuedAt: string;
   confirmedAt?: string | null;

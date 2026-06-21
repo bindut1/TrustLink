@@ -67,13 +67,6 @@ export function TxFailureModal({ tx, onClose }: TxFailureModalProps) {
         <dt className="text-fg-subtle">{t("txFailure.initiatedBy")}</dt>
         <dd className="text-fg">{tx.initiatedByName}</dd>
 
-        <dt className="text-fg-subtle">{t("txFailure.retries")}</dt>
-        <dd className="text-fg font-semibold">
-          <span className={tx.retryCount >= 3 ? "text-danger" : ""}>
-            {tx.retryCount}/3
-          </span>
-        </dd>
-
         <dt className="text-fg-subtle">{t("txFailure.contractMethod")}</dt>
         <dd className="font-mono text-fg-muted text-[12.5px]">
           {tx.contractMethod}
