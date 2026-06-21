@@ -291,6 +291,40 @@ export class VcService {
   }
 
   /**
+   * Build a self-describing on-chain anchor (W3C `evidence`, Blockcerts
+   * MerkleProof2019 shape) so a third party can verify the credential AGAINST
+   * THE CHAIN without TrustLink: it names the network, the registry contract,
+   * and the Merkle anchor (root + proof + leaf). NOT part of the signed payload
+   * — the chain is the source of truth, so a tampered anchor simply fails the
+   * on-chain lookup. Returns null when the contract or root is unknown (e.g.
+   * blockchain not configured).
+   */
+  buildAnchorEvidence(args: {
+    credentialHash: string;
+    merkleRoot: string | null;
+    merkleProof: string[] | null;
+    leafIndex: number | null;
+    txHash: string | null;
+  }): Record<string, unknown>[] | null {
+    const contract = this.config.get<string>('CONTRACT_ADDRESS');
+    if (!contract || !args.merkleRoot) return null;
+    const chainId = this.chainIdHex();
+    return [
+      {
+        type: ['MerkleProof2019'],
+        chain: `eip155:${chainId}`,
+        chainId,
+        contract,
+        txHash: args.txHash ?? null,
+        merkleRoot: args.merkleRoot,
+        merkleProof: args.merkleProof ?? [],
+        leafIndex: args.leafIndex ?? 0,
+        targetHash: args.credentialHash,
+      },
+    ];
+  }
+
+  /**
    * Verify a batch-signed VC: recover the signer from the (shared) batch
    * signature over the Batch typed data and match it to the issuer DID; also
    * confirm the credential's root equals the signed root. Merkle membership of

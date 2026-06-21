@@ -160,17 +160,11 @@ export class Credential {
   @Column({ name: 'leaf_index', type: 'int', nullable: true })
   leafIndex: number | null;
 
-  @Column({ name: 'vc_jwt', type: 'text', nullable: true })
-  vcJwt: string | null;
-
   @Column({ name: 'vc_json', type: 'jsonb', nullable: true })
   vcJson: Record<string, unknown> | null;
 
   @Column({ name: 'issuer_did', type: 'varchar', length: 500, nullable: true })
   issuerDid: string | null;
-
-  @Column({ name: 'digital_signature', type: 'text', nullable: true })
-  digitalSignature: string | null;
 
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt: Date | null;

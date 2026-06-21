@@ -1,14 +1,3 @@
-// did-jwt / did-jwt-vc ship ESM that the CommonJS jest runtime can't parse.
-// The EIP-712 path under test doesn't use them, so stub the modules out.
-jest.mock('did-jwt', () => ({
-  ES256KSigner: jest.fn(),
-  hexToBytes: jest.fn(),
-}));
-jest.mock('did-jwt-vc', () => ({
-  createVerifiableCredentialJwt: jest.fn(),
-  verifyCredential: jest.fn(),
-}));
-
 import { ConfigService } from '@nestjs/config';
 import { Wallet } from 'ethers';
 import { Credential } from '../../database/entities/credential.entity';

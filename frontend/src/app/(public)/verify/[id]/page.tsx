@@ -108,8 +108,12 @@ export default function PublicVerifyPage({
   }
 
   const { credential, verification } = data;
-  const canDownload =
+  const canShare =
     credential.status === "issued" || credential.status === "reissued";
+  // The signed VC exists for any credential that has been issued — including
+  // revoked ones, where downloading it is precisely how a third party verifies
+  // the revocation offline (StatusList2021). Only PENDING has no VC yet.
+  const canDownloadVc = credential.status !== "pending";
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-12">
@@ -192,14 +196,14 @@ export default function PublicVerifyPage({
           );
         })()}
 
-        {canDownload && (
+        {canDownloadVc && (
           <div className="mt-6 border-t border-border pt-6">
-            <ShareCredential credentialId={credential.id} />
+            {canShare && <ShareCredential credentialId={credential.id} />}
             <button
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border px-3.5 py-2 text-[13px] font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-60"
+              className={`${canShare ? "mt-3 " : ""}inline-flex items-center gap-2 rounded-md border border-border px-3.5 py-2 text-[13px] font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-60`}
             >
               <Download size={14} />
               {t("verify.downloadVc")}

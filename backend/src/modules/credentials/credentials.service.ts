@@ -402,6 +402,14 @@ export class CredentialsService {
       });
       (vcJson as Record<string, unknown>).credentialStatus =
         this.statusList.buildCredentialStatus(entry);
+      const evidence = this.vcService.buildAnchorEvidence({
+        credentialHash: c.credentialHash!,
+        merkleRoot: c.merkleRoot,
+        merkleProof: c.merkleProof,
+        leafIndex: c.leafIndex,
+        txHash: dto.txHash,
+      });
+      if (evidence) (vcJson as Record<string, unknown>).evidence = evidence;
 
       const verified = this.vcService.verifyEip712(vcJson);
       if (
@@ -415,7 +423,6 @@ export class CredentialsService {
       }
 
       c.vcJson = vcJson;
-      c.digitalSignature = signature;
       c.issuerDid = typedData.message.issuerDid;
       c.blockchainTxHash = dto.txHash;
       c.blockchainTimestamp = new Date(onChain.timestamp * 1000);
@@ -525,9 +532,16 @@ export class CredentialsService {
       });
       (vcJson as Record<string, unknown>).credentialStatus =
         this.statusList.buildCredentialStatus(entry);
+      const evidence = this.vcService.buildAnchorEvidence({
+        credentialHash: c.credentialHash!,
+        merkleRoot: c.merkleRoot,
+        merkleProof: c.merkleProof,
+        leafIndex: c.leafIndex,
+        txHash: dto.txHash,
+      });
+      if (evidence) (vcJson as Record<string, unknown>).evidence = evidence;
 
       c.vcJson = vcJson;
-      c.digitalSignature = dto.batchSignature;
       c.issuerDid = batchTypedData.message.issuerDid;
       c.blockchainTxHash = dto.txHash;
       c.blockchainTimestamp = new Date(onChain.timestamp * 1000);
@@ -941,8 +955,8 @@ export class CredentialsService {
       };
     }
 
-    // VC signature: EthereumEip712Signature2021 (non-custodial MetaMask) or the
-    // legacy did-jwt JWS, chosen by the stored proof type.
+    // VC signature: EthereumEip712Signature2021 (non-custodial MetaMask),
+    // per-credential or batch-signed depending on the stored proof's primaryType.
     let vcSignatureValid = false;
     const proof = (
       credential.vcJson as {

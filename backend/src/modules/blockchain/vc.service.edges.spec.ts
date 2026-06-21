@@ -1,10 +1,3 @@
-// did-jwt / did-jwt-vc ship ESM that the CommonJS jest runtime can't parse.
-jest.mock('did-jwt', () => ({ ES256KSigner: jest.fn(), hexToBytes: jest.fn() }));
-jest.mock('did-jwt-vc', () => ({
-  createVerifiableCredentialJwt: jest.fn(),
-  verifyCredential: jest.fn(),
-}));
-
 import { InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Credential } from '../../database/entities/credential.entity';
