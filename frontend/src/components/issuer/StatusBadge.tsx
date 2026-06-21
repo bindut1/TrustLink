@@ -6,7 +6,6 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   ApprovalStatus,
-  BatchStatus,
   Credential,
   CredentialStatus,
 } from "@/types/issuer";
@@ -30,25 +29,6 @@ export function CredentialStatusPill({ credential }: { credential: Credential })
   return <StatusPill tone={pill.tone}>{t(pill.labelKey)}</StatusPill>;
 }
 
-const CRED_VARIANT: Record<CredentialStatus, BadgeVariant> = {
-  pending: "warn",
-  issued: "success",
-  revoked: "danger",
-  reissued: "info",
-};
-
-const CRED_KEY: Record<CredentialStatus, TranslationKey> = {
-  pending: "status.cred.pending",
-  issued: "status.cred.issued",
-  revoked: "status.cred.revoked",
-  reissued: "status.cred.reissued",
-};
-
-export function CredentialStatusBadge({ status }: { status: CredentialStatus }) {
-  const { t } = useLanguage();
-  return <Badge variant={CRED_VARIANT[status]}>{t(CRED_KEY[status])}</Badge>;
-}
-
 const APPROVAL_VARIANT: Record<ApprovalStatus, BadgeVariant> = {
   pending: "warn",
   approved: "success",
@@ -66,27 +46,4 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
   return (
     <Badge variant={APPROVAL_VARIANT[status]}>{t(APPROVAL_KEY[status])}</Badge>
   );
-}
-
-const BATCH_VARIANT: Record<BatchStatus, BadgeVariant> = {
-  uploading: "neutral",
-  validating: "info",
-  processing: "info",
-  completed: "success",
-  failed: "danger",
-  partially_completed: "warn",
-};
-
-const BATCH_KEY: Record<BatchStatus, TranslationKey> = {
-  uploading: "status.batch.uploading",
-  validating: "status.batch.validating",
-  processing: "status.batch.processing",
-  completed: "status.batch.completed",
-  failed: "status.batch.failed",
-  partially_completed: "status.batch.partially_completed",
-};
-
-export function BatchStatusBadge({ status }: { status: BatchStatus }) {
-  const { t } = useLanguage();
-  return <Badge variant={BATCH_VARIANT[status]}>{t(BATCH_KEY[status])}</Badge>;
 }

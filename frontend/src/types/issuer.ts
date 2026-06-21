@@ -26,14 +26,6 @@ export type IssuerDashboard = {
   };
 };
 
-export type BatchStatus =
-  | "uploading"
-  | "validating"
-  | "processing"
-  | "completed"
-  | "failed"
-  | "partially_completed";
-
 export type Institution = {
   id: string;
   userId: string;
@@ -111,24 +103,6 @@ export type Credential = {
   blockchainBlockNumber?: number | string | null;
   revokedAt?: string | null;
   revocationReason?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type BatchImport = {
-  id: string;
-  institutionId: string;
-  initiatedBy: string;
-  credentialTypeId: string;
-  originalFilename: string;
-  status: BatchStatus;
-  totalRows: number;
-  processedRows: number;
-  successCount: number;
-  errorCount: number;
-  errorReport: Array<{ row: number; field?: string; error: string }>;
-  startedAt?: string | null;
-  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };

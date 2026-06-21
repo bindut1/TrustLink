@@ -5,7 +5,7 @@ predicted score, best first) expressed as that list's *graded relevance labels*.
 Graded relevance is an int in {0,1,2,3}; for the binary metrics a candidate
 counts as relevant when its relevance >= `rel_threshold`.
 
-Macro-averaging (mean over jobs) is done in `aggregate`.
+Macro-averaging (mean over jobs) is done by the callers (run_eval / train_weights).
 """
 from __future__ import annotations
 
@@ -74,11 +74,3 @@ def evaluate_job(
         "ndcg_at_10": ndcg_at_k(ranked_rel, 10),
         "mrr": reciprocal_rank(ranked_rel, rel_threshold),
     }
-
-
-def aggregate(per_job: list[dict[str, float]]) -> dict[str, float]:
-    """Macro-average each metric across jobs (ignores jobs with no relevant)."""
-    if not per_job:
-        return {}
-    keys = per_job[0].keys()
-    return {k: sum(j[k] for j in per_job) / len(per_job) for k in keys}

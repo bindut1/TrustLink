@@ -35,10 +35,6 @@ export type UpdateRecruiterProfilePayload = Partial<
 
 export type JobStatus = "draft" | "open" | "closed" | "expired";
 
-export type RecruiterJob = JobItem & {
-  status: JobStatus;
-};
-
 /** Aggregates for the recruiter dashboard (GET /recruiter-profiles/me/dashboard). */
 export type RecruiterDashboard = {
   jobs: { total: number; open: number; draft: number; closed: number };

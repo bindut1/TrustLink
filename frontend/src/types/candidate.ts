@@ -102,13 +102,6 @@ export type ScoreBreakdown = {
   explanation?: MatchExplanation;
 };
 
-/** Real matching weights (mirror backend matching.service W_*). */
-export const MATCH_WEIGHTS = {
-  keyword: 0.4,
-  semantic: 0.5,
-  verified: 0.1,
-} as const;
-
 /** A candidate skill (read-only). `isVerified` = backed by an on-chain credential. */
 export type CandidateSkill = {
   id: string;
@@ -139,18 +132,6 @@ export type RankedJob = ScoreBreakdown & {
   job: Pick<JobItem, "id" | "title" | "city" | "isRemote" | "salaryMin" | "salaryMax">;
 };
 
-/** A credential suggestion to close one skill gap for a target job. */
-export type LearningRecommendation = {
-  skill: string;
-  status: "missing" | "unverified";
-  recommendedCredential: { id: string; name: string } | null;
-  similarity: number;
-};
-
-export type LearningPathResult = {
-  jobId: string;
-  recommendations: LearningRecommendation[];
-};
 
 export type ApplicationStatus =
   | "applied"

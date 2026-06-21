@@ -53,6 +53,7 @@ function makeMocks() {
     buildBatchTypedData: jest.fn(),
     assembleEip712Vc: jest.fn(),
     assembleBatchVc: jest.fn(),
+    buildAnchorEvidence: jest.fn(() => null),
   };
   const auditLogs = { record: jest.fn(() => Promise.resolve(undefined)) };
   const statusList = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, ClipboardList, Sparkles } from "lucide-react";
+import { Award, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSetPageMeta } from "@/components/app-shell/page-meta";

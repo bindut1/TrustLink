@@ -56,15 +56,6 @@ export enum JobStatus {
   EXPIRED = 'expired',
 }
 
-export enum BatchStatus {
-  UPLOADING = 'uploading',
-  VALIDATING = 'validating',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  PARTIALLY_COMPLETED = 'partially_completed',
-}
-
 export enum CredentialCategory {
   DEGREE = 'degree',
   IT_CERTIFICATE = 'it_certificate',

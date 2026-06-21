@@ -26,7 +26,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GroupKFold
 from sklearn.metrics import roc_auc_score
 
-TIERS = ["keywordScore", "semanticScore", "verifiedBonus"]
 REL_THRESHOLD = 2  # relevance >= 2 counts as a positive (relevant) example
 
 

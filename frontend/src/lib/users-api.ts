@@ -3,7 +3,7 @@
  * fetch directly — `apiRequest` is JSON-only.
  */
 
-import { API_BASE_URL, ApiError, apiRequest, networkError, parseUploadError } from "./api";
+import { API_BASE_URL, apiRequest, networkError, parseUploadError } from "./api";
 import { getAccessToken } from "./auth-storage";
 import type { AuthUser } from "@/types/auth";
 
