@@ -276,9 +276,9 @@ export class CandidateProfilesService {
     if (!skill) {
       throw new NotFoundException('Skill not found');
     }
-    if (skill.sourceCredentialId !== null) {
+    if (skill.isVerified) {
       throw new ForbiddenException(
-        'Cannot edit a credential-backed skill; it is managed by the issuer',
+        'Cannot edit a verified skill; it is managed by the issuer',
       );
     }
 
@@ -323,9 +323,13 @@ export class CandidateProfilesService {
     if (!skill) {
       throw new NotFoundException('Skill not found');
     }
-    if (skill.sourceCredentialId !== null) {
+    // Deletability is driven by verification, NOT by source_credential_id: a
+    // skill that is not verified on-chain (self-declared, pending, or a leftover
+    // from a revoked credential) is the candidate's own claim and can be
+    // removed; a verified skill is managed by the issuer.
+    if (skill.isVerified) {
       throw new ForbiddenException(
-        'Cannot remove a credential-backed skill; it is managed by the issuer',
+        'Cannot remove a verified skill; it is managed by the issuer',
       );
     }
 

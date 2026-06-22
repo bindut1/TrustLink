@@ -56,7 +56,7 @@ export function updateMySkill(
   });
 }
 
-/** Remove a self-declared skill (credential-backed skills are rejected). */
+/** Remove a skill that is not verified on-chain (verified skills are rejected). */
 export function removeMySkill(id: string): Promise<void> {
   return apiRequest(`/candidate-profiles/me/skills/${id}`, {
     method: "DELETE",

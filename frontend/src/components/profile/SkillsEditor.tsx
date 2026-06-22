@@ -19,10 +19,10 @@ type Props = {
 
 /**
  * Manage the candidate's skills. Pick a skill from the dropdown to add it
- * (stored self-declared, unverified); click the ✕ on a self-declared chip to
- * remove it. Credential-backed skills render verified and read-only — they are
- * managed by the issuer. A self-declared skill auto-upgrades to verified once a
- * matching credential is anchored on-chain.
+ * (stored self-declared, unverified); click the ✕ to remove any skill that is
+ * NOT verified on-chain. Verified skills (teal) are managed by the issuer and
+ * read-only. A self-declared skill auto-upgrades to verified once a matching
+ * credential is anchored on-chain, and reverts to removable if it is revoked.
  */
 export function SkillsEditor({ skills, onChange }: Props) {
   const { t } = useLanguage();
@@ -109,11 +109,14 @@ export function SkillsEditor({ skills, onChange }: Props) {
       ) : (
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
           {skills.map((s) => {
-            const selfDeclared = !s.sourceCredentialId;
+            // Removable = not verified on-chain (self-declared, pending, or a
+            // leftover from a revoked credential). Verified skills are
+            // issuer-managed and read-only.
+            const removable = !s.isVerified;
             return (
               <SkillTag key={s.id} verified={s.isVerified}>
                 {s.skillName}
-                {selfDeclared && (
+                {removable && (
                   <button
                     type="button"
                     aria-label={t("candidate.profile.skillRemove")}

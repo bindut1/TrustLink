@@ -127,9 +127,9 @@ describe('CandidateProfilesService.updateSkill', () => {
     expect(embeddings.updateCandidateEmbedding).not.toHaveBeenCalled();
   });
 
-  it('refuses to edit a credential-backed skill', async () => {
+  it('refuses to edit a verified skill', async () => {
     const { service } = makeService({
-      findOne: [{ ...selfDeclared, sourceCredentialId: 'cred-1' }],
+      findOne: [{ ...selfDeclared, isVerified: true, sourceCredentialId: 'cred-1' }],
     });
     await expect(
       service.updateSkill('cand-1', 'skill-1', { skillName: 'Vue' }),
@@ -145,10 +145,15 @@ describe('CandidateProfilesService.updateSkill', () => {
 });
 
 describe('CandidateProfilesService.removeSkill', () => {
-  it('removes a self-declared skill and refreshes the embedding', async () => {
+  it('removes an unverified skill and refreshes the embedding', async () => {
     const { service, skillRepo, embeddings } = makeService({
       findOne: [
-        { id: 'skill-1', candidateId: 'cand-1', sourceCredentialId: null },
+        {
+          id: 'skill-1',
+          candidateId: 'cand-1',
+          isVerified: false,
+          sourceCredentialId: null,
+        },
       ],
     });
     await service.removeSkill('cand-1', 'skill-1');
@@ -156,10 +161,25 @@ describe('CandidateProfilesService.removeSkill', () => {
     expect(embeddings.updateCandidateEmbedding).toHaveBeenCalledWith('cand-1');
   });
 
-  it('refuses to remove a credential-backed skill', async () => {
+  it('removes a leftover (unverified) skill even if it still has a source credential', async () => {
     const { service, skillRepo } = makeService({
       findOne: [
-        { id: 'skill-1', candidateId: 'cand-1', sourceCredentialId: 'cred-1' },
+        {
+          id: 'skill-1',
+          candidateId: 'cand-1',
+          isVerified: false,
+          sourceCredentialId: 'cred-1',
+        },
+      ],
+    });
+    await service.removeSkill('cand-1', 'skill-1');
+    expect(skillRepo.delete).toHaveBeenCalledWith({ id: 'skill-1' });
+  });
+
+  it('refuses to remove a verified skill', async () => {
+    const { service, skillRepo } = makeService({
+      findOne: [
+        { id: 'skill-1', candidateId: 'cand-1', isVerified: true },
       ],
     });
     await expect(service.removeSkill('cand-1', 'skill-1')).rejects.toThrow(
