@@ -47,6 +47,13 @@ export class CandidateSkill {
   @Column({ name: 'is_verified', type: 'boolean', default: false })
   isVerified: boolean;
 
+  /**
+   * True if the candidate declared this skill themselves. Stays true even after
+   * a credential verifies it, so revocation can revert (vs delete) the skill.
+   */
+  @Column({ name: 'is_self_declared', type: 'boolean', default: false })
+  isSelfDeclared: boolean;
+
   @Column({ name: 'source_credential_id', type: 'uuid', nullable: true })
   sourceCredentialId: string | null;
 

@@ -11,7 +11,7 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { SelectMenu } from "@/components/ui/SelectMenu";
-import { SkillTag } from "@/components/ui/SkillTag";
+import { SkillsEditor } from "@/components/profile/SkillsEditor";
 import { ApiError } from "@/lib/api";
 import {
   fetchMyProfile,
@@ -145,8 +145,6 @@ export default function CandidateProfilePage() {
     );
   }
 
-  const verifiedCount = skills.filter((s) => s.isVerified).length;
-
   return (
     <form
       onSubmit={(e) => {
@@ -184,24 +182,10 @@ export default function CandidateProfilePage() {
         </div>
       </section>
 
-      {/* Skills (read-only, from candidate_skills) */}
-      {skills.length > 0 && (
-        <Card title={t("candidate.profile.sectionSkills")}>
-          <p className="text-[12.5px] text-fg-subtle mb-3">
-            {t("candidate.profile.skillsHint").replace(
-              "{n}",
-              String(verifiedCount),
-            )}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {skills.map((s) => (
-              <SkillTag key={s.id} verified={s.isVerified}>
-                {s.skillName}
-              </SkillTag>
-            ))}
-          </div>
-        </Card>
-      )}
+      {/* Skills — self-declared (editable) + credential-verified (read-only) */}
+      <Card title={t("candidate.profile.sectionSkills")}>
+        <SkillsEditor skills={skills} onChange={setSkills} />
+      </Card>
 
         {/* Personal information */}
         <Card title={t("candidate.profile.sectionPersonal")}>

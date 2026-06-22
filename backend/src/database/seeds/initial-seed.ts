@@ -695,6 +695,7 @@ async function seed() {
                 skillNameNormalized: skill.toLowerCase().trim(),
                 proficiencyLevel: 'intermediate',
                 isVerified: false, // the whole point: claimed, never proven
+                isSelfDeclared: true,
                 sourceCredentialId: null,
               }),
             );

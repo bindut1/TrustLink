@@ -27,9 +27,41 @@ export function fetchMyProfile(): Promise<CandidateProfile> {
   return apiRequest("/candidate-profiles/me", authOpts());
 }
 
-/** Read-only skills for the current candidate (verified-first). */
+/** Skills for the current candidate (verified-first). */
 export function fetchMySkills(): Promise<CandidateSkill[]> {
   return apiRequest("/candidate-profiles/me/skills", authOpts());
+}
+
+/** Self-declare a skill on the current profile (stored unverified). */
+export function addMySkill(payload: {
+  skillName: string;
+  proficiencyLevel?: string;
+}): Promise<CandidateSkill> {
+  return apiRequest("/candidate-profiles/me/skills", {
+    method: "POST",
+    body: payload,
+    ...authOpts(),
+  });
+}
+
+/** Edit a self-declared skill (rename / proficiency). */
+export function updateMySkill(
+  id: string,
+  payload: { skillName?: string; proficiencyLevel?: string },
+): Promise<CandidateSkill> {
+  return apiRequest(`/candidate-profiles/me/skills/${id}`, {
+    method: "PATCH",
+    body: payload,
+    ...authOpts(),
+  });
+}
+
+/** Remove a self-declared skill (credential-backed skills are rejected). */
+export function removeMySkill(id: string): Promise<void> {
+  return apiRequest(`/candidate-profiles/me/skills/${id}`, {
+    method: "DELETE",
+    ...authOpts(),
+  });
 }
 
 /** Aggregate counts for the candidate dashboard. */

@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -13,7 +15,9 @@ import { Application } from '../../database/entities/application.entity';
 import { User } from '../../database/entities/user.entity';
 import { CredentialStatus, UserRole } from '../../database/enums';
 import { EmbeddingService } from '../matching/embedding.service';
+import { AddCandidateSkillDto } from './dto/add-candidate-skill.dto';
 import { UpdateCandidateProfileDto } from './dto/update-candidate-profile.dto';
+import { UpdateCandidateSkillDto } from './dto/update-candidate-skill.dto';
 
 /** A candidate skill exposed to the owner (read-only). */
 export interface CandidateSkillView {
@@ -166,8 +170,17 @@ export class CandidateProfilesService {
     const saved = await this.repo.save(profile);
 
     // Bio + desired_position feed into the embedding source text, so refresh
-    // when those change. Best-effort: AI service downtime must not block the
-    // candidate from saving their profile.
+    // when those change.
+    await this.refreshEmbedding(userId);
+
+    return saved;
+  }
+
+  /**
+   * Re-derive the candidate's matching embedding after profile/skill changes.
+   * Best-effort: AI-service downtime must never block the candidate's write.
+   */
+  private async refreshEmbedding(userId: string): Promise<void> {
     try {
       await this.embeddings.updateCandidateEmbedding(userId);
     } catch (err) {
@@ -175,8 +188,6 @@ export class CandidateProfilesService {
         `Failed to refresh embedding for candidate ${userId}: ${(err as Error).message}`,
       );
     }
-
-    return saved;
   }
 
   /**
@@ -189,13 +200,137 @@ export class CandidateProfilesService {
       where: { candidateId: userId },
       order: { isVerified: 'DESC', skillName: 'ASC' },
     });
-    return skills.map((s) => ({
+    return skills.map((s) => this.toSkillView(s));
+  }
+
+  private toSkillView(s: CandidateSkill): CandidateSkillView {
+    return {
       id: s.id,
       skillName: s.skillName,
       proficiencyLevel: s.proficiencyLevel,
       isVerified: s.isVerified,
       sourceCredentialId: s.sourceCredentialId,
-    }));
+    };
+  }
+
+  /**
+   * Candidate self-declares a skill on their own profile. Stored unverified
+   * (`is_verified = false`, `source_credential_id = null`). It auto-promotes to
+   * verified only if an issuer later anchors a credential covering the same
+   * normalized skill (see CredentialsService.upsertCandidateSkills).
+   *
+   * Normalization mirrors the credential skill-extractor and the matching
+   * keyword tier EXACTLY (lower + trim, no catalog alias expansion) so a
+   * self-declared skill shares the same match key as required skills.
+   */
+  async addSkill(
+    userId: string,
+    dto: AddCandidateSkillDto,
+  ): Promise<CandidateSkillView> {
+    // Scope to candidates: findByUserId throws NotFound for non-candidate users.
+    await this.findByUserId(userId);
+
+    const skillName = dto.skillName.trim();
+    const normalized = skillName.toLowerCase();
+    if (!normalized) {
+      throw new BadRequestException('Skill name must not be empty');
+    }
+
+    const existing = await this.skillRepo.findOne({
+      where: { candidateId: userId, skillNameNormalized: normalized },
+    });
+    if (existing) {
+      throw new ConflictException('You already have this skill');
+    }
+
+    const saved = await this.skillRepo.save(
+      this.skillRepo.create({
+        candidateId: userId,
+        skillName,
+        skillNameNormalized: normalized,
+        proficiencyLevel: dto.proficiencyLevel?.trim() || null,
+        isVerified: false,
+        isSelfDeclared: true,
+        sourceCredentialId: null,
+      }),
+    );
+
+    await this.refreshEmbedding(userId);
+    return this.toSkillView(saved);
+  }
+
+  /**
+   * Edit a self-declared skill (name and/or proficiency). Credential-backed
+   * skills are managed by the issuer and cannot be edited here. Renaming
+   * re-normalizes and is rejected if it collides with another of the
+   * candidate's skills.
+   */
+  async updateSkill(
+    userId: string,
+    skillId: string,
+    dto: UpdateCandidateSkillDto,
+  ): Promise<CandidateSkillView> {
+    const skill = await this.skillRepo.findOne({
+      where: { id: skillId, candidateId: userId },
+    });
+    if (!skill) {
+      throw new NotFoundException('Skill not found');
+    }
+    if (skill.sourceCredentialId !== null) {
+      throw new ForbiddenException(
+        'Cannot edit a credential-backed skill; it is managed by the issuer',
+      );
+    }
+
+    let nameChanged = false;
+    if (dto.skillName !== undefined) {
+      const skillName = dto.skillName.trim();
+      const normalized = skillName.toLowerCase();
+      if (!normalized) {
+        throw new BadRequestException('Skill name must not be empty');
+      }
+      if (normalized !== skill.skillNameNormalized) {
+        const clash = await this.skillRepo.findOne({
+          where: { candidateId: userId, skillNameNormalized: normalized },
+        });
+        if (clash) {
+          throw new ConflictException('You already have this skill');
+        }
+        skill.skillName = skillName;
+        skill.skillNameNormalized = normalized;
+        nameChanged = true;
+      }
+    }
+    if (dto.proficiencyLevel !== undefined) {
+      skill.proficiencyLevel = dto.proficiencyLevel.trim() || null;
+    }
+
+    const saved = await this.skillRepo.save(skill);
+    // Only the skill NAME feeds the embedding source text; proficiency does not.
+    if (nameChanged) await this.refreshEmbedding(userId);
+    return this.toSkillView(saved);
+  }
+
+  /**
+   * Remove a self-declared skill. Credential-backed skills
+   * (`source_credential_id` set) are managed by issuance/revocation and cannot
+   * be deleted here.
+   */
+  async removeSkill(userId: string, skillId: string): Promise<void> {
+    const skill = await this.skillRepo.findOne({
+      where: { id: skillId, candidateId: userId },
+    });
+    if (!skill) {
+      throw new NotFoundException('Skill not found');
+    }
+    if (skill.sourceCredentialId !== null) {
+      throw new ForbiddenException(
+        'Cannot remove a credential-backed skill; it is managed by the issuer',
+      );
+    }
+
+    await this.skillRepo.delete({ id: skillId });
+    await this.refreshEmbedding(userId);
   }
 
   /**

@@ -858,6 +858,16 @@ export const TRANSLATIONS = {
     "candidate.profile.genderOther": "Khác",
     "candidate.profile.skillsHint":
       "{n} kỹ năng đã được xác minh on-chain từ văn bằng của bạn.",
+    "candidate.profile.skillsManageHint":
+      "Tự khai các kỹ năng bạn có. Kỹ năng tự khai chưa được xác thực; chúng sẽ tự chuyển thành đã xác thực khi tổ chức cấp văn bằng tương ứng.",
+    "candidate.profile.skillsEmpty":
+      "Chưa có kỹ năng nào. Thêm kỹ năng bạn có ở bên dưới.",
+    "candidate.profile.skillAddPlaceholder": "Tìm kỹ năng để thêm…",
+    "candidate.profile.skillNoMatch": "Không tìm thấy kỹ năng phù hợp.",
+    "candidate.profile.skillRemove": "Xoá kỹ năng",
+    "candidate.profile.skillEdit": "Sửa kỹ năng",
+    "candidate.profile.skillSave": "Lưu",
+    "candidate.profile.skillCancel": "Huỷ",
     "candidate.profile.completenessHint":
       "Hồ sơ đầy đủ giúp bạn được gợi ý chính xác hơn.",
     "candidate.profile.fldBio": "Giới thiệu ngắn",
@@ -2224,6 +2234,16 @@ export const TRANSLATIONS = {
     "candidate.profile.genderOther": "Other",
     "candidate.profile.skillsHint":
       "{n} skill(s) blockchain-verified from your credentials.",
+    "candidate.profile.skillsManageHint":
+      "Self-declare the skills you have. Self-declared skills aren't verified; they upgrade automatically once an issuer anchors a matching credential.",
+    "candidate.profile.skillsEmpty":
+      "No skills yet. Add the skills you have below.",
+    "candidate.profile.skillAddPlaceholder": "Search a skill to add…",
+    "candidate.profile.skillNoMatch": "No matching skill.",
+    "candidate.profile.skillRemove": "Remove skill",
+    "candidate.profile.skillEdit": "Edit skill",
+    "candidate.profile.skillSave": "Save",
+    "candidate.profile.skillCancel": "Cancel",
     "candidate.profile.completenessHint":
       "A complete profile leads to more accurate recommendations.",
     "candidate.profile.fldBio": "Short bio",

@@ -1,6 +1,18 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -10,7 +22,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { CandidateProfilesService } from './candidate-profiles.service';
+import { AddCandidateSkillDto } from './dto/add-candidate-skill.dto';
 import { UpdateCandidateProfileDto } from './dto/update-candidate-profile.dto';
+import { UpdateCandidateSkillDto } from './dto/update-candidate-skill.dto';
 
 @ApiTags('Candidate Profiles')
 @ApiBearerAuth()
@@ -31,6 +45,35 @@ export class CandidateProfilesController {
   @ApiOkResponse({ description: 'Skills with on-chain verification flag' })
   async findMySkills(@CurrentUser() user: User) {
     return this.service.findSkillsByUserId(user.id);
+  }
+
+  @Post('me/skills')
+  @ApiOperation({ summary: 'Self-declare a skill on the current profile' })
+  @ApiCreatedResponse({ description: 'The created (unverified) skill' })
+  async addMySkill(
+    @CurrentUser() user: User,
+    @Body() dto: AddCandidateSkillDto,
+  ) {
+    return this.service.addSkill(user.id, dto);
+  }
+
+  @Patch('me/skills/:id')
+  @ApiOperation({ summary: 'Edit a self-declared skill (not credential-backed)' })
+  @ApiOkResponse({ description: 'The updated skill' })
+  async updateMySkill(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: UpdateCandidateSkillDto,
+  ) {
+    return this.service.updateSkill(user.id, id, dto);
+  }
+
+  @Delete('me/skills/:id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Remove a self-declared skill (not credential-backed)' })
+  @ApiNoContentResponse({ description: 'Skill removed' })
+  async removeMySkill(@CurrentUser() user: User, @Param('id') id: string) {
+    await this.service.removeSkill(user.id, id);
   }
 
   @Get('me/dashboard')

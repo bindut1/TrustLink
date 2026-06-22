@@ -36,6 +36,7 @@ import {
 } from '../blockchain/eip712';
 import { buildMerkleTree, getProof, verifyProof } from '../blockchain/merkle';
 import { VcService } from '../blockchain/vc.service';
+import { detachOrDeleteCredentialSkills } from './helpers/skill-sync';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   AnchorBatchDto,
@@ -673,8 +674,9 @@ export class CredentialsService {
       await this.credRepo.save(c);
       await this.statusList.revokeByCredential(c.id);
 
-      // Drop the now-invalid skills this credential contributed (see revoke()).
-      await this.skillRepo.delete({ sourceCredentialId: c.id });
+      // The credential no longer attests to anything: self-declared skills
+      // revert to a claimed skill, credential-only skills are removed.
+      await detachOrDeleteCredentialSkills(this.skillRepo, c.id);
       if (c.candidateId) affectedCandidates.add(c.candidateId);
 
       if (c.candidateId) {
@@ -812,10 +814,10 @@ export class CredentialsService {
     // revocation too (herd-privacy revocation list alongside the on-chain leaf).
     await this.statusList.revokeByCredential(saved.id);
 
-    // A revoked credential no longer attests to anything, so the skills it
-    // contributed to the candidate's profile are no longer valid — remove them.
-    // (Purely self-declared skills have a null source_credential_id and are kept.)
-    await this.skillRepo.delete({ sourceCredentialId: saved.id });
+    // A revoked credential no longer attests to anything: skills the candidate
+    // also self-declared revert to a claimed (unverified) skill; skills that
+    // only came from this credential are removed.
+    await detachOrDeleteCredentialSkills(this.skillRepo, saved.id);
     if (saved.candidateId) await this.refreshCandidateEmbedding(saved.candidateId);
 
     if (saved.candidateId) {
