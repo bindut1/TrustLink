@@ -45,6 +45,7 @@ function makeMocks() {
     isIssuerAuthorized: jest.fn(() => Promise.resolve(false)),
     addIssuerOnChain: jest.fn(() => Promise.resolve(undefined)),
     recordLeafRevocation: jest.fn(() => Promise.resolve(undefined)),
+    recordBatchIssuance: jest.fn(() => Promise.resolve(undefined)),
     computeCredentialHash: jest.fn(() => '0x' + '11'.repeat(32)),
     isLeafRevokedOnChain: jest.fn(() => Promise.resolve(false)),
     verifyBatchOnChain: jest.fn(),
@@ -394,6 +395,15 @@ describe('CredentialsService.anchorBatch — trust guard chain', () => {
     expect(m.notifications.create).toHaveBeenCalledTimes(2);
     expect(m.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({ type: NotificationType.CREDENTIAL_ISSUED }),
+    );
+    // Audit row recorded for the admin monitor (issuer-signed, non-custodial).
+    expect(m.blockchain.recordBatchIssuance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        merkleRoot: dto.merkleRoot,
+        txHash: dto.txHash,
+        count: 2,
+        initiatedBy: 'issuer-1',
+      }),
     );
   });
 

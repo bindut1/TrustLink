@@ -446,6 +446,24 @@ export class CredentialsService {
       });
       anchored++;
     }
+
+    // Audit row for the admin blockchain monitor. The issuer's own wallet
+    // broadcast issueBatch (non-custodial); we only mirror the confirmed tx.
+    // Best-effort: the credentials are already issued + anchored on-chain.
+    try {
+      await this.blockchain.recordBatchIssuance({
+        institutionId: institution.id,
+        initiatedBy: issuerUserId,
+        merkleRoot: dto.merkleRoot,
+        txHash: dto.txHash,
+        count: ordered.length,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to record issuance tx ${dto.txHash} for monitor: ${(err as Error).message}`,
+      );
+    }
+
     return { anchored };
   }
 
@@ -565,6 +583,25 @@ export class CredentialsService {
       });
       anchored++;
     }
+
+    // Audit row for the admin blockchain monitor. The issuer's own wallet
+    // broadcast issueBatch (non-custodial); we only mirror the confirmed tx.
+    // Best-effort: the credentials are already issued + anchored on-chain, so a
+    // failure here must not roll that back.
+    try {
+      await this.blockchain.recordBatchIssuance({
+        institutionId: institution.id,
+        initiatedBy: issuerUserId,
+        merkleRoot: dto.merkleRoot,
+        txHash: dto.txHash,
+        count: ordered.length,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to record issuance tx ${dto.txHash} for monitor: ${(err as Error).message}`,
+      );
+    }
+
     return { anchored };
   }
 

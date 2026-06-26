@@ -257,6 +257,46 @@ export class BlockchainService implements OnModuleInit {
     return tx;
   }
 
+  /**
+   * Record an issuer-signed batch issuance (`issueBatch`) for the admin monitor.
+   * Like the revoke flows, the issuer broadcast the tx from their OWN wallet
+   * (non-custodial) and the caller (`anchorBatch`/`anchorBatchBulk`) has already
+   * verified the on-chain anchor + signature. This NEVER signs anything — it only
+   * persists an audit row mirroring public on-chain data so issuance shows up in
+   * the blockchain monitor alongside revocations. Deduped by txHash so retries of
+   * anchoring the same root don't create duplicate rows.
+   */
+  async recordBatchIssuance(args: {
+    institutionId: string | null;
+    initiatedBy: string;
+    merkleRoot: string;
+    txHash: string;
+    count: number;
+  }): Promise<BlockchainTransaction> {
+    const existing = await this.txRepo.findOne({
+      where: {
+        txHash: args.txHash,
+        transactionType: TxType.ISSUE_CREDENTIAL,
+      },
+    });
+    if (existing) return existing;
+
+    const meta = await this.fetchTxMeta(args.txHash);
+    return this.txRepo.save(
+      this.txRepo.create({
+        transactionType: TxType.ISSUE_CREDENTIAL,
+        status: TxStatus.CONFIRMED,
+        credentialId: null,
+        institutionId: args.institutionId,
+        initiatedBy: args.initiatedBy,
+        contractMethod: 'issueBatch',
+        contractParams: { merkleRoot: args.merkleRoot, count: args.count },
+        txHash: args.txHash,
+        ...meta,
+      }),
+    );
+  }
+
   /** Best-effort receipt enrichment for an audit row / admin blockchain view. */
   private async fetchTxMeta(txHash: string): Promise<{
     blockNumber: string | null;
