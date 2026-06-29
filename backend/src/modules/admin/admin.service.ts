@@ -45,8 +45,6 @@ export class AdminService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  // ───────────── Dashboard ─────────────
-
   async getDashboardStats() {
     const [
       totalUsers,
@@ -71,7 +69,9 @@ export class AdminService {
       this.userRepo.count({ where: { role: UserRole.RECRUITER } }),
       this.credentialRepo.count(),
       this.credentialRepo.count({ where: { status: CredentialStatus.ISSUED } }),
-      this.credentialRepo.count({ where: { status: CredentialStatus.REVOKED } }),
+      this.credentialRepo.count({
+        where: { status: CredentialStatus.REVOKED },
+      }),
       this.institutionRepo.count(),
       this.institutionRepo.count({
         where: { approvalStatus: ApprovalStatus.PENDING },
@@ -112,9 +112,9 @@ export class AdminService {
     };
   }
 
-  // ───────────── Users ─────────────
-
-  async listUsers(query: ListUsersQuery): Promise<Omit<User, 'passwordHash'>[]> {
+  async listUsers(
+    query: ListUsersQuery,
+  ): Promise<Omit<User, 'passwordHash'>[]> {
     const where: Record<string, unknown>[] = [];
     const baseFilter: Record<string, unknown> = {};
     if (query.role) baseFilter.role = query.role;
@@ -155,8 +155,6 @@ export class AdminService {
       newValues: { status },
     });
 
-    // On suspension, revoke all active refresh tokens so the user is forced
-    // out of every session.
     if (status === AccountStatus.SUSPENDED) {
       await this.refreshTokenRepo
         .createQueryBuilder()
@@ -170,14 +168,10 @@ export class AdminService {
     return stripPassword(user);
   }
 
-  // ───────────── Action overrides ─────────────
-
   async listActions(role?: UserRole): Promise<Action[]> {
     if (!role) {
       return this.actionRepo.find({ order: { module: 'ASC', code: 'ASC' } });
     }
-    // Return only actions that belong to the given role so admin sees only
-    // the actions that are actually relevant to that user.
     const roleActions = await this.roleActionRepo.find({
       where: { role },
       relations: ['action'],
@@ -265,8 +259,6 @@ export class AdminService {
     });
   }
 
-  // ───────────── Blockchain ─────────────
-
   async listTransactions(query: ListTxQuery) {
     const where: Record<string, unknown> = {};
     if (query.status) where.status = query.status;
@@ -295,8 +287,6 @@ export class AdminService {
     }));
   }
 
-  // ───────────── Audit logs ─────────────
-
   async listAuditLogs(filter: {
     userId?: string;
     action?: string;
@@ -306,8 +296,6 @@ export class AdminService {
   }) {
     return this.auditLogs.query(filter);
   }
-
-  // ───────────── Announcements ─────────────
 
   async broadcastAnnouncement(
     dto: CreateAnnouncementDto,
@@ -325,8 +313,6 @@ export class AdminService {
     );
     return { sent: userIds.length };
   }
-
-  // ───────────── helpers ─────────────
 
   private async assertUserExists(id: string): Promise<void> {
     const exists = await this.userRepo.exist({ where: { id } });

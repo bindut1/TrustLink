@@ -41,10 +41,7 @@ export class UsersService {
     return this.findById(userId);
   }
 
-  async updateAvatar(
-    userId: string,
-    file: Express.Multer.File,
-  ): Promise<User> {
+  async updateAvatar(userId: string, file: Express.Multer.File): Promise<User> {
     if (!file) throw new BadRequestException('No file uploaded');
     if (!ALLOWED_AVATAR_MIME.includes(file.mimetype)) {
       throw new BadRequestException(
@@ -70,10 +67,6 @@ export class UsersService {
     const contains = `%${raw}%`;
     const prefix = `${raw}%`;
 
-    // Rank by relevance so the closest matches surface first:
-    //   0 — email/name starts with the query (strongest signal)
-    //   1 — email/name contains the query anywhere
-    // Within each tier, sort alphabetically by name for stable ordering.
     const users = await this.userRepo
       .createQueryBuilder('u')
       .where('u.role = :role', { role: UserRole.CANDIDATE })

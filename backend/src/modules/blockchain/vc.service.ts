@@ -32,13 +32,6 @@ export interface VerifiedVc {
 
 const DID_METHOD_NETWORK = 'polygon';
 
-/**
- * Builds and verifies W3C Verifiable Credentials using non-custodial
- * EthereumEip712Signature2021 proofs. The issuer signs (per-credential or once
- * per Merkle batch) with their own wallet; this service never holds a key — it
- * only constructs the typed data to sign and verifies the recovered signer
- * against the issuer DID.
- */
 @Injectable()
 export class VcService {
   private readonly logger = new Logger(VcService.name);
@@ -54,12 +47,6 @@ export class VcService {
     return m ? m[1].toLowerCase() : null;
   }
 
-  // ─────────────────── EthereumEip712Signature2021 (non-custodial) ───────────────────
-
-  /**
-   * Build the EIP-712 typed data the issuer's MetaMask will sign. Binds the
-   * signature to the credential's canonical hash (also the Merkle leaf).
-   */
   buildCredentialTypedData(args: {
     credential: Credential;
     institution: Institution;
@@ -96,10 +83,6 @@ export class VcService {
     };
   }
 
-  /**
-   * Assemble the W3C VC JSON-LD with an EthereumEip712Signature2021 proof, given
-   * the issuer's signature over the typed data. Stored on the credential row.
-   */
   assembleEip712Vc(args: {
     typedData: CredentialTypedData;
     signature: string;
@@ -107,7 +90,8 @@ export class VcService {
     institutionName: string;
     createdAt: string;
   }): Record<string, unknown> {
-    const { typedData, signature, candidate, institutionName, createdAt } = args;
+    const { typedData, signature, candidate, institutionName, createdAt } =
+      args;
     const m = typedData.message;
     return {
       '@context': [
@@ -145,10 +129,6 @@ export class VcService {
     };
   }
 
-  /**
-   * Verify an EthereumEip712Signature2021 proof: recover the signer from the
-   * stored typed data + signature and match it to the issuer DID's address.
-   */
   verifyEip712(vcJson: Record<string, unknown> | null | undefined): VerifiedVc {
     try {
       const proof = (vcJson?.['proof'] ?? null) as {
@@ -207,9 +187,6 @@ export class VcService {
     }
   }
 
-  // ─────────────────── Batch signing (1 signature for N credentials) ───────────────────
-
-  /** Typed data the issuer signs ONCE for a whole Merkle batch. */
   buildBatchTypedData(args: {
     merkleRoot: string;
     institution: Institution;
@@ -237,10 +214,6 @@ export class VcService {
     };
   }
 
-  /**
-   * Assemble one credential's VC carrying the SHARED batch signature plus this
-   * credential's Merkle proof (proof.eip712.primaryType === 'Batch').
-   */
   assembleBatchVc(args: {
     credential: Credential;
     candidate: User;
@@ -290,15 +263,6 @@ export class VcService {
     };
   }
 
-  /**
-   * Build a self-describing on-chain anchor (W3C `evidence`, Blockcerts
-   * MerkleProof2019 shape) so a third party can verify the credential AGAINST
-   * THE CHAIN without TrustLink: it names the network, the registry contract,
-   * and the Merkle anchor (root + proof + leaf). NOT part of the signed payload
-   * — the chain is the source of truth, so a tampered anchor simply fails the
-   * on-chain lookup. Returns null when the contract or root is unknown (e.g.
-   * blockchain not configured).
-   */
   buildAnchorEvidence(args: {
     credentialHash: string;
     merkleRoot: string | null;
@@ -324,13 +288,9 @@ export class VcService {
     ];
   }
 
-  /**
-   * Verify a batch-signed VC: recover the signer from the (shared) batch
-   * signature over the Batch typed data and match it to the issuer DID; also
-   * confirm the credential's root equals the signed root. Merkle membership of
-   * the leaf is checked separately by the caller.
-   */
-  verifyBatchEip712(vcJson: Record<string, unknown> | null | undefined): VerifiedVc {
+  verifyBatchEip712(
+    vcJson: Record<string, unknown> | null | undefined,
+  ): VerifiedVc {
     try {
       const proof = (vcJson?.['proof'] ?? null) as {
         type?: string;

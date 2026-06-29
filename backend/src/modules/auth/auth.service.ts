@@ -17,11 +17,7 @@ import { CandidateProfile } from '../../database/entities/candidate-profile.enti
 import { RecruiterProfile } from '../../database/entities/recruiter-profile.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { PasswordResetToken } from '../../database/entities/password-reset-token.entity';
-import {
-  AccountStatus,
-  ApprovalStatus,
-  UserRole,
-} from '../../database/enums';
+import { AccountStatus, ApprovalStatus, UserRole } from '../../database/enums';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
@@ -55,7 +51,9 @@ export class AuthService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<{ user: User; tokens: AuthTokens }> {
+  async register(
+    dto: RegisterDto,
+  ): Promise<{ user: User; tokens: AuthTokens }> {
     const existing = await this.userRepo.findOne({
       where: { email: dto.email.toLowerCase() },
     });
@@ -157,7 +155,6 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    // Rotate: revoke the old token and issue a new pair
     stored.revokedAt = new Date();
     await this.refreshTokenRepo.save(stored);
 
@@ -179,7 +176,6 @@ export class AuthService {
     const user = await this.userRepo.findOne({
       where: { email: email.toLowerCase() },
     });
-    // Always succeed silently to avoid email enumeration
     if (!user) return;
 
     const rawToken = randomBytes(32).toString('hex');
@@ -220,7 +216,6 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.dataSource.transaction(async (manager) => {
       await manager.update(User, userId, { passwordHash });
-      // Revoke all active refresh tokens — user must re-login on all devices
       await manager.update(
         RefreshToken,
         { userId, revokedAt: IsNull() },
@@ -253,7 +248,6 @@ export class AuthService {
       await manager.update(User, stored.userId, { passwordHash });
       stored.usedAt = new Date();
       await manager.save(stored);
-      // Revoke all active refresh tokens for this user
       await manager.update(
         RefreshToken,
         { userId: stored.userId, revokedAt: IsNull() },

@@ -17,11 +17,6 @@ export class PermissionsService {
     private readonly overrideRepo: Repository<UserActionOverride>,
   ) {}
 
-  /**
-   * Effective permission resolution per spec §3:
-   *   override exists → use is_enabled directly
-   *   no override     → fall back to role_actions for the user's role
-   */
   async userHasAction(
     userId: string,
     role: UserRole,
@@ -54,7 +49,6 @@ export class PermissionsService {
     actionCodes: string[],
   ): Promise<boolean> {
     for (const code of actionCodes) {
-      // Sequential is fine here — typical guard checks 1-2 actions.
       const ok = await this.userHasAction(userId, role, code);
       if (!ok) return false;
     }

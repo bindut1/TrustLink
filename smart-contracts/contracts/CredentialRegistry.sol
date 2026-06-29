@@ -1,29 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/**
- * @title CredentialRegistry
- * @notice On-chain credential anchoring with issuer management for TrustLink.
- * @dev Deployed on Polygon Amoy testnet.
- *
- * Blockcerts-style batch anchoring: one Merkle root represents many
- * credentials, anchored in a single `issueBatch` tx by the issuing institution.
- * Revocation works at two granularities, both signed by the issuer:
- *   - `revokeBatch`  — invalidates a whole Merkle root (every credential in it).
- *   - `revokeLeaf`   — invalidates a single credential by its leaf hash, without
- *                      touching the root or the other leaves. Membership in the
- *                      root is proven off-chain via a Merkle proof; this set only
- *                      records "this leaf is no longer valid".
- */
 contract CredentialRegistry {
     address public owner;
 
     mapping(address => bool) public authorizedIssuers;
     mapping(bytes32 => Batch) public batches;
 
-    // Per-credential revocation set, keyed by the credential's Merkle leaf hash.
-    // Independent of issuance: a leaf can be revoked even though only the batch
-    // root was ever stored on-chain.
     mapping(bytes32 => bool) public revokedLeaves;
 
     struct Batch {
@@ -69,13 +52,6 @@ contract CredentialRegistry {
         return authorizedIssuers[_addr];
     }
 
-    // ───────────────────────── Batch (Merkle) anchoring ─────────────────────────
-
-    /**
-     * @notice Anchor a Merkle root representing a batch of credentials.
-     * @dev msg.sender (the issuing institution) is recorded as the batch issuer,
-     *      so on-chain attribution reflects the real issuer — not a relayer.
-     */
     function issueBatch(bytes32 _merkleRoot) external onlyAuthorizedIssuer {
         require(batches[_merkleRoot].timestamp == 0, "Batch already exists");
 
@@ -110,16 +86,6 @@ contract CredentialRegistry {
         return (true, b.issuer, b.timestamp, b.isRevoked);
     }
 
-    // ───────────────────────── Per-leaf revocation ─────────────────────────
-
-    /**
-     * @notice Revoke a single credential by its Merkle leaf hash.
-     * @dev Does NOT require the leaf to have been issued on-chain — only the
-     *      batch root is stored. Anchoring stays one cheap tx per batch; this
-     *      adds one tx only when a specific credential is revoked. Whether the
-     *      leaf genuinely belongs to an anchored root is checked off-chain by the
-     *      verifier via a Merkle proof, so revoking an unknown hash is harmless.
-     */
     function revokeLeaf(bytes32 _leafHash) external onlyAuthorizedIssuer {
         require(!revokedLeaves[_leafHash], "Leaf already revoked");
         revokedLeaves[_leafHash] = true;

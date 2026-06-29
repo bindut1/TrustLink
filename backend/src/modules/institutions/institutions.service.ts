@@ -19,7 +19,6 @@ import { ApproveInstitutionDto } from './dto/approve-institution.dto';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 
-/** Aggregates powering the issuer dashboard. */
 export interface IssuerDashboard {
   credentials: {
     total: number;
@@ -54,60 +53,62 @@ export class InstitutionsService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  /**
-   * Dashboard aggregates for the current issuer's institution. All real DB
-   * aggregations scoped to the institution — credentials by status, on-chain
-   * count, a 6-month issuance time-series, distinct candidates reached, and the
-   * latest issuances.
-   */
   async getDashboard(userId: string): Promise<IssuerDashboard> {
     const institution = await this.findByUserId(userId);
     const instId = institution.id;
 
-    const [total, onChain, revoked, byStatusRows, monthRows, reachedRow, recent] =
-      await Promise.all([
-        this.credentialRepo.count({ where: { institutionId: instId } }),
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .where('c.institutionId = :instId', { instId })
-          .andWhere('c.blockchainTxHash IS NOT NULL')
-          .andWhere('c.status != :revoked', { revoked: CredentialStatus.REVOKED })
-          .getCount(),
-        this.credentialRepo.count({
-          where: { institutionId: instId, status: CredentialStatus.REVOKED },
-        }),
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .select('c.status', 'status')
-          .addSelect('COUNT(*)', 'count')
-          .where('c.institutionId = :instId', { instId })
-          .groupBy('c.status')
-          .getRawMany<{ status: string; count: string }>(),
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .select("TO_CHAR(DATE_TRUNC('month', c.created_at), 'YYYY-MM')", 'month')
-          .addSelect('COUNT(*)', 'count')
-          .where('c.institutionId = :instId', { instId })
-          .groupBy("DATE_TRUNC('month', c.created_at)")
-          .orderBy("DATE_TRUNC('month', c.created_at)", 'ASC')
-          .getRawMany<{ month: string; count: string }>(),
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .select('COUNT(DISTINCT c.candidate_id)', 'count')
-          .where('c.institutionId = :instId', { instId })
-          .getRawOne<{ count: string }>(),
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .leftJoin('c.candidate', 'cand')
-          .addSelect(['cand.fullName'])
-          .where('c.institutionId = :instId', { instId })
-          .orderBy('c.createdAt', 'DESC')
-          .take(5)
-          .getMany(),
-      ]);
+    const [
+      total,
+      onChain,
+      revoked,
+      byStatusRows,
+      monthRows,
+      reachedRow,
+      recent,
+    ] = await Promise.all([
+      this.credentialRepo.count({ where: { institutionId: instId } }),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .where('c.institutionId = :instId', { instId })
+        .andWhere('c.blockchainTxHash IS NOT NULL')
+        .andWhere('c.status != :revoked', { revoked: CredentialStatus.REVOKED })
+        .getCount(),
+      this.credentialRepo.count({
+        where: { institutionId: instId, status: CredentialStatus.REVOKED },
+      }),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .select('c.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .where('c.institutionId = :instId', { instId })
+        .groupBy('c.status')
+        .getRawMany<{ status: string; count: string }>(),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .select(
+          "TO_CHAR(DATE_TRUNC('month', c.created_at), 'YYYY-MM')",
+          'month',
+        )
+        .addSelect('COUNT(*)', 'count')
+        .where('c.institutionId = :instId', { instId })
+        .groupBy("DATE_TRUNC('month', c.created_at)")
+        .orderBy("DATE_TRUNC('month', c.created_at)", 'ASC')
+        .getRawMany<{ month: string; count: string }>(),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .select('COUNT(DISTINCT c.candidate_id)', 'count')
+        .where('c.institutionId = :instId', { instId })
+        .getRawOne<{ count: string }>(),
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .leftJoin('c.candidate', 'cand')
+        .addSelect(['cand.fullName'])
+        .where('c.institutionId = :instId', { instId })
+        .orderBy('c.createdAt', 'DESC')
+        .take(5)
+        .getMany(),
+    ]);
 
-    // Full per-month history (ascending). The client picks a year and renders
-    // 12 month slots, drawing a bar only for months that have data.
     const issuanceByMonth = monthRows.map((r) => ({
       month: r.month,
       count: Number(r.count),
@@ -215,9 +216,6 @@ export class InstitutionsService {
     const saved = await this.repo.save(institution);
 
     if (dto.approvalStatus === ApprovalStatus.APPROVED) {
-      // On-chain issuer identity is NOT assigned here. Each issuer gets its own
-      // distinct identity by connecting their MetaMask wallet (registerIssuerWallet),
-      // which authorizes that wallet on-chain (one addIssuer tx per issuer).
       await this.notifications.create({
         userId: saved.userId,
         type: NotificationType.INSTITUTION_APPROVED,

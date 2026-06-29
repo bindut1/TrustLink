@@ -7,7 +7,6 @@ import { Application } from '../../database/entities/application.entity';
 import { JobStatus } from '../../database/enums';
 import { UpdateRecruiterProfileDto } from './dto/update-recruiter-profile.dto';
 
-/** Aggregates powering the recruiter dashboard. */
 export interface RecruiterDashboard {
   jobs: { total: number; open: number; draft: number; closed: number };
   applicants: { total: number; byStatus: { status: string; count: number }[] };
@@ -35,11 +34,6 @@ export class RecruiterProfilesService {
     private readonly appRepo: Repository<Application>,
   ) {}
 
-  /**
-   * Dashboard aggregates for the current recruiter — jobs by status, applicant
-   * counts/funnel, a per-month application time-series, and recent applicants.
-   * All scoped to jobs owned by this recruiter (real DB aggregations).
-   */
   async getDashboard(userId: string): Promise<RecruiterDashboard> {
     const profile = await this.findByUserId(userId).catch(() => null);
 
@@ -68,7 +62,10 @@ export class RecruiterProfilesService {
         this.appRepo
           .createQueryBuilder('a')
           .innerJoin('a.job', 'j')
-          .select("TO_CHAR(DATE_TRUNC('month', a.created_at), 'YYYY-MM')", 'month')
+          .select(
+            "TO_CHAR(DATE_TRUNC('month', a.created_at), 'YYYY-MM')",
+            'month',
+          )
           .addSelect('COUNT(*)', 'count')
           .where('j.recruiterId = :userId', { userId })
           .groupBy("DATE_TRUNC('month', a.created_at)")
@@ -147,12 +144,6 @@ export class RecruiterProfilesService {
     return profile;
   }
 
-  /**
-   * Sanitized public company profile for a recruiter, looked up by their
-   * user id (= Job.recruiterId). Excludes sensitive fields (tax code, contact
-   * email) so any authenticated user — e.g. a candidate browsing jobs — can
-   * view the hiring company.
-   */
   async findPublicByUserId(userId: string) {
     const p = await this.findByUserId(userId);
     return {

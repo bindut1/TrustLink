@@ -19,7 +19,6 @@ import { AddCandidateSkillDto } from './dto/add-candidate-skill.dto';
 import { UpdateCandidateProfileDto } from './dto/update-candidate-profile.dto';
 import { UpdateCandidateSkillDto } from './dto/update-candidate-skill.dto';
 
-/** A candidate skill exposed to the owner (read-only). */
 export interface CandidateSkillView {
   id: string;
   skillName: string;
@@ -28,11 +27,6 @@ export interface CandidateSkillView {
   sourceCredentialId: string | null;
 }
 
-/**
- * Real profile-completeness (0–100) computed from the fields that are actually
- * filled — 11 equally-weighted signals. This replaces the previously static
- * `profile_completeness` column so the number reflects the live profile.
- */
 export function computeProfileCompleteness(
   p: CandidateProfile,
   avatarUrl: string | null,
@@ -58,7 +52,6 @@ export function computeProfileCompleteness(
   return Math.round((filled / checks.length) * 100);
 }
 
-/** Aggregate counts powering the candidate dashboard. */
 export interface CandidateDashboard {
   credentials: {
     total: number;
@@ -92,8 +85,6 @@ export class CandidateProfilesService {
   ) {}
 
   async findById(id: string, requester?: User): Promise<CandidateProfile> {
-    // Explicitly selecting user fields keeps `passwordHash` out of the API
-    // response while still allowing callers to render the candidate's name.
     const profile = await this.repo
       .createQueryBuilder('p')
       .leftJoin('p.user', 'u')
@@ -105,15 +96,9 @@ export class CandidateProfilesService {
     return this.withCompleteness(profile);
   }
 
-  /**
-   * A candidate who turned off "open to work" is hidden from everyone except
-   * themselves, admins and issuers (issuers must still find candidates to
-   * issue credentials to). Recruiters get a 403 even for submitted
-   * applications — hiding is absolute by product decision.
-   */
   private assertVisibleTo(profile: CandidateProfile, requester?: User): void {
     if (profile.isOpenToWork) return;
-    if (!requester) return; // internal call, no access context
+    if (!requester) return;
     const isOwner = requester.id === profile.userId;
     const exempt =
       requester.role === UserRole.ADMIN || requester.role === UserRole.ISSUER;
@@ -133,11 +118,6 @@ export class CandidateProfilesService {
     return this.withCompleteness(profile);
   }
 
-  /**
-   * Compute live completeness from the real fields and set it on the returned
-   * profile. Not persisted here — reads stay side-effect free; the column is
-   * refreshed on save (`updateByUserId`).
-   */
   private async withCompleteness(
     profile: CandidateProfile,
   ): Promise<CandidateProfile> {
@@ -158,7 +138,6 @@ export class CandidateProfilesService {
   ): Promise<CandidateProfile> {
     const profile = await this.findByUserId(userId);
     Object.assign(profile, dto);
-    // Recompute from the merged result and persist the fresh value.
     const skillCount = await this.skillRepo.count({
       where: { candidateId: userId },
     });
@@ -169,17 +148,11 @@ export class CandidateProfilesService {
     );
     const saved = await this.repo.save(profile);
 
-    // Bio + desired_position feed into the embedding source text, so refresh
-    // when those change.
     await this.refreshEmbedding(userId);
 
     return saved;
   }
 
-  /**
-   * Re-derive the candidate's matching embedding after profile/skill changes.
-   * Best-effort: AI-service downtime must never block the candidate's write.
-   */
   private async refreshEmbedding(userId: string): Promise<void> {
     try {
       await this.embeddings.updateCandidateEmbedding(userId);
@@ -190,11 +163,6 @@ export class CandidateProfilesService {
     }
   }
 
-  /**
-   * Read-only list of the candidate's skills, verified-first then alphabetical.
-   * `isVerified` means the skill is backed by an on-chain credential
-   * (`source_credential_id`).
-   */
   async findSkillsByUserId(userId: string): Promise<CandidateSkillView[]> {
     const skills = await this.skillRepo.find({
       where: { candidateId: userId },
@@ -213,21 +181,10 @@ export class CandidateProfilesService {
     };
   }
 
-  /**
-   * Candidate self-declares a skill on their own profile. Stored unverified
-   * (`is_verified = false`, `source_credential_id = null`). It auto-promotes to
-   * verified only if an issuer later anchors a credential covering the same
-   * normalized skill (see CredentialsService.upsertCandidateSkills).
-   *
-   * Normalization mirrors the credential skill-extractor and the matching
-   * keyword tier EXACTLY (lower + trim, no catalog alias expansion) so a
-   * self-declared skill shares the same match key as required skills.
-   */
   async addSkill(
     userId: string,
     dto: AddCandidateSkillDto,
   ): Promise<CandidateSkillView> {
-    // Scope to candidates: findByUserId throws NotFound for non-candidate users.
     await this.findByUserId(userId);
 
     const skillName = dto.skillName.trim();
@@ -259,12 +216,6 @@ export class CandidateProfilesService {
     return this.toSkillView(saved);
   }
 
-  /**
-   * Edit a self-declared skill (name and/or proficiency). Credential-backed
-   * skills are managed by the issuer and cannot be edited here. Renaming
-   * re-normalizes and is rejected if it collides with another of the
-   * candidate's skills.
-   */
   async updateSkill(
     userId: string,
     skillId: string,
@@ -306,16 +257,10 @@ export class CandidateProfilesService {
     }
 
     const saved = await this.skillRepo.save(skill);
-    // Only the skill NAME feeds the embedding source text; proficiency does not.
     if (nameChanged) await this.refreshEmbedding(userId);
     return this.toSkillView(saved);
   }
 
-  /**
-   * Remove a self-declared skill. Credential-backed skills
-   * (`source_credential_id` set) are managed by issuance/revocation and cannot
-   * be deleted here.
-   */
   async removeSkill(userId: string, skillId: string): Promise<void> {
     const skill = await this.skillRepo.findOne({
       where: { id: skillId, candidateId: userId },
@@ -323,10 +268,6 @@ export class CandidateProfilesService {
     if (!skill) {
       throw new NotFoundException('Skill not found');
     }
-    // Deletability is driven by verification, NOT by source_credential_id: a
-    // skill that is not verified on-chain (self-declared, pending, or a leftover
-    // from a revoked credential) is the candidate's own claim and can be
-    // removed; a verified skill is managed by the issuer.
     if (skill.isVerified) {
       throw new ForbiddenException(
         'Cannot remove a verified skill; it is managed by the issuer',
@@ -337,10 +278,6 @@ export class CandidateProfilesService {
     await this.refreshEmbedding(userId);
   }
 
-  /**
-   * Dashboard aggregates for the current candidate. All counts are real DB
-   * aggregations scoped to the candidate — no synthetic data.
-   */
   async getDashboard(userId: string): Promise<CandidateDashboard> {
     const [
       credTotal,
@@ -375,7 +312,6 @@ export class CandidateProfilesService {
         .where('a.candidateId = :userId', { userId })
         .groupBy('a.status')
         .getRawMany<{ status: string; count: string }>(),
-      // findByUserId computes live completeness from the real fields.
       this.findByUserId(userId).catch(() => null),
     ]);
 
@@ -385,7 +321,10 @@ export class CandidateProfilesService {
         onChain,
         byCategory: byCategoryRows
           .filter((r) => r.category)
-          .map((r) => ({ category: r.category as string, count: Number(r.count) })),
+          .map((r) => ({
+            category: r.category as string,
+            count: Number(r.count),
+          })),
       },
       applications: {
         total: appTotal,

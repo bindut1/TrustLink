@@ -16,7 +16,6 @@ export class EmailService {
     const pass = this.config.get<string>('SMTP_PASS');
 
     if (!host || !user || !pass) {
-      // Real delivery is required — fail loudly instead of silently mocking.
       throw new Error(
         'SMTP is not configured: set SMTP_HOST, SMTP_USER and SMTP_PASS in your environment.',
       );
@@ -26,12 +25,10 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       host,
       port,
-      secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
+      secure: port === 465,
       auth: { user, pass },
     });
 
-    // Verify the SMTP connection on boot so bad credentials surface immediately
-    // (e.g. a mistyped Gmail App Password → "535 ... not accepted").
     this.transporter
       .verify()
       .then(() => this.logger.log(`SMTP ready (${host}:${port})`))
@@ -67,8 +64,6 @@ export class EmailService {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
       this.logger.log(`Email sent to ${to}: ${subject}`);
     } catch (err) {
-      // Logged, not re-thrown: the forgot-password flow must always respond
-      // 200 to avoid leaking which emails are registered (email enumeration).
       this.logger.error(
         `Failed to send email to ${to}: ${(err as Error).message}`,
       );

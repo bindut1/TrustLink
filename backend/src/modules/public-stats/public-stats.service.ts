@@ -12,7 +12,6 @@ import {
   UserRole,
 } from '../../database/enums';
 
-/** Public, non-sensitive platform aggregates shown on the landing page. */
 export interface PublicStats {
   credentialsOnChain: number;
   partners: number;
@@ -36,24 +35,28 @@ export class PublicStatsService {
   ) {}
 
   async getStats(): Promise<PublicStats> {
-    const [credentialsOnChain, approvedInstitutions, recruiters, verifiedSkills, applications] =
-      await Promise.all([
-        this.credentialRepo
-          .createQueryBuilder('c')
-          .where('c.blockchainTxHash IS NOT NULL')
-          .andWhere('c.status != :revoked', { revoked: CredentialStatus.REVOKED })
-          .getCount(),
-        this.institutionRepo.count({
-          where: { approvalStatus: ApprovalStatus.APPROVED },
-        }),
-        this.userRepo.count({ where: { role: UserRole.RECRUITER } }),
-        this.skillRepo.count({ where: { isVerified: true } }),
-        this.applicationRepo.count(),
-      ]);
+    const [
+      credentialsOnChain,
+      approvedInstitutions,
+      recruiters,
+      verifiedSkills,
+      applications,
+    ] = await Promise.all([
+      this.credentialRepo
+        .createQueryBuilder('c')
+        .where('c.blockchainTxHash IS NOT NULL')
+        .andWhere('c.status != :revoked', { revoked: CredentialStatus.REVOKED })
+        .getCount(),
+      this.institutionRepo.count({
+        where: { approvalStatus: ApprovalStatus.APPROVED },
+      }),
+      this.userRepo.count({ where: { role: UserRole.RECRUITER } }),
+      this.skillRepo.count({ where: { isVerified: true } }),
+      this.applicationRepo.count(),
+    ]);
 
     return {
       credentialsOnChain,
-      // "Partner institutions and employers" = approved issuers + companies.
       partners: approvedInstitutions + recruiters,
       verifiedSkills,
       applications,

@@ -5,8 +5,6 @@ import { gzipSync } from 'zlib';
 import { DataSource, Repository } from 'typeorm';
 import { StatusListEntry } from '../../database/entities/status-list-entry.entity';
 
-// StatusList2021 minimum length (16 KB) — herd privacy: a revoked index hides
-// among many. 131072 bits.
 const STATUS_LIST_BITS = 131072;
 const DEFAULT_LIST_ID = 1;
 
@@ -34,7 +32,6 @@ export class StatusListService {
     );
   }
 
-  /** Assign (or return existing) a status-list slot for a credential. */
   async assignEntry(
     credentialId: string,
     statusListId = DEFAULT_LIST_ID,
@@ -42,9 +39,6 @@ export class StatusListService {
     const existing = await this.repo.findOne({ where: { credentialId } });
     if (existing) return existing;
 
-    // Next index = MAX + 1. Postgres forbids FOR UPDATE with aggregates, so we
-    // don't lock; instead we retry on the unique-slot constraint to absorb the
-    // rare concurrent collision.
     for (let attempt = 0; attempt < 5; attempt++) {
       const row = await this.repo
         .createQueryBuilder('e')
@@ -63,7 +57,7 @@ export class StatusListService {
         );
       } catch (err) {
         if ((err as { code?: string }).code === '23505' && attempt < 4) {
-          continue; // slot taken concurrently — recompute and retry
+          continue;
         }
         throw err;
       }
@@ -80,7 +74,6 @@ export class StatusListService {
     return entry?.revoked ?? false;
   }
 
-  /** Build the W3C `credentialStatus` object to embed in a VC. */
   buildCredentialStatus(entry: StatusListEntry): CredentialStatus {
     const listUrl = `${this.baseUrl()}/status-list/${entry.statusListId}`;
     return {
@@ -92,7 +85,6 @@ export class StatusListService {
     };
   }
 
-  /** Build the public StatusList2021Credential (gzip+base64url bitstring). */
   async buildStatusListCredential(
     statusListId = DEFAULT_LIST_ID,
   ): Promise<Record<string, unknown>> {
@@ -106,7 +98,7 @@ export class StatusListService {
         continue;
       }
       const byte = e.statusListIndex >> 3;
-      bytes[byte] |= 0x80 >> (e.statusListIndex & 7); // MSB-first per spec
+      bytes[byte] |= 0x80 >> (e.statusListIndex & 7);
     }
     const encodedList = gzipSync(Buffer.from(bytes)).toString('base64url');
 

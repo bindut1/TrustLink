@@ -19,8 +19,6 @@ export class CredentialTypesService {
     });
   }
 
-  // Admin management view: every type regardless of status, inactive ones
-  // surfaced so they can be re-activated. Active first, then by category/name.
   async findAll(): Promise<CredentialType[]> {
     return this.repo.find({
       order: { isActive: 'DESC', category: 'ASC', name: 'ASC' },

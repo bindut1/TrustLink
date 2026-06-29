@@ -16,15 +16,12 @@ export interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationsService {
-  // One Set of subjects per user — handles multiple tabs simultaneously.
   private readonly connections = new Map<string, Set<Subject<MessageEvent>>>();
 
   constructor(
     @InjectRepository(Notification)
     private readonly repo: Repository<Notification>,
   ) {}
-
-  // ───────────── SSE ─────────────
 
   subscribe(userId: string): {
     observable: Observable<MessageEvent>;
@@ -36,8 +33,6 @@ export class NotificationsService {
     }
     this.connections.get(userId)!.add(subject);
 
-    // Heartbeat every 25s — keeps the connection alive through proxies/load
-    // balancers that close idle connections after 30s.
     const heartbeat = setInterval(() => {
       subject.next({ data: ':heartbeat' } as MessageEvent);
     }, 25_000);
@@ -62,8 +57,6 @@ export class NotificationsService {
     const event: MessageEvent = { data: notification };
     subjects.forEach((s) => s.next(event));
   }
-
-  // ───────────── Core ─────────────
 
   async create(input: CreateNotificationInput): Promise<Notification> {
     const notification = this.repo.create({
@@ -98,10 +91,6 @@ export class NotificationsService {
     saved.forEach((n) => this.push(n.userId, n));
   }
 
-  /**
-   * Whether a notification already exists for a given (user, type, reference).
-   * Used to avoid sending the same invitation/offer to a candidate twice.
-   */
   async existsForReference(
     userId: string,
     type: NotificationType,

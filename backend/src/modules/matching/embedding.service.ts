@@ -12,9 +12,6 @@ import { AiClientService } from './ai-client.service';
 
 export const EMBEDDING_MODEL_VERSION = 'intfloat/multilingual-e5-small';
 
-// e5 models expect an instruction prefix. We reuse the same stored vector for
-// both retrieval directions (job→candidates and candidate→jobs), so we treat
-// matching as a symmetric task and prefix BOTH sides with "query: ".
 const E5_PREFIX = 'query: ';
 
 @Injectable()

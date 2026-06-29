@@ -23,12 +23,6 @@ export class BlockchainReconciliationService {
     private readonly embeddings: EmbeddingService,
   ) {}
 
-  /**
-   * Every minute, look for credentials stuck in `pending` for more than 10
-   * minutes and check whether their tx actually landed on-chain. Covers cases
-   * where the worker crashed between submission and confirmation, or where the
-   * receipt arrived after our wait timed out.
-   */
   @Cron(CronExpression.EVERY_MINUTE)
   async reconcile(): Promise<void> {
     if (!this.blockchain.isReady()) return;
@@ -57,17 +51,13 @@ export class BlockchainReconciliationService {
   }
 
   private async reconcileOne(credential: Credential): Promise<void> {
-    // Every credential is anchored as a Merkle batch; reconcile against the
-    // batch root + per-leaf revocation set (Option B).
     if (!credential.merkleRoot || !credential.credentialHash) return;
 
     const onChain = await this.blockchain.verifyBatchOnChain(
       credential.merkleRoot,
     );
-    if (!onChain.exists) return; // batch not anchored yet — nothing to converge
+    if (!onChain.exists) return;
 
-    // The signed VC is assembled during anchorBatch. Without it the credential
-    // isn't really issued, so don't flip PENDING -> ISSUED prematurely.
     if (!credential.vcJson) return;
 
     const leafRevoked = await this.blockchain.isLeafRevokedOnChain(

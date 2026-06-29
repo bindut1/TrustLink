@@ -34,11 +34,6 @@ export class InvitationsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  /**
-   * Recruiter invites a recommended candidate to apply to one of their jobs.
-   * Persists the invitation (with the recruiter's message) and pushes an in-app
-   * notification so the candidate sees it in their "Lời mời" inbox.
-   */
   async invite(
     jobId: string,
     candidateId: string,
@@ -66,8 +61,6 @@ export class InvitationsService {
     if (!candidate || candidate.role !== UserRole.CANDIDATE) {
       throw new NotFoundException('Candidate not found');
     }
-    // Hidden candidates are absent from recommendations, but the endpoint
-    // takes a raw id — enforce the same visibility rule here.
     if (candidate.candidateProfile?.isOpenToWork === false) {
       throw new ForbiddenException('Candidate has hidden their profile');
     }
@@ -112,11 +105,6 @@ export class InvitationsService {
     return saved;
   }
 
-  /**
-   * The candidate's invitation inbox. Each item carries the full job, the
-   * recruiter's display name, and whether the candidate has already applied
-   * (derived from the applications table, not stored on the invitation).
-   */
   async findMyInvitations(candidateId: string): Promise<
     Array<{
       id: string;
@@ -160,10 +148,6 @@ export class InvitationsService {
     }));
   }
 
-  /**
-   * Invitations a recruiter has sent for one of their jobs (the recruiter-side
-   * "Lời mời" tab). Includes candidate info, status, and whether they applied.
-   */
   async findForJob(
     jobId: string,
     recruiterId: string,
@@ -223,7 +207,6 @@ export class InvitationsService {
     }));
   }
 
-  /** Candidate declines an invitation; notifies the recruiter who sent it. */
   async decline(
     id: string,
     candidateId: string,

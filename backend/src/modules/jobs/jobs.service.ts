@@ -17,7 +17,6 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { ListJobsQueryDto } from './dto/list-jobs.query.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 
-// Allowed status transitions for recruiter updates.
 const ALLOWED_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   [JobStatus.DRAFT]: [JobStatus.OPEN],
   [JobStatus.OPEN]: [JobStatus.CLOSED],
@@ -45,7 +44,6 @@ export class JobsService {
     private readonly skills: SkillsService,
   ) {}
 
-  /** Resolve skills to canonical catalog tokens; reject anything not in the catalog. */
   private async resolveSkillsOrThrow(
     skills: string[] | undefined,
     label: string,
@@ -110,9 +108,8 @@ export class JobsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    // When filtering by a specific recruiter, show all their statuses unless
-    // explicitly requested. Public listing defaults to OPEN only.
-    const status = query.status ?? (query.recruiterId ? undefined : JobStatus.OPEN);
+    const status =
+      query.status ?? (query.recruiterId ? undefined : JobStatus.OPEN);
 
     const qb = this.repo.createQueryBuilder('job');
 
@@ -138,7 +135,6 @@ export class JobsService {
       qb.andWhere('job.is_remote = :isRemote', { isRemote: query.isRemote });
     }
     if (query.salaryMin != null) {
-      // Job's max salary must meet or exceed the candidate's floor.
       qb.andWhere(
         '(job.salary_max IS NULL OR job.salary_max >= :salaryMinFloor)',
         { salaryMinFloor: query.salaryMin },
@@ -202,7 +198,6 @@ export class JobsService {
     void _status;
     Object.assign(job, fields);
 
-    // Re-resolve skills against the catalog whenever they're part of the patch.
     if (dto.requiredSkills !== undefined) {
       job.requiredSkills = await this.resolveSkillsOrThrow(
         dto.requiredSkills,
@@ -261,9 +256,6 @@ export class JobsService {
     try {
       await this.embeddings.updateJobEmbedding(jobId);
     } catch (err) {
-      // Best-effort: a temporary AI service outage must not block the
-      // recruiter's create/update — the job exists; matching just won't
-      // surface it until the embedding is rebuilt.
       this.logger.warn(
         `Failed to refresh embedding for job ${jobId}: ${(err as Error).message}`,
       );

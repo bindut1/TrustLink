@@ -6,22 +6,6 @@ import { JobStatus } from '../../database/enums';
 import { User } from '../../database/entities/user.entity';
 import { MatchingWeightsService } from './matching-weights.service';
 
-/**
- * ABSOLUTE fallback for the semantic tier. The e5 model packs cosine
- * similarities into a narrow high band (empirically ~[0.85, 0.96] on this
- * corpus): every pair scores ~0.85+, so a raw (1 - distance) * 100 sits in
- * [85, 96] and barely separates candidates. Stretching that band onto 0–100
- * gives the tier some dynamic range.
- *
- * NOTE: the PRIMARY path is per-pool normalization (see
- * computeNormalizedSemanticScores) — that is what the ranking endpoints and the
- * eval export use. This fixed-band rescale is only reached for single-pair
- * scoring (no pool to normalize against, e.g. recommendLearningPath /
- * application scoring) and for degenerate pools with no spread.
- *
- * Bounds are corpus-derived (≈ the observed min/max of similarities). Revisit
- * them if the embedding model or the candidate/job text mix changes materially.
- */
 const SEMANTIC_COSINE_FLOOR = 0.85;
 const SEMANTIC_COSINE_CEIL = 0.96;
 
@@ -32,17 +16,10 @@ function rescaleSemantic(cosine: number): number {
   return Math.max(0, Math.min(1, stretched)) * 100;
 }
 
-/**
- * Why a candidate matches a job, expressed through the trust signal: which
- * required skills are proven on-chain vs only self-declared vs missing. This is
- * the core of the "trust-aware matching" thesis — the verification status IS the
- * explanation a recruiter sees.
- */
 export interface MatchExplanation {
-  matchedVerified: string[]; // required skills the candidate has AND verified on-chain
-  matchedClaimedOnly: string[]; // required skills the candidate claims but hasn't verified
-  missing: string[]; // required skills the candidate lacks
-  // each tier's weighted contribution to totalScore (weight × tier score)
+  matchedVerified: string[];
+  matchedClaimedOnly: string[];
+  missing: string[];
   contributions: { keyword: number; semantic: number; verified: number };
 }
 
@@ -90,8 +67,6 @@ export interface RankedJob extends ScoreBreakdown {
 
 export interface LearningRecommendation {
   skill: string;
-  // 'missing' = candidate doesn't have it; 'unverified' = claims it but no
-  // on-chain credential backs it → recommend verifying via a credential.
   status: 'missing' | 'unverified';
   recommendedCredential: { id: string; name: string } | null;
   similarity: number;
@@ -108,17 +83,9 @@ export class MatchingService {
     private readonly weights: MatchingWeightsService,
   ) {}
 
-  /**
-   * Compute the full 3-tier score for one (candidate, job) pair. Returns zeros
-   * for any tier whose source data is missing (e.g. embedding not yet built).
-   */
   async calculateScore(
     candidateId: string,
     jobId: string,
-    // When ranking a pool (recommend / eval export) the semantic score is
-    // normalized PER QUERY across that pool — see computeNormalizedSemanticScores
-    // — and passed in here. Single-pair callers omit it and fall back to the
-    // absolute fixed-band rescale, which is fine since they don't rank by it.
     precomputedSemanticScore?: number,
   ): Promise<ScoreBreakdown> {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
@@ -155,12 +122,6 @@ export class MatchingService {
     };
   }
 
-  /**
-   * Score a fixed candidate list against one job, with the semantic tier
-   * normalized PER JOB across that list. Shared by recommendCandidatesForJob
-   * (prefiltered pool) and the eval export (all candidates) so ranking and
-   * training see exactly the same semantic definition.
-   */
   async scoreCandidatesForJob(
     jobId: string,
     candidateIds: string[],
@@ -177,14 +138,6 @@ export class MatchingService {
     );
   }
 
-  /**
-   * Tier-2 semantic prefilter: the most-similar candidates a job's
-   * recommendation reranks (caps the rerank cost and acts as the recall gate).
-   * `is_open_to_work` is enforced here at the query level so hidden candidates
-   * never reach scoring. Exposed (not inlined) so the eval export scores EXACTLY
-   * the pool production would consider — keeping the per-job semantic
-   * normalization identical between training and serving.
-   */
   async prefilterCandidatesForJob(
     jobId: string,
     limit = 20,
@@ -205,8 +158,6 @@ export class MatchingService {
     return rows.map((r) => r.candidate_id);
   }
 
-  /** Symmetric counterpart: score a job list for one candidate, semantic tier
-   * normalized per candidate across that list. */
   async scoreJobsForCandidate(
     candidateId: string,
     jobIds: string[],
@@ -217,25 +168,12 @@ export class MatchingService {
       jobIds,
     );
     return Promise.all(
-      jobIds.map((jid) => this.calculateScore(candidateId, jid, semMap.get(jid))),
+      jobIds.map((jid) =>
+        this.calculateScore(candidateId, jid, semMap.get(jid)),
+      ),
     );
   }
 
-  /**
-   * Per-query semantic normalization. e5's cosine similarities sit in a narrow
-   * high band (anisotropy of a retrieval-tuned model), so absolute (1-distance)
-   * scores barely separate candidates and the semantic tier loses its weight in
-   * the linear re-rank. Min-max normalizing the cosines WITHIN the pool being
-   * ranked, relative to one fixed anchor, stretches them onto 0–100 so the tier
-   * carries real ranking signal. The score is therefore RELATIVE to the pool:
-   * 100 = best match among those ranked, 0 = weakest. This matches the eval
-   * export (which normalizes per job over all candidates), so the learned weight
-   * transfers. A degenerate pool (all near-identical) falls back to the absolute
-   * fixed-band rescale instead of dividing by ~0.
-   *
-   *   anchor='job'       -> rank candidates (poolIds) for one job (anchorId)
-   *   anchor='candidate' -> rank jobs (poolIds) for one candidate (anchorId)
-   */
   private async computeNormalizedSemanticScores(
     anchor: 'job' | 'candidate',
     anchorId: string,
@@ -280,15 +218,6 @@ export class MatchingService {
     return result;
   }
 
-  /**
-   * Career / learning-path: for a candidate against a target job, turn the match
-   * gaps into actionable credential suggestions. Closes the trust loop — telling
-   * candidates which credentials to *verify* drives adoption of the on-chain half.
-   *
-   * Gaps = required skills that are missing, plus required skills the candidate
-   * claims but hasn't verified. Each gap is matched to the most semantically
-   * similar credential type via embeddings (self-hosted, no LLM).
-   */
   async recommendLearningPath(
     candidateId: string,
     jobId: string,
@@ -306,10 +235,6 @@ export class MatchingService {
     ];
     if (gaps.length === 0) return { jobId, recommendations: [] };
 
-    // Primary signal: which credential type has actually CERTIFIED this skill
-    // before (its issued credentials' extractedSkills cover it). Grounded in real
-    // data — far more sensible than blindly embedding a skill name against a
-    // generic certificate title.
     const coverage = await this.dataSource.query<
       { type_id: string; name: string; skill: string; n: string }[]
     >(
@@ -323,7 +248,6 @@ export class MatchingService {
        WHERE c.status = 'issued'
        GROUP BY ct.id, name, lower(trim(skill))`,
     );
-    // skill -> best (most-certifying) credential type
     const bySkill = new Map<string, { id: string; name: string; n: number }>();
     for (const row of coverage) {
       const cur = bySkill.get(row.skill);
@@ -338,17 +262,13 @@ export class MatchingService {
       return {
         ...g,
         recommendedCredential: hit ? { id: hit.id, name: hit.name } : null,
-        similarity: hit ? 100 : 0, // exact skill coverage from issued credentials
+        similarity: hit ? 100 : 0,
       };
     });
 
     return { jobId, recommendations };
   }
 
-  /**
-   * For a job: pick top-N candidates by pgvector cosine similarity, then
-   * compute the full 3-tier score for each and rank by total.
-   */
   async recommendCandidatesForJob(
     jobId: string,
     limit = 20,
@@ -403,10 +323,6 @@ export class MatchingService {
       .slice(0, limit);
   }
 
-  /**
-   * For a candidate: pick top-N open jobs by pgvector cosine similarity, then
-   * full-rerank with all 3 tiers.
-   */
   async recommendJobsForCandidate(
     candidateId: string,
     limit = 20,
@@ -450,16 +366,6 @@ export class MatchingService {
       .slice(0, limit);
   }
 
-  /**
-   * Tiers 1 & 3 in one pass, both anchored to the JOB's required skills:
-   *   keywordScore  = matched required skills / total required * 100
-   *   verifiedBonus = required skills the candidate has AND verified on-chain
-   *                   / total required * 100
-   * Also returns the explanation (verified / claimed-only / missing buckets).
-   *
-   * verifiedBonus is JD-relative on purpose: an unrelated verified credential
-   * must NOT earn trust points for a job that doesn't require that skill.
-   */
   private async computeSkillTiers(
     candidateId: string,
     requiredSkills: string[],
@@ -475,7 +381,6 @@ export class MatchingService {
       contributions: { keyword: 0, semantic: 0, verified: 0 },
     };
 
-    // map normalized -> original display name (preserve job's casing for UI)
     const normToDisplay = new Map<string, string>();
     for (const s of requiredSkills) {
       const norm = s.trim().toLowerCase();
@@ -486,11 +391,6 @@ export class MatchingService {
       return { keywordScore: 0, verifiedBonus: 0, explanation: empty };
     }
 
-    // candidate's skills that intersect the required set, with verified flag.
-    // NOTE: this is an EXACT normalized (lower+trim) match — skill_catalog
-    // aliases are NOT expanded here, so e.g. "ReactJS" vs "React" only meet at
-    // the semantic tier, not the keyword tier. Alias-aware keyword matching is
-    // future work; the report should not claim the keyword tier is alias-normalized.
     const rows = await this.dataSource.query<
       { name: string; is_verified: boolean }[]
     >(
@@ -528,10 +428,6 @@ export class MatchingService {
     };
   }
 
-  /**
-   * Tier 2: pgvector cosine similarity. The `<=>` operator returns cosine
-   * distance in [0, 2]; we map it to similarity in [0, 100].
-   */
   private async computeSemanticScore(
     candidateId: string,
     jobId: string,
@@ -545,10 +441,6 @@ export class MatchingService {
     if (rows.length === 0) return 0;
     const sim = parseFloat(rows[0].similarity);
     if (!Number.isFinite(sim)) return 0;
-    // Stretch the narrow e5 cosine band onto 0–100 so the tier carries real
-    // dynamic range (see SEMANTIC_COSINE_FLOOR/CEIL above). Note: this is a
-    // monotonic transform, so it does NOT change the pgvector prefilter ordering
-    // (retrieval); it only restores the tier's weight in the linear re-rank.
     return rescaleSemantic(sim);
   }
 }

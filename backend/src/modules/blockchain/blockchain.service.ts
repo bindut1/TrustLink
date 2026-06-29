@@ -26,15 +26,8 @@ export interface OnChainVerification {
   isRevoked: boolean;
 }
 
-/** Current canonical hashing scheme. Stored on `credential.hash_version`. */
 export const HASH_VERSION_CANONICAL = 'v2-jcs';
 
-/**
- * Deterministic, key-sorted JSON serialization (JCS / RFC 8785 style). Unlike
- * JSON.stringify, object key order is normalized recursively so the same
- * logical content always produces the same string — and therefore the same
- * keccak256 hash — regardless of how Postgres returns jsonb keys.
- */
 export function canonicalJsonStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) {
@@ -59,8 +52,6 @@ export class BlockchainService implements OnModuleInit {
   private wallet!: ethers.Wallet;
   private contract!: ethers.Contract;
 
-  // Serialize signed tx submissions so nonce stays consistent across queue
-  // workers and inline admin calls inside this process.
   private submitChain: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -105,14 +96,6 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Public API consumed by other modules
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Compute deterministic bytes32 hash for a credential. The same fields must
-   * produce the same hash on issuance and verification.
-   */
   computeCredentialHash(credential: Credential): string {
     const payload = {
       credentialNumber: credential.credentialNumber,
@@ -125,9 +108,6 @@ export class BlockchainService implements OnModuleInit {
         : null,
       metadata: credential.metadata ?? {},
     };
-    // Version-aware so legacy credentials (hashVersion null) keep verifying with
-    // the original non-canonical serialization, while new credentials use the
-    // canonical scheme that is stable against jsonb key reordering.
     const serialized =
       credential.hashVersion === HASH_VERSION_CANONICAL
         ? canonicalJsonStringify(payload)
@@ -135,14 +115,6 @@ export class BlockchainService implements OnModuleInit {
     return ethers.keccak256(ethers.toUtf8Bytes(serialized));
   }
 
-  /**
-   * Record an issuer-signed per-leaf revocation (Option B). The issuer broadcast
-   * `revokeLeaf(leafHash)` from their OWN wallet (non-custodial, like issueBatch),
-   * so this never signs anything — it confirms the revocation actually landed
-   * on-chain, persists an audit row, and flips the dependent skill flags. Throws
-   * if the leaf is not revoked on-chain so the caller never marks a credential
-   * revoked in the DB before the chain agrees.
-   */
   async recordLeafRevocation(args: {
     credentialId: string;
     institutionId: string | null;
@@ -176,8 +148,6 @@ export class BlockchainService implements OnModuleInit {
       }),
     );
 
-    // On-chain revoke landed → the skills this credential backed are no longer
-    // verified, and the candidate's embedding must be refreshed for matching.
     const credential = await this.credRepo.findOne({
       where: { id: args.credentialId },
     });
@@ -187,22 +157,11 @@ export class BlockchainService implements OnModuleInit {
     return tx;
   }
 
-  /**
-   * Read-only check: has this whole Merkle batch been revoked on-chain
-   * (`revokeBatch`)? No gas, no signing.
-   */
   async isBatchRevokedOnChain(merkleRoot: string): Promise<boolean> {
     const onChain = await this.verifyBatchOnChain(merkleRoot);
     return onChain.exists && onChain.isRevoked;
   }
 
-  /**
-   * Record an issuer-signed WHOLE-BATCH revocation (`revokeBatch`, Option B's
-   * coarse counterpart). The issuer broadcast it from their own wallet; here we
-   * confirm the batch is revoked on-chain, persist one audit row, and unverify
-   * the skills of every credential in the batch. The per-credential DB status +
-   * StatusList bits are flipped by the caller.
-   */
   async recordBatchRevocation(args: {
     institutionId: string | null;
     initiatedBy: string;
@@ -238,7 +197,6 @@ export class BlockchainService implements OnModuleInit {
       }),
     );
 
-    // Unverify every credential's skills + refresh each affected candidate once.
     for (const id of args.credentialIds) {
       await this.setSkillsVerified(id, false);
     }
@@ -257,15 +215,6 @@ export class BlockchainService implements OnModuleInit {
     return tx;
   }
 
-  /**
-   * Record an issuer-signed batch issuance (`issueBatch`) for the admin monitor.
-   * Like the revoke flows, the issuer broadcast the tx from their OWN wallet
-   * (non-custodial) and the caller (`anchorBatch`/`anchorBatchBulk`) has already
-   * verified the on-chain anchor + signature. This NEVER signs anything — it only
-   * persists an audit row mirroring public on-chain data so issuance shows up in
-   * the blockchain monitor alongside revocations. Deduped by txHash so retries of
-   * anchoring the same root don't create duplicate rows.
-   */
   async recordBatchIssuance(args: {
     institutionId: string | null;
     initiatedBy: string;
@@ -297,7 +246,6 @@ export class BlockchainService implements OnModuleInit {
     );
   }
 
-  /** Best-effort receipt enrichment for an audit row / admin blockchain view. */
   private async fetchTxMeta(txHash: string): Promise<{
     blockNumber: string | null;
     gasUsed: string | null;
@@ -323,14 +271,15 @@ export class BlockchainService implements OnModuleInit {
         `Could not fetch receipt for tx ${txHash}: ${(err as Error).message}`,
       );
     }
-    return { blockNumber, gasUsed, gasPrice, submittedAt: new Date(), confirmedAt };
+    return {
+      blockNumber,
+      gasUsed,
+      gasPrice,
+      submittedAt: new Date(),
+      confirmedAt,
+    };
   }
 
-  /**
-   * Admin-only direct call: register an institution's wallet as an authorized
-   * issuer on the contract. Synchronous because admin needs immediate feedback,
-   * and addIssuer is a rare, owner-only operation.
-   */
   async addIssuerOnChain(args: {
     institutionId: string;
     address: string;
@@ -395,11 +344,6 @@ export class BlockchainService implements OnModuleInit {
     });
   }
 
-  /**
-   * Read-only check: is this address registered as an authorized issuer on
-   * the contract? Returns false on any error so callers can fold this into a
-   * verification result without throwing.
-   */
   async isIssuerAuthorized(address: string): Promise<boolean> {
     if (!this.contract) {
       throw new InternalServerErrorException('Blockchain not configured');
@@ -415,11 +359,6 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-  /**
-   * Read-only check: has this credential's Merkle leaf been individually revoked
-   * on-chain (Option B)? No gas, no signing. Returns false on any error so the
-   * verifier can fold it into the result without throwing.
-   */
   async isLeafRevokedOnChain(leafHash: string): Promise<boolean> {
     if (!this.contract) {
       throw new InternalServerErrorException('Blockchain not configured');
@@ -434,10 +373,6 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
-  /**
-   * Read-only verification of a Merkle batch root (Blockcerts-style anchoring).
-   * The recorded `issuer` is the institution wallet that broadcast `issueBatch`.
-   */
   async verifyBatchOnChain(merkleRoot: string): Promise<OnChainVerification> {
     if (!this.contract) {
       throw new InternalServerErrorException('Blockchain not configured');
@@ -451,16 +386,6 @@ export class BlockchainService implements OnModuleInit {
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Internal helpers
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Flip the `is_verified` flag on every candidate_skill that traces back to
-   * this credential. Issue → true (skill is now backed by an on-chain proof);
-   * revoke → false. Skills sourced from other still-valid credentials are
-   * untouched because the WHERE filter is by `source_credential_id`.
-   */
   private async setSkillsVerified(
     credentialId: string,
     verified: boolean,
@@ -478,18 +403,11 @@ export class BlockchainService implements OnModuleInit {
     try {
       await this.embeddings.updateCandidateEmbedding(candidateId);
     } catch (err) {
-      // Embedding refresh is best-effort: a failure here must not roll back
-      // the on-chain confirmation we already wrote. Log and move on; the
-      // reconciliation job (or a manual reindex) can retry later.
       this.logger.warn(
         `Failed to refresh embedding for candidate ${candidateId}: ${(err as Error).message}`,
       );
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   private buildRpcUrl(): string {
     const explicit = this.config.get<string>('POLYGON_AMOY_RPC_URL');
@@ -500,7 +418,6 @@ export class BlockchainService implements OnModuleInit {
     return explicit ?? 'https://rpc-amoy.polygon.technology';
   }
 
-  /** Run an action serially with all other on-chain submissions in this process. */
   private async runSerialized<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.submitChain.then(fn, fn);
     this.submitChain = next.catch(() => undefined);

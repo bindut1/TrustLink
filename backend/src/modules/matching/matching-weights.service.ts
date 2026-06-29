@@ -8,21 +8,12 @@ export interface TierWeights {
   verified: number;
 }
 
-// Hand-picked baseline, used until a trained weights file is present.
 const DEFAULT_WEIGHTS: TierWeights = {
   keyword: 0.4,
   semantic: 0.5,
   verified: 0.1,
 };
 
-/**
- * Source of the 3-tier matching weights. Reads weights learned offline by
- * ai-service/evaluation/train_weights.py (Logistic Regression) from a JSON file,
- * falling back to the hand-picked baseline when the file is absent or invalid.
- *
- * This replaces the previous hard-coded 40/50/10 constants so the tier weights
- * are data-driven and reproducible, not magic numbers.
- */
 @Injectable()
 export class MatchingWeightsService {
   private readonly logger = new Logger(MatchingWeightsService.name);
@@ -37,7 +28,6 @@ export class MatchingWeightsService {
     return this.weights;
   }
 
-  /** Where the weights came from ('default' | 'learned'), for logging/debug. */
   getSource(): string {
     return this.source;
   }
@@ -57,7 +47,9 @@ export class MatchingWeightsService {
     }
 
     try {
-      const raw = JSON.parse(readFileSync(path, 'utf-8')) as Partial<TierWeights>;
+      const raw = JSON.parse(
+        readFileSync(path, 'utf-8'),
+      ) as Partial<TierWeights>;
       const parsed = {
         keyword: Number(raw.keyword),
         semantic: Number(raw.semantic),
@@ -69,7 +61,6 @@ export class MatchingWeightsService {
       }
       const sum = values.reduce((a, b) => a + b, 0);
       if (sum <= 0) throw new Error('weights sum to zero');
-      // normalize to sum=1 so the total score stays on a 0–100 scale
       this.weights = {
         keyword: parsed.keyword / sum,
         semantic: parsed.semantic / sum,
@@ -81,9 +72,7 @@ export class MatchingWeightsService {
       );
     } catch (err) {
       this.logger.warn(
-        `Failed to load weights from ${path} (${String(
-          err,
-        )}) — using baseline`,
+        `Failed to load weights from ${path} (${String(err)}) — using baseline`,
       );
     }
   }

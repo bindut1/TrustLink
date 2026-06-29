@@ -84,10 +84,6 @@ export class ApplicationsService {
       throw new BadRequestException('Job is not open for applications');
     }
 
-    // Snapshot the match score at apply time. Failures (e.g. AI service
-    // unreachable, embeddings not yet built) leave the score columns null —
-    // the application still goes through, and recruiters see it sorted
-    // NULLS LAST in `findForJob`.
     let scoreSnapshot: {
       matchScore: string;
       keywordScore: string;
@@ -174,7 +170,6 @@ export class ApplicationsService {
       throw new ForbiddenException('Not the owner of this job');
     }
 
-    // Sort by match_score DESC; NULLS LAST so unscored applications sink.
     const applications = await this.repo
       .createQueryBuilder('application')
       .leftJoinAndSelect('application.candidate', 'candidate')
@@ -184,10 +179,6 @@ export class ApplicationsService {
       .addOrderBy('application.created_at', 'DESC')
       .getMany();
 
-    // Candidates who turned off "open to work" stay hidden even on submitted
-    // applications (absolute by product decision): the application row remains
-    // (name + the submitted cover letter), but contact info and the profile
-    // are stripped; `profileHidden` lets the UI explain why.
     return applications.map((a) => {
       if (a.candidate?.candidateProfile?.isOpenToWork !== false) return a;
       return {

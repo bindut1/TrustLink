@@ -11,11 +11,10 @@ import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 
 export interface ResolvedSkills {
-  tokens: string[]; // canonical tokens, deduped, input order preserved
-  unknown: string[]; // inputs not found in the catalog
+  tokens: string[];
+  unknown: string[];
 }
 
-/** Manages the canonical skill catalog and resolves input strings to its tokens. */
 @Injectable()
 export class SkillsService {
   constructor(
@@ -23,7 +22,6 @@ export class SkillsService {
     private readonly repo: Repository<SkillCatalog>,
   ) {}
 
-  /** Active catalog entries, ordered for display. */
   async findAll(): Promise<SkillCatalog[]> {
     return this.repo.find({
       where: { isActive: true },
@@ -31,7 +29,6 @@ export class SkillsService {
     });
   }
 
-  /** All entries incl. inactive — admin management view. */
   async findAllAdmin(): Promise<SkillCatalog[]> {
     return this.repo.find({ order: { category: 'ASC', name: 'ASC' } });
   }
@@ -46,7 +43,6 @@ export class SkillsService {
     return [...out];
   }
 
-  /** Create a catalog entry (admin). normalized defaults to the lowercased name. */
   async create(dto: CreateSkillDto): Promise<SkillCatalog> {
     const normalized = (dto.normalized ?? dto.name).trim().toLowerCase();
     if (!normalized) throw new BadRequestException('normalized is required');
@@ -64,25 +60,24 @@ export class SkillsService {
     return this.repo.save(entity);
   }
 
-  /** Update name/category/aliases/active (normalized is immutable). */
   async update(id: string, dto: UpdateSkillDto): Promise<SkillCatalog> {
     const entity = await this.repo.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Skill not found');
     if (dto.name !== undefined) entity.name = dto.name.trim();
-    if (dto.category !== undefined) entity.category = dto.category.trim() || null;
-    if (dto.aliases !== undefined) entity.aliases = this.cleanAliases(dto.aliases);
+    if (dto.category !== undefined)
+      entity.category = dto.category.trim() || null;
+    if (dto.aliases !== undefined)
+      entity.aliases = this.cleanAliases(dto.aliases);
     if (dto.isActive !== undefined) entity.isActive = dto.isActive;
     return this.repo.save(entity);
   }
 
-  /** Hard-delete a catalog entry (admin). */
   async remove(id: string): Promise<{ deleted: boolean }> {
     const res = await this.repo.delete({ id });
     if (!res.affected) throw new NotFoundException('Skill not found');
     return { deleted: true };
   }
 
-  /** normalized token + every alias → canonical token. */
   private async buildIndex(): Promise<Map<string, string>> {
     const all = await this.repo.find({ where: { isActive: true } });
     const index = new Map<string, string>();
@@ -96,7 +91,6 @@ export class SkillsService {
     return index;
   }
 
-  /** Resolve free-text skills to canonical tokens; unmatched inputs go to `unknown`. */
   async resolve(inputs: string[] | undefined | null): Promise<ResolvedSkills> {
     const list = Array.isArray(inputs) ? inputs : [];
     if (list.length === 0) return { tokens: [], unknown: [] };

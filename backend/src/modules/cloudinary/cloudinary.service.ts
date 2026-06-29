@@ -13,11 +13,6 @@ export class CloudinaryService {
     @Inject(CLOUDINARY) private readonly cloudinary: typeof Cloudinary,
   ) {}
 
-  /**
-   * Uploads an image buffer to Cloudinary. When `publicId` is given the image
-   * is stored at a stable id (overwriting any previous one), so a user keeps a
-   * single avatar object instead of accumulating orphans on each change.
-   */
   uploadImage(
     buffer: Buffer,
     options: { folder: string; publicId?: string },
@@ -52,8 +47,6 @@ export class CloudinaryService {
       await this.cloudinary.uploader.destroy(publicId, {
         resource_type: 'image',
       });
-    } catch {
-      // Best-effort cleanup — a failed delete should not block the user flow.
-    }
+    } catch {}
   }
 }

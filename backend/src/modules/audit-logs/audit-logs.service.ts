@@ -46,7 +46,6 @@ export class AuditLogsService {
         }),
       );
     } catch (err) {
-      // Audit log failures should never block business logic
       this.logger.error(
         `Failed to write audit log [${input.action}]: ${(err as Error).message}`,
       );
