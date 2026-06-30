@@ -6,7 +6,6 @@ import { useSetPageMeta } from "@/components/app-shell/page-meta";
 import { JobDetailModal } from "@/components/candidate/JobDetailModal";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { MatchScoreBar } from "@/components/ui/MatchScoreBar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
 import { fetchJob, fetchMyApplications } from "@/lib/candidate-api";
@@ -151,7 +150,6 @@ function ApplicationCard({
 }) {
   const { t } = useLanguage();
   const job = app.job;
-  const hasScore = app.matchScore != null;
 
   return (
     <article
@@ -219,18 +217,6 @@ function ApplicationCard({
             </p>
           )}
         </div>
-
-        {hasScore && (
-          <div className="shrink-0 sm:w-[200px]">
-            <div className="flex items-baseline gap-1.5 mb-2">
-              <span className="font-mono text-[20px] font-semibold text-fg tabular-nums leading-none">
-                {Math.round(Number(app.matchScore))}
-              </span>
-              <span className="text-[12px] text-fg-faint">/ 100</span>
-            </div>
-            <MatchScoreBar breakdown={{ totalScore: Number(app.matchScore ?? 0) }} />
-          </div>
-        )}
       </div>
     </article>
   );

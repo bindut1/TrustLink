@@ -566,17 +566,6 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                 className="shrink-0 flex flex-col items-stretch gap-3 min-w-[240px]"
                 onClick={(e) => e.stopPropagation()}
               >
-                {app.matchScore != null && (
-                  <div>
-                    <div className="flex items-baseline gap-1.5 mb-1.5">
-                      <span className="font-mono text-[18px] font-semibold text-fg tabular-nums leading-none">
-                        {Math.round(Number(app.matchScore))}
-                      </span>
-                      <span className="text-[11px] text-fg-faint">/ 100</span>
-                    </div>
-                    <MatchScoreBar breakdown={{ totalScore: Number(app.matchScore) }} />
-                  </div>
-                )}
                 <ApplicationStatusSelect
                   applicationId={app.id}
                   status={app.status}

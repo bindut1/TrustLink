@@ -581,6 +581,10 @@ export class CredentialsService {
       .addSelect('MAX(c.revoke_tx_hash)', 'revokeTxHash')
       .where('c.institution_id = :inst', { inst: institution.id })
       .andWhere('c.merkle_root IS NOT NULL')
+      .andWhere(
+        "c.vc_json -> 'proof' -> 'eip712' ->> 'primaryType' = :batchType",
+        { batchType: BATCH_EIP712_PRIMARY_TYPE },
+      )
       .groupBy('c.merkle_root')
       .orderBy('MIN(c.created_at)', 'DESC')
       .getRawMany<{
